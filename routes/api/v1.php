@@ -3,6 +3,23 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\FiscalDocumentController;
+use App\Http\Controllers\Api\V1\InventoryMovementController;
+use App\Http\Controllers\Api\V1\InventoryTransferController;
+use App\Http\Controllers\Api\V1\PermissionController;
+use App\Http\Controllers\Api\V1\PriceTierController;
+use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\ProductPurchaseUnitController;
+use App\Http\Controllers\Api\V1\PurchaseOrderController;
+use App\Http\Controllers\Api\V1\RoleController;
+use App\Http\Controllers\Api\V1\SaleController;
+use App\Http\Controllers\Api\V1\StockController;
+use App\Http\Controllers\Api\V1\StoreController;
+use App\Http\Controllers\Api\V1\SupplierController;
+use App\Http\Controllers\Api\V1\UnitOfMeasureController;
+use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\UserRoleController;
+use App\Http\Controllers\Api\V1\WarehouseController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -32,6 +49,59 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     Route::post('email/resend', [AuthController::class, 'resendVerificationEmail'])
         ->middleware('throttle:6,1')
         ->name('verification.send');
+
+    // Tiendas y almacenes
+    Route::apiResource('stores', StoreController::class)->names('api.v1.stores');
+    Route::apiResource('warehouses', WarehouseController::class)->names('api.v1.warehouses');
+
+    // Usuarios, roles y permisos
+    Route::apiResource('users', UserController::class)->names('api.v1.users');
+    Route::put('users/{user}/roles', [UserRoleController::class, 'update'])
+        ->name('api.v1.users.roles.update');
+    Route::apiResource('roles', RoleController::class)->names('api.v1.roles');
+    Route::apiResource('permissions', PermissionController::class)
+        ->only(['index'])->names('api.v1.permissions');
+
+    // Catálogo
+    Route::apiResource('units-of-measure', UnitOfMeasureController::class)
+        ->parameters(['units-of-measure' => 'unit_of_measure'])
+        ->names('api.v1.units-of-measure');
+    Route::apiResource('products', ProductController::class)->names('api.v1.products');
+    Route::post('products/{product}/image', [ProductController::class, 'uploadImage'])
+        ->name('api.v1.products.image');
+    Route::apiResource('products.purchase-units', ProductPurchaseUnitController::class)
+        ->shallow()->names('api.v1.products.purchase-units');
+    Route::apiResource('products.price-tiers', PriceTierController::class)
+        ->shallow()->names('api.v1.products.price-tiers');
+
+    // Stock (Kardex)
+    Route::get('stocks', [StockController::class, 'index'])->name('api.v1.stocks.index');
+    Route::post('stocks/adjust', [StockController::class, 'adjust'])->name('api.v1.stocks.adjust');
+    Route::get('inventory-movements', [InventoryMovementController::class, 'index'])
+        ->name('api.v1.inventory-movements.index');
+
+    // Proveedores y compras
+    Route::apiResource('suppliers', SupplierController::class)->names('api.v1.suppliers');
+    Route::apiResource('purchase-orders', PurchaseOrderController::class)
+        ->only(['index', 'store', 'show', 'update'])->names('api.v1.purchase-orders');
+    Route::post('purchase-orders/{purchase_order}/confirm', [PurchaseOrderController::class, 'confirm'])
+        ->name('api.v1.purchase-orders.confirm');
+
+    // Transferencias
+    Route::apiResource('inventory-transfers', InventoryTransferController::class)
+        ->only(['index', 'store', 'show'])->names('api.v1.inventory-transfers');
+    Route::post('inventory-transfers/{inventory_transfer}/dispatch', [InventoryTransferController::class, 'dispatch'])
+        ->name('api.v1.inventory-transfers.dispatch');
+    Route::post('inventory-transfers/{inventory_transfer}/receive', [InventoryTransferController::class, 'receive'])
+        ->name('api.v1.inventory-transfers.receive');
+
+    // Ventas / POS
+    Route::apiResource('sales', SaleController::class)
+        ->only(['index', 'store', 'show'])->names('api.v1.sales');
+    Route::get('sales/{sale}/fiscal-documents', [FiscalDocumentController::class, 'index'])
+        ->name('api.v1.sales.fiscal-documents.index');
+    Route::post('sales/{sale}/fiscal-documents', [FiscalDocumentController::class, 'store'])
+        ->name('api.v1.sales.fiscal-documents.store');
 });
 
 // Password reset routes (public with rate limiting)

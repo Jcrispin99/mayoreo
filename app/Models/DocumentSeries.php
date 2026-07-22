@@ -1,0 +1,50 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use Database\Factories\DocumentSeriesFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
+
+/**
+ * @property int $id
+ * @property string $document_type
+ * @property string $series_code
+ * @property int $current_number
+ * @property bool $is_active
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ */
+final class DocumentSeries extends Model
+{
+    /** @use HasFactory<DocumentSeriesFactory> */
+    use HasFactory;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
+    protected $fillable = [
+        'document_type',
+        'series_code',
+        'current_number',
+        'is_active',
+    ];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'current_number' => 'integer',
+            'is_active' => 'boolean',
+        ];
+    }
+}
