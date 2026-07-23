@@ -65,6 +65,12 @@ final class Warehouse extends Model
         return $this->hasMany(InventoryMovement::class);
     }
 
+    /** @return HasMany<CashRegister, $this> */
+    public function cashRegisters(): HasMany
+    {
+        return $this->hasMany(CashRegister::class);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

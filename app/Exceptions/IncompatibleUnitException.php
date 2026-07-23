@@ -15,4 +15,9 @@ final class IncompatibleUnitException extends DomainException
     {
         return new self("Unit [{$unitId}] does not match the base unit of product [{$productId}].");
     }
+
+    public static function unitCodeDoesNotMatchProductBaseUnit(string $unitCode, int $productId): self
+    {
+        return new self("Unit code [{$unitCode}] does not match the base unit of product [{$productId}].");
+    }
 }

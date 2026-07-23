@@ -7,6 +7,7 @@ namespace App\Models;
 use Database\Factories\DocumentSeriesFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -34,6 +35,12 @@ final class DocumentSeries extends Model
         'current_number',
         'is_active',
     ];
+
+    /** @return BelongsToMany<CashRegister, $this> */
+    public function cashRegisters(): BelongsToMany
+    {
+        return $this->belongsToMany(CashRegister::class, 'cash_register_document_series')->withTimestamps();
+    }
 
     /**
      * Get the attributes that should be cast.

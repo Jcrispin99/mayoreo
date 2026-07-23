@@ -82,17 +82,24 @@ describe('registerOut (salida)', function (): void {
             ->and($movement->balance_total_cost)->toEqual('0.0000');
     });
 
-    it('throws when requesting more than the available stock', function (): void {
+    it('allows a sale to leave a negative stock balance', function (): void {
         $this->service->registerIn($this->product, $this->warehouse, '100', '10.0000');
 
-        $this->service->registerOut($this->product, $this->warehouse, '150', 'sale');
-    })->throws(InsufficientStockException::class);
+        $movement = $this->service->registerOut($this->product, $this->warehouse, '150', 'sale');
 
-    it('does not mutate stock when an out movement fails', function (): void {
+        expect($movement->balance_quantity)->toEqual('-50.000000');
+        $this->assertDatabaseHas('stocks', [
+            'warehouse_id' => $this->warehouse->id,
+            'product_id' => $this->product->id,
+            'quantity' => '-50.000000',
+        ]);
+    });
+
+    it('still rejects a non-sale output when stock is insufficient', function (): void {
         $this->service->registerIn($this->product, $this->warehouse, '100', '10.0000');
 
         try {
-            $this->service->registerOut($this->product, $this->warehouse, '150', 'sale');
+            $this->service->registerOut($this->product, $this->warehouse, '150', 'transfer_out');
         } catch (InsufficientStockException) {
             // expected
         }

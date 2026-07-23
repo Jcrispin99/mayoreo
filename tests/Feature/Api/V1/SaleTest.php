@@ -81,15 +81,20 @@ it('increments the ticket correlative across multiple sales', function (): void 
     expect($second['fiscal_documents'][0]['number'])->toBe(2);
 });
 
-it('rejects a sale when stock is insufficient', function (): void {
+it('registers a sale with negative stock when the available balance is insufficient', function (): void {
     $this->withHeaders($this->headers)->postJson('/api/v1/sales', [
         'warehouse_id' => $this->pos->id,
         'items' => [
-            ['product_id' => $this->product->id, 'quantity' => 999999],
+            ['product_id' => $this->product->id, 'quantity' => 6000],
         ],
-    ])->assertUnprocessable();
+    ])->assertCreated();
 
-    $this->assertDatabaseCount('productables', 0);
+    $this->assertDatabaseHas('stocks', [
+        'product_id' => $this->product->id,
+        'warehouse_id' => $this->pos->id,
+        'quantity' => '-1000.000000',
+    ]);
+    $this->assertDatabaseCount('productables', 1);
 });
 
 it('rejects a sale for a quantity with no matching price tier', function (): void {

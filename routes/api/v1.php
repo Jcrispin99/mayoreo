@@ -3,10 +3,17 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CashRegisterController;
+use App\Http\Controllers\Api\V1\CashRegisterMovementController;
+use App\Http\Controllers\Api\V1\CashRegisterSessionController;
+use App\Http\Controllers\Api\V1\DocumentSeriesController;
 use App\Http\Controllers\Api\V1\FiscalDocumentController;
 use App\Http\Controllers\Api\V1\InventoryMovementController;
 use App\Http\Controllers\Api\V1\InventoryTransferController;
 use App\Http\Controllers\Api\V1\PermissionController;
+use App\Http\Controllers\Api\V1\PosCatalogController;
+use App\Http\Controllers\Api\V1\PosOrderController;
+use App\Http\Controllers\Api\V1\PosOrderItemController;
 use App\Http\Controllers\Api\V1\PriceTierController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProductPurchaseUnitController;
@@ -53,6 +60,38 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     // Tiendas y almacenes
     Route::apiResource('stores', StoreController::class)->names('api.v1.stores');
     Route::apiResource('warehouses', WarehouseController::class)->names('api.v1.warehouses');
+
+    // Configuración POS
+    Route::apiResource('cash-registers', CashRegisterController::class)
+        ->only(['index', 'store', 'show', 'update'])->names('api.v1.cash-registers');
+    Route::get('cash-register-sessions', [CashRegisterSessionController::class, 'index'])
+        ->name('api.v1.cash-register-sessions.index');
+    Route::post('cash-registers/{cash_register}/sessions', [CashRegisterSessionController::class, 'store'])
+        ->name('api.v1.cash-register-sessions.store');
+    Route::get('cash-register-sessions/{cash_register_session}', [CashRegisterSessionController::class, 'show'])
+        ->name('api.v1.cash-register-sessions.show');
+    Route::get('cash-register-sessions/{cash_register_session}/catalog', PosCatalogController::class)
+        ->name('api.v1.cash-register-sessions.catalog');
+    Route::get('cash-register-sessions/{cash_register_session}/orders', [PosOrderController::class, 'index'])
+        ->name('api.v1.cash-register-sessions.orders.index');
+    Route::post('cash-register-sessions/{cash_register_session}/orders', [PosOrderController::class, 'store'])
+        ->name('api.v1.cash-register-sessions.orders.store');
+    Route::get('cash-register-sessions/{cash_register_session}/orders/{pos_order}', [PosOrderController::class, 'show'])
+        ->name('api.v1.cash-register-sessions.orders.show');
+    Route::patch('cash-register-sessions/{cash_register_session}/orders/{pos_order}/cancel', [PosOrderController::class, 'cancel'])
+        ->name('api.v1.cash-register-sessions.orders.cancel');
+    Route::post('cash-register-sessions/{cash_register_session}/orders/{pos_order}/items', [PosOrderItemController::class, 'store'])
+        ->name('api.v1.cash-register-sessions.orders.items.store');
+    Route::patch('cash-register-sessions/{cash_register_session}/orders/{pos_order}/items/{item}', [PosOrderItemController::class, 'update'])
+        ->name('api.v1.cash-register-sessions.orders.items.update');
+    Route::delete('cash-register-sessions/{cash_register_session}/orders/{pos_order}/items/{item}', [PosOrderItemController::class, 'destroy'])
+        ->name('api.v1.cash-register-sessions.orders.items.destroy');
+    Route::post('cash-register-sessions/{cash_register_session}/movements', [CashRegisterMovementController::class, 'store'])
+        ->name('api.v1.cash-register-movements.store');
+    Route::post('cash-register-sessions/{cash_register_session}/close', [CashRegisterSessionController::class, 'close'])
+        ->name('api.v1.cash-register-sessions.close');
+    Route::apiResource('document-series', DocumentSeriesController::class)
+        ->only(['index', 'store', 'show', 'update'])->names('api.v1.document-series');
 
     // Usuarios, roles y permisos
     Route::apiResource('users', UserController::class)->names('api.v1.users');

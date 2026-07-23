@@ -86,7 +86,7 @@ final class StockLedgerService
         return DB::transaction(function () use ($product, $warehouse, $quantity, $type, $reference, $notes, $createdBy): InventoryMovement {
             $stock = $this->lockStock($product, $warehouse);
 
-            if (bccomp($quantity, (string) $stock->quantity, self::QUANTITY_SCALE) > 0) {
+            if ($type !== 'sale' && bccomp($quantity, (string) $stock->quantity, self::QUANTITY_SCALE) > 0) {
                 throw InsufficientStockException::forProductInWarehouse(
                     $product->id,
                     $warehouse->id,

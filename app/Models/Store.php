@@ -35,6 +35,12 @@ final class Store extends Model
         return $this->hasMany(Warehouse::class);
     }
 
+    /** @return HasMany<CashRegister, $this> */
+    public function cashRegisters(): HasMany
+    {
+        return $this->hasMany(CashRegister::class);
+    }
+
     /**
      * @return array<string, string>
      */

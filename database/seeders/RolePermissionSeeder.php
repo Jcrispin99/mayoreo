@@ -29,6 +29,8 @@ final class RolePermissionSeeder extends Seeder
             'purchase-orders.view', 'purchase-orders.manage',
             'inventory-transfers.view', 'inventory-transfers.manage',
             'sales.view', 'sales.manage',
+            'pos-config.view', 'pos-config.manage',
+            'cash-sessions.view', 'cash-sessions.manage',
             'users.view', 'users.manage',
             'roles.view', 'roles.manage',
         ];
@@ -49,6 +51,8 @@ final class RolePermissionSeeder extends Seeder
             'purchase-orders.view', 'purchase-orders.manage',
             'inventory-transfers.view', 'inventory-transfers.manage',
             'sales.view', 'sales.manage',
+            'pos-config.view', 'pos-config.manage',
+            'cash-sessions.view', 'cash-sessions.manage',
         ]);
 
         $cashier = Role::query()->firstOrCreate(['name' => 'cashier', 'guard_name' => 'web']);
@@ -56,6 +60,7 @@ final class RolePermissionSeeder extends Seeder
             'products.view',
             'stock.view',
             'sales.view', 'sales.manage',
+            'cash-sessions.view', 'cash-sessions.manage',
         ]);
 
         $viewer = Role::query()->firstOrCreate(['name' => 'viewer', 'guard_name' => 'web']);
@@ -64,6 +69,7 @@ final class RolePermissionSeeder extends Seeder
             'products.view', 'stock.view',
             'suppliers.view', 'purchase-orders.view',
             'inventory-transfers.view', 'sales.view',
+            'cash-sessions.view',
         ]);
 
         $users = [
