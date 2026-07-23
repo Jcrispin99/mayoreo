@@ -55,7 +55,7 @@ function ProductDetailCell({ product }: { product: ProductListItem }) {
         {product.sku}{product.barcode ? ` · ${product.barcode}` : ''}
       </Text>
       <Text style={styles.detail}>
-        Precio: {product.price === null ? 'Sin configurar' : `S/ ${formatMoney(product.price)}`}
+        Precio: {product.price === null ? 'Sin configurar' : `S/ ${formatMoney(product.price)}${product.priceUnit ? ` por ${product.priceUnit}` : ''}`}
       </Text>
       <Text style={styles.detail}>A la mano: {formatQuantity(product.quantity)} {unit}</Text>
     </View>

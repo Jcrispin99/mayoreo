@@ -7,6 +7,8 @@ import { InventoryMovementList } from '../../features/inventory/inventory-moveme
 import { ProductList, type ProductSummary } from '../../features/products/product-list';
 import { PurchaseOrderList } from '../../features/purchases/purchase-order-list';
 import { SupplierList } from '../../features/purchases/supplier-list';
+import { CashRegisterList } from '../../features/pos/cash-register-list';
+import { DocumentSeriesList } from '../../features/pos/document-series-list';
 import { ModuleLayout } from './module-layout';
 
 const APP_MODULES = getVisibleMenu();
@@ -48,6 +50,10 @@ export function ModuleScreen() {
         <PurchaseOrderList />
       ) : module.id === 'purchases' && selectedItem.id === 'suppliers' ? (
         <SupplierList />
+      ) : module.id === 'pos' && selectedItem.id === 'cash-registers' ? (
+        <CashRegisterList />
+      ) : module.id === 'pos' && selectedItem.id === 'document-series' ? (
+        <DocumentSeriesList />
       ) : module.id === 'access' && selectedItem.id === 'users' ? (
         <AccessReferenceList kind="users" />
       ) : module.id === 'access' && selectedItem.id === 'roles' ? (

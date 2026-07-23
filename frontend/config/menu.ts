@@ -102,13 +102,38 @@ export const MENU_MODULES: MenuModule[] = [
     ],
   },
   {
+    id: 'pos',
+    title: 'Punto de venta',
+    subtitle: 'Cajas, series y correlativos',
+    icon: 'cash-register',
+    color: '#28738A',
+    softColor: '#E3F1F5',
+    order: 30,
+    items: [
+      {
+        id: 'cash-registers',
+        title: 'Cajas',
+        description: 'Almacén, series y correlativos',
+        icon: 'cash-register',
+        group: 'Configuración',
+      },
+      {
+        id: 'document-series',
+        title: 'Series y correlativos',
+        description: 'Catálogo de series de venta',
+        icon: 'file-document-outline',
+        group: 'Configuración',
+      },
+    ],
+  },
+  {
     id: 'access',
     title: 'Usuarios',
     subtitle: 'Usuarios, roles y permisos',
     icon: 'account-group-outline',
     color: '#73547B',
     softColor: '#F0EAF2',
-    order: 30,
+    order: 40,
     items: [
       {
         id: 'users',

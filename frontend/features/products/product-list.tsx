@@ -26,6 +26,7 @@ export type ProductSummary = {
 export type ProductListItem = ProductSummary & {
   quantity: number;
   price: number | null;
+  priceUnit: string | null;
 };
 
 type StockRecord = {
@@ -58,12 +59,18 @@ function combineProductsAndStock(products: ProductSummary[], stocks: StockRecord
     const basePriceTier = product.price_tiers
       ?.filter((tier) => tier.is_active)
       .sort((first, second) => Number(first.min_quantity) - Number(second.min_quantity))[0];
+    const baseUnitCode = product.base_unit?.code.trim().toLocaleLowerCase('es') ?? '';
+    const priceFactor = baseUnitCode === 'g' || baseUnitCode === 'gr' || baseUnitCode === 'ml' ? 1000 : 1;
+    const priceUnit = baseUnitCode === 'g' || baseUnitCode === 'gr'
+      ? 'kg'
+      : baseUnitCode === 'ml' ? 'L' : product.base_unit?.code ?? null;
 
     return {
       ...product,
       is_favorite: product.is_favorite ?? false,
       quantity,
-      price: basePriceTier ? Number(basePriceTier.unit_price) : null,
+      price: basePriceTier ? Number(basePriceTier.unit_price) * priceFactor : null,
+      priceUnit,
     };
   });
 }

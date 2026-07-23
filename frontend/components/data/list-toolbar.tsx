@@ -13,6 +13,7 @@ type ListToolbarProps = {
   activeFilterIds: string[];
   filterOptions: ListFilterOption[];
   onCreate?: () => void;
+  createLabel?: string;
   onPageChange: (page: number) => void;
   onQueryChange: (query: string) => void;
   onToggleFilter: (filterId: string) => void;
@@ -27,6 +28,7 @@ export function ListToolbar({
   activeFilterIds,
   filterOptions,
   onCreate,
+  createLabel = 'Nuevo',
   onPageChange,
   onQueryChange,
   onToggleFilter,
@@ -39,7 +41,7 @@ export function ListToolbar({
         <View style={styles.headingRow}>
           {onCreate ? (
             <Button buttonColor="#73547B" compact icon="plus" mode="contained" onPress={onCreate}>
-              Nuevo
+              {createLabel}
             </Button>
           ) : null}
           <Text style={styles.heading}>{title}</Text>

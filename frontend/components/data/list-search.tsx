@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Divider, Icon, Menu, Text } from 'react-native-paper';
 
@@ -15,6 +15,14 @@ type ListSearchProps = {
   query: string;
   onQueryChange: (query: string) => void;
   onToggleFilter: (filterId: string) => void;
+  collapsible?: boolean;
+  collapsedAction?: ReactNode;
+  expanded?: boolean;
+  filterIcon?: string;
+  filtersTitle?: string;
+  onExpandedChange?: (expanded: boolean) => void;
+  placeholder?: string;
+  searchAccessibilityLabel?: string;
 };
 
 export function ListSearch({
@@ -23,10 +31,52 @@ export function ListSearch({
   query,
   onQueryChange,
   onToggleFilter,
+  collapsible = false,
+  collapsedAction,
+  expanded: controlledExpanded,
+  filterIcon = 'menu-down',
+  filtersTitle = 'Filtros',
+  onExpandedChange,
+  placeholder = 'Buscar...',
+  searchAccessibilityLabel = 'Buscar registros',
 }: ListSearchProps) {
   const [filtersVisible, setFiltersVisible] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(!collapsible || Boolean(query));
+  const expanded = controlledExpanded ?? internalExpanded;
   const activeOptions = filterOptions.filter((option) => activeFilterIds.includes(option.id));
   const groups = [...new Set(filterOptions.map((option) => option.group))];
+
+  useEffect(() => {
+    if (!collapsible || !query || expanded) return;
+    setInternalExpanded(true);
+    onExpandedChange?.(true);
+  }, [collapsible, expanded, onExpandedChange, query]);
+
+  if (collapsible && !expanded) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.collapsedActions}>
+          <Pressable
+            accessibilityLabel="Abrir buscador"
+            accessibilityRole="button"
+            onPress={() => {
+              setInternalExpanded(true);
+              onExpandedChange?.(true);
+            }}
+            style={styles.collapsedButton}
+          >
+            <Icon source="magnify" color="#465263" size={21} />
+            {activeOptions.length > 0 ? (
+              <View pointerEvents="none" style={styles.activeCount}>
+                <Text style={styles.activeCountText}>{activeOptions.length}</Text>
+              </View>
+            ) : null}
+          </Pressable>
+          {collapsedAction}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -52,14 +102,31 @@ export function ListSearch({
             </Pressable>
           ))}
           <TextInput
-            accessibilityLabel="Buscar registros"
+            accessibilityLabel={searchAccessibilityLabel}
+            autoFocus={collapsible}
             onChangeText={onQueryChange}
-            placeholder="Buscar..."
+            placeholder={placeholder}
             placeholderTextColor="#8A8F99"
             style={styles.input}
             value={query}
           />
         </ScrollView>
+
+        {collapsible ? (
+          <Pressable
+            accessibilityLabel="Cerrar buscador"
+            accessibilityRole="button"
+            onPress={() => {
+              onQueryChange('');
+              setFiltersVisible(false);
+              setInternalExpanded(false);
+              onExpandedChange?.(false);
+            }}
+            style={styles.collapseButton}
+          >
+            <Icon source="close" color="#687181" size={19} />
+          </Pressable>
+        ) : null}
 
         <Menu
           anchor={
@@ -67,9 +134,13 @@ export function ListSearch({
               accessibilityLabel="Mostrar filtros"
               accessibilityRole="button"
               onPress={() => setFiltersVisible(true)}
-              style={[styles.filterButton, filtersVisible && styles.filterButtonActive]}
+              style={[styles.filterButton, (filtersVisible || activeOptions.length > 0) && styles.filterButtonActive]}
             >
-              <Icon source="menu-down" color="#243445" size={22} />
+              <Icon
+                source={filterIcon}
+                color={filtersVisible || activeOptions.length > 0 ? '#73547B' : '#243445'}
+                size={21}
+              />
             </Pressable>
           }
           anchorPosition="bottom"
@@ -79,7 +150,7 @@ export function ListSearch({
         >
           <View style={styles.menuTitle}>
             <Icon source="filter-variant" color="#73547B" size={19} />
-            <Text style={styles.menuTitleText}>Filtros</Text>
+            <Text style={styles.menuTitleText}>{filtersTitle}</Text>
           </View>
           {filterOptions.length === 0 ? (
             <Text style={styles.noFilters}>No hay filtros disponibles.</Text>
@@ -109,6 +180,20 @@ export function ListSearch({
 
 const styles = StyleSheet.create({
   container: { marginTop: 12 },
+  collapsedActions: { alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  collapsedButton: {
+    position: 'relative',
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#CDD2DA',
+    borderRadius: 21,
+    backgroundColor: '#FFFFFF',
+  },
+  activeCount: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#D18A25' },
+  activeCountText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
   searchBox: {
     height: 42,
     paddingLeft: 11,
@@ -122,6 +207,7 @@ const styles = StyleSheet.create({
   searchContent: { minWidth: '100%', alignItems: 'center', gap: 6, paddingLeft: 8 },
   searchScroll: { flex: 1 },
   input: { minWidth: 120, flexGrow: 1, height: 40, paddingHorizontal: 4, color: '#263244', fontSize: 13, outlineStyle: 'none' } as never,
+  collapseButton: { width: 38, height: 40, alignItems: 'center', justifyContent: 'center' },
   filterChip: {
     height: 28,
     paddingHorizontal: 8,

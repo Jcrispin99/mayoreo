@@ -155,6 +155,14 @@ export function ProductForm({ productId }: ProductFormProps) {
     } as Href);
   }
 
+  function openSalePrices() {
+    if (!productId) return;
+    router.push({
+      pathname: '/products/prices',
+      params: { productId },
+    } as Href);
+  }
+
   if (!PRODUCTS_MODULE) return null;
 
   return (
@@ -183,6 +191,7 @@ export function ProductForm({ productId }: ProductFormProps) {
             {editing ? (
               <View style={styles.movementActions}>
                 <Button compact icon="swap-vertical" mode="outlined" onPress={openKardex}>Movimientos</Button>
+                <Button compact icon="tag-multiple-outline" mode="outlined" onPress={openSalePrices}>Precios de venta</Button>
               </View>
             ) : null}
 
