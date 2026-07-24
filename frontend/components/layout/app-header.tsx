@@ -3,6 +3,8 @@ import { Icon, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type AppHeaderProps = {
+  icon?: string;
+  iconColor?: string;
   title: string;
   userName?: string;
   onApplicationsPress?: () => void;
@@ -24,6 +26,8 @@ export function getInitials(name?: string) {
 }
 
 export function AppHeader({
+  icon = 'view-grid-outline',
+  iconColor = '#6D4A85',
   title,
   userName,
   onApplicationsPress,
@@ -46,7 +50,7 @@ export function AppHeader({
 
         <View style={styles.brand}>
           <View style={styles.brandMark}>
-            <Icon source="view-grid-outline" color="#6D4A85" size={18} />
+            <Icon source={icon} color={iconColor} size={18} />
           </View>
           <Text numberOfLines={1} style={styles.title}>
             {title}

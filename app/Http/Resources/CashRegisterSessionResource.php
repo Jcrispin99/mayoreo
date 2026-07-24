@@ -22,6 +22,7 @@ final class CashRegisterSessionResource extends JsonResource
             'opening_amount' => $this->opening_amount,
             'income_total' => $this->incomeTotal(),
             'expense_total' => $this->expenseTotal(),
+            'cash_sales_total' => $this->cashSalesTotal(),
             'expected_amount' => $this->status === 'closed' ? $this->expected_amount : $this->liveExpectedAmount(),
             'counted_amount' => $this->counted_amount,
             'difference_amount' => $this->difference_amount,

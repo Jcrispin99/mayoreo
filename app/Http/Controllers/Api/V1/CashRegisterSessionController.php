@@ -74,6 +74,7 @@ final class CashRegisterSessionController extends ApiController
             'opener',
             'closer',
             'movements.creator',
+            'salePayments',
         ];
     }
 

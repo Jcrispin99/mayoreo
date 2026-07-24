@@ -42,6 +42,8 @@ export function ModuleLayout({ children, module, selectedItemId }: ModuleLayoutP
 
   return (
     <AppScreenLayout
+      icon={module.icon}
+      iconColor={module.color}
       onApplicationsPress={() => setApplicationsVisible(true)}
       onMenuPress={() => setDrawerVisible(true)}
       onNotificationsPress={() => setMessage('No tienes notificaciones nuevas')}

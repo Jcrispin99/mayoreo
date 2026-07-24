@@ -6,14 +6,17 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CashRegisterController;
 use App\Http\Controllers\Api\V1\CashRegisterMovementController;
 use App\Http\Controllers\Api\V1\CashRegisterSessionController;
+use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\DocumentSeriesController;
 use App\Http\Controllers\Api\V1\FiscalDocumentController;
 use App\Http\Controllers\Api\V1\InventoryMovementController;
 use App\Http\Controllers\Api\V1\InventoryTransferController;
 use App\Http\Controllers\Api\V1\PermissionController;
 use App\Http\Controllers\Api\V1\PosCatalogController;
+use App\Http\Controllers\Api\V1\PosCheckoutController;
 use App\Http\Controllers\Api\V1\PosOrderController;
 use App\Http\Controllers\Api\V1\PosOrderItemController;
+use App\Http\Controllers\Api\V1\PosPaymentMethodController;
 use App\Http\Controllers\Api\V1\PriceTierController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProductPurchaseUnitController;
@@ -61,6 +64,9 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     Route::apiResource('stores', StoreController::class)->names('api.v1.stores');
     Route::apiResource('warehouses', WarehouseController::class)->names('api.v1.warehouses');
 
+    // Clientes
+    Route::apiResource('customers', CustomerController::class)->names('api.v1.customers');
+
     // Configuración POS
     Route::apiResource('cash-registers', CashRegisterController::class)
         ->only(['index', 'store', 'show', 'update'])->names('api.v1.cash-registers');
@@ -72,6 +78,8 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
         ->name('api.v1.cash-register-sessions.show');
     Route::get('cash-register-sessions/{cash_register_session}/catalog', PosCatalogController::class)
         ->name('api.v1.cash-register-sessions.catalog');
+    Route::get('pos/payment-methods', [PosPaymentMethodController::class, 'index'])
+        ->name('api.v1.pos.payment-methods.index');
     Route::get('cash-register-sessions/{cash_register_session}/orders', [PosOrderController::class, 'index'])
         ->name('api.v1.cash-register-sessions.orders.index');
     Route::post('cash-register-sessions/{cash_register_session}/orders', [PosOrderController::class, 'store'])
@@ -80,6 +88,8 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
         ->name('api.v1.cash-register-sessions.orders.show');
     Route::patch('cash-register-sessions/{cash_register_session}/orders/{pos_order}/cancel', [PosOrderController::class, 'cancel'])
         ->name('api.v1.cash-register-sessions.orders.cancel');
+    Route::post('cash-register-sessions/{cash_register_session}/orders/{pos_order}/checkout', PosCheckoutController::class)
+        ->name('api.v1.cash-register-sessions.orders.checkout');
     Route::post('cash-register-sessions/{cash_register_session}/orders/{pos_order}/items', [PosOrderItemController::class, 'store'])
         ->name('api.v1.cash-register-sessions.orders.items.store');
     Route::patch('cash-register-sessions/{cash_register_session}/orders/{pos_order}/items/{item}', [PosOrderItemController::class, 'update'])
@@ -135,6 +145,8 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
         ->name('api.v1.inventory-transfers.receive');
 
     // Ventas / POS
+    Route::get('sales/summary', [SaleController::class, 'summary'])
+        ->name('api.v1.sales.summary');
     Route::apiResource('sales', SaleController::class)
         ->only(['index', 'store', 'show'])->names('api.v1.sales');
     Route::get('sales/{sale}/fiscal-documents', [FiscalDocumentController::class, 'index'])

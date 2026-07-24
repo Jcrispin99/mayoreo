@@ -27,6 +27,9 @@ final class SaleItemResource extends JsonResource
             'price_tier_id' => $this->price_tier_id,
             'unit_price' => $this->unit_price,
             'line_total' => $this->line_total,
+            'product' => new ProductResource($this->whenLoaded('product')),
+            'input_unit' => new UnitOfMeasureResource($this->whenLoaded('inputUnit')),
+            'price_tier' => new PriceTierResource($this->whenLoaded('priceTier')),
         ];
     }
 }

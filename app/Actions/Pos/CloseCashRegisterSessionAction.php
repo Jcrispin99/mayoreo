@@ -24,7 +24,7 @@ final readonly class CloseCashRegisterSessionAction
                 throw CashRegisterSessionException::hasOpenOrders($lockedSession->id);
             }
 
-            $lockedSession->load('movements');
+            $lockedSession->load(['movements', 'salePayments']);
             $expectedAmount = $lockedSession->liveExpectedAmount();
 
             $lockedSession->update([

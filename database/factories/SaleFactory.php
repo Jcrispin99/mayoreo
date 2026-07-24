@@ -22,11 +22,15 @@ final class SaleFactory extends Factory
     {
         return [
             'warehouse_id' => Warehouse::factory(),
+            'customer_id' => null,
+            'source' => 'wholesale',
             'customer_name' => fake()->optional()->name(),
             'customer_document' => null,
+            'notes' => null,
             'status' => 'completed',
             'subtotal' => 0,
             'total' => 0,
+            'payable_total' => 0,
             'sold_at' => now(),
         ];
     }

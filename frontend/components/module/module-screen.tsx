@@ -2,6 +2,8 @@ import { Redirect, router, useLocalSearchParams, type Href } from 'expo-router';
 import { View } from 'react-native';
 import { getVisibleMenu } from '../../config/menu';
 import { AccessReferenceList } from '../../features/access/access-reference-list';
+import { AccountingSaleList } from '../../features/accounting/accounting-sale-list';
+import { CustomerList } from '../../features/customers/customer-list';
 import { InventoryReferenceList } from '../../features/inventory/inventory-reference-list';
 import { InventoryMovementList } from '../../features/inventory/inventory-movement-list';
 import { ProductList, type ProductSummary } from '../../features/products/product-list';
@@ -9,6 +11,7 @@ import { PurchaseOrderList } from '../../features/purchases/purchase-order-list'
 import { SupplierList } from '../../features/purchases/supplier-list';
 import { CashRegisterList } from '../../features/pos/cash-register-list';
 import { DocumentSeriesList } from '../../features/pos/document-series-list';
+import { PosPaymentMethodList } from '../../features/pos/pos-payment-method-list';
 import { ModuleLayout } from './module-layout';
 
 const APP_MODULES = getVisibleMenu();
@@ -54,6 +57,12 @@ export function ModuleScreen() {
         <CashRegisterList />
       ) : module.id === 'pos' && selectedItem.id === 'document-series' ? (
         <DocumentSeriesList />
+      ) : module.id === 'pos' && selectedItem.id === 'payment-methods' ? (
+        <PosPaymentMethodList />
+      ) : module.id === 'customers' && selectedItem.id === 'customers' ? (
+        <CustomerList />
+      ) : module.id === 'accounting' && selectedItem.id === 'sales' ? (
+        <AccountingSaleList />
       ) : module.id === 'access' && selectedItem.id === 'users' ? (
         <AccessReferenceList kind="users" />
       ) : module.id === 'access' && selectedItem.id === 'roles' ? (

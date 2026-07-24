@@ -24,6 +24,9 @@ final class PosOrderResource extends JsonResource
             'item_count' => $this->whenLoaded('items', fn (): int => $this->items->count()),
             'items' => PosOrderItemResource::collection($this->whenLoaded('items')),
             'created_by' => $this->created_by,
+            'completed_by' => $this->completed_by,
+            'completer' => new UserResource($this->whenLoaded('completer')),
+            'completed_at' => $this->completed_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

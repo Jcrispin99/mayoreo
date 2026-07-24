@@ -10,9 +10,12 @@ use App\Models\Product;
 
 final class ResolvePriceTierAction
 {
-    public function execute(Product $product, string $quantityInBaseUnit): PriceTier
-    {
-        $tier = PriceTier::query()
+    public function execute(
+        Product $product,
+        string $quantityInBaseUnit,
+        bool $lockForUpdate = false,
+    ): PriceTier {
+        $query = PriceTier::query()
             ->where('product_id', $product->id)
             ->where('is_active', true)
             ->where('min_quantity', '<=', $quantityInBaseUnit)
@@ -20,8 +23,13 @@ final class ResolvePriceTierAction
                 $query->whereNull('max_quantity')
                     ->orWhere('max_quantity', '>=', $quantityInBaseUnit);
             })
-            ->orderByDesc('min_quantity')
-            ->first();
+            ->orderByDesc('min_quantity');
+
+        if ($lockForUpdate) {
+            $query->lockForUpdate();
+        }
+
+        $tier = $query->first();
 
         if (! $tier instanceof PriceTier) {
             throw NoPriceTierMatchedException::forQuantity($product->id, $quantityInBaseUnit);

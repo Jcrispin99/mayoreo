@@ -3,9 +3,12 @@
 declare(strict_types=1);
 
 use App\Exceptions\DomainException;
+use App\Exceptions\PosCheckoutTotalChangedException;
+use App\Exceptions\WholesaleSaleTotalChangedException;
 use App\Http\Middleware\EnsureEmailVerified;
 use App\Http\Middleware\ForceJsonResponse;
 use App\Http\Middleware\LogApiRequests;
+use App\Http\Resources\PosOrderResource;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -26,6 +29,25 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (WholesaleSaleTotalChangedException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data' => $e->data(),
+            ], 409);
+        });
+
+        $exceptions->render(function (PosCheckoutTotalChangedException $e, Request $request) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data' => [
+                    'order' => (new PosOrderResource($e->order()))->resolve($request),
+                    'payable_total' => $e->payableTotal(),
+                ],
+            ], 409);
+        });
+
         $exceptions->render(function (DomainException $e, Request $request) {
             if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json([

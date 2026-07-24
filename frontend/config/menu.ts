@@ -103,8 +103,8 @@ export const MENU_MODULES: MenuModule[] = [
   },
   {
     id: 'pos',
-    title: 'Punto de venta',
-    subtitle: 'Cajas, series y correlativos',
+    title: 'POS',
+    subtitle: 'Cajas, cobros y correlativos',
     icon: 'cash-register',
     color: '#28738A',
     softColor: '#E3F1F5',
@@ -124,6 +124,49 @@ export const MENU_MODULES: MenuModule[] = [
         icon: 'file-document-outline',
         group: 'Configuración',
       },
+      {
+        id: 'payment-methods',
+        title: 'Métodos de pago',
+        description: 'Formas de pago admitidas en caja',
+        icon: 'credit-card-multiple-outline',
+        group: 'Configuración',
+      },
+    ],
+  },
+  {
+    id: 'customers',
+    title: 'Clientes',
+    subtitle: 'Directorio y datos de contacto',
+    icon: 'account-heart-outline',
+    color: '#426B8A',
+    softColor: '#E7F0F6',
+    order: 40,
+    items: [
+      {
+        id: 'customers',
+        title: 'Clientes',
+        description: 'Directorio de clientes',
+        icon: 'account-multiple-outline',
+        group: 'Directorio',
+      },
+    ],
+  },
+  {
+    id: 'accounting',
+    title: 'Contabilidad',
+    subtitle: 'Ventas, cobros y análisis',
+    icon: 'chart-box-outline',
+    color: '#2F7461',
+    softColor: '#E4F2ED',
+    order: 50,
+    items: [
+      {
+        id: 'sales',
+        title: 'Ventas',
+        description: 'Ventas POS y mayoristas',
+        icon: 'receipt-text-check-outline',
+        group: 'Operaciones',
+      },
     ],
   },
   {
@@ -133,7 +176,7 @@ export const MENU_MODULES: MenuModule[] = [
     icon: 'account-group-outline',
     color: '#73547B',
     softColor: '#F0EAF2',
-    order: 40,
+    order: 60,
     items: [
       {
         id: 'users',

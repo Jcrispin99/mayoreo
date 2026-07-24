@@ -4,6 +4,7 @@ import { Button, Icon, Text } from 'react-native-paper';
 
 type MobileRecordListProps<T> = {
   data: T[];
+  footer?: ReactElement;
   emptyIcon: string;
   emptyText: string;
   emptyTitle: string;
@@ -18,6 +19,7 @@ type MobileRecordListProps<T> = {
 
 export function MobileRecordList<T>({
   data,
+  footer,
   emptyIcon,
   emptyText,
   emptyTitle,
@@ -55,6 +57,7 @@ export function MobileRecordList<T>({
       refreshControl={<RefreshControl onRefresh={onRefresh} refreshing={refreshing} />}
       renderItem={({ item }) => renderItem(item)}
       showsVerticalScrollIndicator={false}
+      ListFooterComponent={footer}
       ListEmptyComponent={
         <View style={styles.center}>
           <Icon source={emptyIcon} color="#9A8C9E" size={42} />

@@ -1,19 +1,40 @@
+import axios from 'axios';
 import { router, type Href } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Button, Dialog, Divider, Icon, IconButton, Menu, Portal, Snackbar, Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../lib/api';
 import { PosBarcodeScanner } from './pos-barcode-scanner';
+import { PosCheckoutModal } from './pos-checkout-modal';
 import { isMeasuredProduct, type PosMeasuredProduct, type PosSaleUnitCode } from './pos-measurement';
 import { PosOrderDock, PosOrderPanel } from './pos-order-panel';
 import { PosProductCatalog } from './pos-product-catalog';
 import { PosQuantityEditor } from './pos-quantity-editor';
-import type { CashRegisterSession, PosCatalogProduct, PosOrder, PosOrderItem } from './pos-types';
+import type {
+  CashRegisterSession,
+  PosCatalogProduct,
+  PosCheckoutPayload,
+  PosCheckoutResult,
+  PosOrder,
+  PosOrderItem,
+} from './pos-types';
 
 type OrderNotice = {
   message: string;
   error: boolean;
+};
+
+type OrderOverlay =
+  | { kind: 'closed' }
+  | { kind: 'orders' }
+  | { kind: 'checkout'; orderId: number };
+
+type CheckoutConflictResponse = {
+  data?: {
+    order?: PosOrder;
+  };
+  message?: string;
 };
 
 function requestErrorMessage(requestError: any, fallback: string) {
@@ -40,7 +61,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
   const [scannerVisible, setScannerVisible] = useState(false);
   const [orders, setOrders] = useState<PosOrder[]>([]);
   const [activeOrderId, setActiveOrderId] = useState<number | null>(null);
-  const [ordersVisible, setOrdersVisible] = useState(false);
+  const [orderOverlay, setOrderOverlay] = useState<OrderOverlay>({ kind: 'closed' });
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderBusy, setOrderBusy] = useState(false);
   const [addingProductId, setAddingProductId] = useState<number | null>(null);
@@ -48,20 +69,28 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
   const [quantityProduct, setQuantityProduct] = useState<PosMeasuredProduct | null>(null);
   const orderMutation = useRef(false);
 
-  useEffect(() => {
-    async function loadSession() {
-      try {
-        const response = await api.get(`/cash-register-sessions/${cashSessionId}`);
-        setSession(response.data.data);
-      } catch {
-        setError('No se pudo cargar la caja abierta.');
-      } finally {
-        setLoading(false);
-      }
+  const loadSession = useCallback(async (initialLoad = false): Promise<CashRegisterSession | null> => {
+    if (initialLoad) {
+      setLoading(true);
+      setError('');
     }
 
-    void loadSession();
+    try {
+      const response = await api.get(`/cash-register-sessions/${cashSessionId}`);
+      const loadedSession = response.data.data as CashRegisterSession;
+      setSession(loadedSession);
+      return loadedSession;
+    } catch {
+      if (initialLoad) setError('No se pudo cargar la caja abierta.');
+      return null;
+    } finally {
+      if (initialLoad) setLoading(false);
+    }
   }, [cashSessionId]);
+
+  useEffect(() => {
+    void loadSession(true);
+  }, [loadSession]);
 
   useEffect(() => {
     if (!session || session.status !== 'open') return;
@@ -102,6 +131,12 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
   const activeOrder = useMemo(
     () => orders.find((order) => order.id === activeOrderId) ?? orders.at(-1) ?? null,
     [activeOrderId, orders],
+  );
+  const checkoutOrder = useMemo(
+    () => orderOverlay.kind === 'checkout'
+      ? orders.find((order) => order.id === orderOverlay.orderId) ?? null
+      : null,
+    [orderOverlay, orders],
   );
   const activeOrderQuantities = useMemo(
     () => Object.fromEntries(
@@ -200,7 +235,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
   async function createOrder() {
     const order = await runOrderMutation(requestNewOrder);
     if (!order) return;
-    setOrdersVisible(true);
+    setOrderOverlay({ kind: 'orders' });
     setOrderNotice({ message: `Orden ${order.number} creada.`, error: false });
   }
 
@@ -297,7 +332,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
   function editMeasuredOrderItem(item: PosOrderItem) {
     if (!isMeasuredProduct(item.product)) return;
 
-    setOrdersVisible(false);
+    setOrderOverlay({ kind: 'closed' });
     setQuantityProduct(item.product);
   }
 
@@ -347,6 +382,88 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
       return remaining;
     });
     setOrderNotice({ message: `Orden ${order.number} cancelada.`, error: false });
+  }
+
+  function openCheckout(order: PosOrder) {
+    if (
+      orderBusy
+      || ordersLoading
+      || order.items.length === 0
+      || session?.status !== 'open'
+    ) return;
+
+    setActiveOrderId(order.id);
+    setOrderNotice(null);
+    setOrderOverlay({ kind: 'checkout', orderId: order.id });
+  }
+
+  function returnToOrder() {
+    if (!checkoutOrder || session?.status !== 'open') {
+      setOrderOverlay({ kind: 'closed' });
+      return;
+    }
+
+    setActiveOrderId(checkoutOrder.id);
+    setOrderOverlay({ kind: 'orders' });
+  }
+
+  async function submitCheckout(payload: PosCheckoutPayload): Promise<PosCheckoutResult | null> {
+    if (!session || session.status !== 'open' || !checkoutOrder) {
+      throw new Error('No hay una orden abierta disponible para cobrar.');
+    }
+
+    try {
+      const response = await api.post(
+        `/cash-register-sessions/${session.id}/orders/${checkoutOrder.id}/checkout`,
+        payload,
+        { timeout: 20_000 },
+      );
+
+      return response.data.data as PosCheckoutResult;
+    } catch (requestError: unknown) {
+      if (
+        axios.isAxiosError<CheckoutConflictResponse>(requestError)
+        && requestError.response?.status === 409
+      ) {
+        const conflictOrder = requestError.response.data?.data?.order;
+
+        if (
+          conflictOrder
+          && conflictOrder.id === checkoutOrder.id
+          && Array.isArray(conflictOrder.items)
+        ) {
+          replaceOrder(conflictOrder);
+          setOrderNotice({
+            message: requestError.response.data?.message
+              ?? 'El total cambió. Revisa la orden antes de cobrar nuevamente.',
+            error: true,
+          });
+          setOrderOverlay({ kind: 'orders' });
+          return null;
+        }
+      }
+
+      throw requestError;
+    }
+  }
+
+  async function finishCheckout(result: PosCheckoutResult) {
+    const remainingOrders = orders.filter((order) => order.id !== result.order.id);
+    setOrders(remainingOrders);
+    setActiveOrderId((current) => (
+      current !== result.order.id && remainingOrders.some((order) => order.id === current)
+        ? current
+        : remainingOrders.at(-1)?.id ?? null
+    ));
+    setOrderOverlay({ kind: 'closed' });
+
+    const refreshedSession = await loadSession();
+    if (!refreshedSession) {
+      setOrderNotice({
+        message: 'La venta se completó, pero no se pudo actualizar el efectivo esperado de la caja.',
+        error: true,
+      });
+    }
   }
 
   if (loading) {
@@ -418,10 +535,11 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
             visible={menuVisible}
           >
             <Menu.Item
+              disabled={!catalogAvailable}
               leadingIcon="receipt-text-outline"
               onPress={() => {
                 setMenuVisible(false);
-                setOrdersVisible(true);
+                setOrderOverlay({ kind: 'orders' });
               }}
               title={`Órdenes (${orders.length})`}
             />
@@ -466,7 +584,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
 
       {activeOrder ? (
         <PosOrderDock
-          onPress={() => setOrdersVisible(true)}
+          onPress={() => setOrderOverlay({ kind: 'orders' })}
           order={activeOrder}
         />
       ) : null}
@@ -485,20 +603,36 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
         product={quantityProduct}
       />
 
-      <PosOrderPanel
-        activeOrderId={activeOrder?.id ?? null}
-        busy={orderBusy || ordersLoading}
-        loading={ordersLoading}
-        onCancelOrder={(order) => void cancelOrder(order)}
-        onClose={() => setOrdersVisible(false)}
-        onCreateOrder={() => void createOrder()}
-        onEditMeasuredItem={editMeasuredOrderItem}
-        onRemoveItem={(order, item) => void removeOrderItem(order, item)}
-        onSelectOrder={setActiveOrderId}
-        onUpdateQuantity={(order, item, quantity) => void updateOrderQuantity(order, item, quantity)}
-        orders={orders}
-        visible={ordersVisible && catalogAvailable}
-      />
+      {orderOverlay.kind === 'orders' && catalogAvailable ? (
+        <PosOrderPanel
+          activeOrderId={activeOrder?.id ?? null}
+          busy={orderBusy || ordersLoading}
+          loading={ordersLoading}
+          notice={orderNotice}
+          onCancelOrder={(order) => void cancelOrder(order)}
+          onCheckout={openCheckout}
+          onClose={() => setOrderOverlay({ kind: 'closed' })}
+          onCreateOrder={() => void createOrder()}
+          onDismissNotice={() => setOrderNotice(null)}
+          onEditMeasuredItem={editMeasuredOrderItem}
+          onRemoveItem={(order, item) => void removeOrderItem(order, item)}
+          onSelectOrder={setActiveOrderId}
+          onUpdateQuantity={(order, item, quantity) => void updateOrderQuantity(order, item, quantity)}
+          orders={orders}
+          sessionOpen={session?.status === 'open'}
+          visible
+        />
+      ) : null}
+
+      {orderOverlay.kind === 'checkout' && checkoutOrder && catalogAvailable ? (
+        <PosCheckoutModal
+          onBack={returnToOrder}
+          onDone={finishCheckout}
+          onSubmit={submitCheckout}
+          order={checkoutOrder}
+          visible
+        />
+      ) : null}
 
       <Portal>
         <Dialog onDismiss={() => !closing && setCloseDialogVisible(false)} visible={closeDialogVisible}>
@@ -542,7 +676,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
           duration={2200}
           onDismiss={() => setOrderNotice(null)}
           style={orderNotice?.error ? styles.errorSnackbar : styles.successSnackbar}
-          visible={Boolean(orderNotice)}
+          visible={Boolean(orderNotice) && orderOverlay.kind === 'closed'}
         >
           {orderNotice?.message ?? ''}
         </Snackbar>

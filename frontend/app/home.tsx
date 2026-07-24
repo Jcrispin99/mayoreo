@@ -65,7 +65,6 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: 24,
     paddingBottom: 44,
   },
 });

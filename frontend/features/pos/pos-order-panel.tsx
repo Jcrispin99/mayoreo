@@ -20,26 +20,27 @@ import {
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatBaseQuantity, isMeasuredProduct, pricingDisplay } from './pos-measurement';
+import { formatPosMoney as formatMoney } from './pos-money';
 import type { PosOrder, PosOrderItem } from './pos-types';
 
 type PosOrderPanelProps = {
   activeOrderId: number | null;
   busy: boolean;
   loading: boolean;
+  notice: { message: string; error: boolean } | null;
   onCancelOrder: (order: PosOrder) => void;
   onClose: () => void;
   onCreateOrder: () => void;
+  onCheckout: (order: PosOrder) => void;
+  onDismissNotice: () => void;
   onEditMeasuredItem: (item: PosOrderItem) => void;
   onRemoveItem: (order: PosOrder, item: PosOrderItem) => void;
   onSelectOrder: (orderId: number) => void;
   onUpdateQuantity: (order: PosOrder, item: PosOrderItem, quantity: number) => void;
   orders: PosOrder[];
+  sessionOpen: boolean;
   visible: boolean;
 };
-
-function formatMoney(value: string | number) {
-  return `S/ ${(Number(value) || 0).toFixed(2)}`;
-}
 
 function formatQuantity(value: string | number) {
   return new Intl.NumberFormat('es-PE', { maximumFractionDigits: 3 }).format(Number(value) || 0);
@@ -185,14 +186,18 @@ export function PosOrderPanel({
   activeOrderId,
   busy,
   loading,
+  notice,
   onCancelOrder,
   onClose,
   onCreateOrder,
+  onCheckout,
+  onDismissNotice,
   onEditMeasuredItem,
   onRemoveItem,
   onSelectOrder,
   onUpdateQuantity,
   orders,
+  sessionOpen,
   visible,
 }: PosOrderPanelProps) {
   const [cancelVisible, setCancelVisible] = useState(false);
@@ -265,6 +270,29 @@ export function PosOrderPanel({
             </ScrollView>
           </View>
 
+          {notice ? (
+            <View
+              accessibilityLiveRegion="polite"
+              style={[styles.notice, notice.error ? styles.errorNotice : styles.successNotice]}
+            >
+              <Icon
+                color={notice.error ? '#A44256' : '#28738A'}
+                size={20}
+                source={notice.error ? 'alert-circle-outline' : 'check-circle-outline'}
+              />
+              <Text style={[styles.noticeText, notice.error ? styles.errorNoticeText : styles.successNoticeText]}>
+                {notice.message}
+              </Text>
+              <IconButton
+                accessibilityLabel="Cerrar mensaje"
+                icon="close"
+                onPress={onDismissNotice}
+                size={17}
+                style={styles.noticeClose}
+              />
+            </View>
+          ) : null}
+
           {loading ? (
             <View style={styles.empty}>
               <ActivityIndicator color="#28738A" size="large" />
@@ -326,11 +354,28 @@ export function PosOrderPanel({
               />
 
               <View style={styles.footer}>
-                <View>
-                  <Text style={styles.footerLabel}>Total de la orden</Text>
-                  <Text style={styles.footerHint}>El cobro se habilitará en la siguiente etapa.</Text>
+                <View style={styles.footerHeading}>
+                  <View>
+                    <Text style={styles.footerLabel}>Total de la orden</Text>
+                    <Text style={styles.footerHint}>
+                      {activeOrder.items.length === 0
+                        ? 'Agrega al menos un producto para cobrar.'
+                        : 'Revisa el pago antes de confirmar la venta.'}
+                    </Text>
+                  </View>
+                  <Text style={styles.footerTotal}>{formatMoney(activeOrder.total)}</Text>
                 </View>
-                <Text style={styles.footerTotal}>{formatMoney(activeOrder.total)}</Text>
+                <Button
+                  buttonColor="#28738A"
+                  contentStyle={styles.checkoutButtonContent}
+                  disabled={busy || cancelVisible || !sessionOpen || activeOrder.items.length === 0}
+                  icon="cash-register"
+                  mode="contained"
+                  onPress={() => onCheckout(activeOrder)}
+                  style={styles.checkoutButton}
+                >
+                  Cobrar · {formatMoney(activeOrder.total)}
+                </Button>
                 {cancelVisible ? (
                   <View style={styles.cancelConfirmation}>
                     <Text style={styles.cancelText}>
@@ -425,6 +470,13 @@ const styles = StyleSheet.create({
   orderCountTextSelected: { color: '#28738A' },
   newOrderTab: { minHeight: 34, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#AFCBD3', borderRadius: 17, backgroundColor: '#EFF7F9' },
   newOrderText: { color: '#28738A', fontSize: 10, fontWeight: '900' },
+  notice: { marginHorizontal: 12, marginTop: 10, paddingLeft: 11, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 10 },
+  errorNotice: { borderColor: '#ECCAD2', backgroundColor: '#FBF0F3' },
+  successNotice: { borderColor: '#C8DFE4', backgroundColor: '#EDF7F8' },
+  noticeText: { flex: 1, fontSize: 10, lineHeight: 15, fontWeight: '700' },
+  errorNoticeText: { color: '#934052' },
+  successNoticeText: { color: '#246A7F' },
+  noticeClose: { width: 32, height: 32, margin: 0 },
   orderSummary: { paddingHorizontal: 16, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#E2E7E9', backgroundColor: '#F9FBFB' },
   orderLabel: { color: '#384348', fontSize: 13, fontWeight: '900' },
   orderDetail: { marginTop: 2, color: '#899196', fontSize: 9 },
@@ -457,9 +509,12 @@ const styles = StyleSheet.create({
   emptyTitle: { color: '#465156', fontSize: 15, fontWeight: '900', textAlign: 'center' },
   emptyText: { maxWidth: 330, color: '#858E92', fontSize: 10, lineHeight: 16, textAlign: 'center' },
   footer: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#DDE4E6', backgroundColor: '#FFFFFF' },
+  footerHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   footerLabel: { color: '#697377', fontSize: 9, fontWeight: '800' },
   footerHint: { marginTop: 2, color: '#969DA0', fontSize: 8 },
-  footerTotal: { position: 'absolute', top: 13, right: 16, color: '#76557E', fontSize: 18, fontWeight: '900' },
+  footerTotal: { color: '#76557E', fontSize: 18, fontWeight: '900' },
+  checkoutButton: { marginTop: 10 },
+  checkoutButtonContent: { minHeight: 46 },
   cancelConfirmation: { marginTop: 7, padding: 9, borderRadius: 7, backgroundColor: '#FBF1F3' },
   cancelText: { color: '#874052', fontSize: 9, fontWeight: '700' },
   cancelActions: { marginTop: 5, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 5 },

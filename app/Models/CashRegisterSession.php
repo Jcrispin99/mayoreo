@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\PosPaymentMethod;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -71,6 +72,18 @@ final class CashRegisterSession extends Model
         return $this->hasMany(PosOrder::class);
     }
 
+    /** @return HasMany<Sale, $this> */
+    public function sales(): HasMany
+    {
+        return $this->hasMany(Sale::class);
+    }
+
+    /** @return HasMany<SalePayment, $this> */
+    public function salePayments(): HasMany
+    {
+        return $this->hasMany(SalePayment::class);
+    }
+
     /** @return numeric-string */
     public function incomeTotal(): string
     {
@@ -84,10 +97,34 @@ final class CashRegisterSession extends Model
     }
 
     /** @return numeric-string */
+    public function cashSalesTotal(): string
+    {
+        $payments = $this->relationLoaded('salePayments')
+            ? $this->salePayments
+                ->where('status', SalePayment::STATUS_COMPLETED)
+                ->where('method', PosPaymentMethod::Cash->value)
+            : $this->salePayments()
+                ->where('status', SalePayment::STATUS_COMPLETED)
+                ->where('method', PosPaymentMethod::Cash->value)
+                ->get();
+        $total = '0.00';
+
+        foreach ($payments as $payment) {
+            $total = bcadd($total, $payment->amount, 2);
+        }
+
+        return $total;
+    }
+
+    /** @return numeric-string */
     public function liveExpectedAmount(): string
     {
         return bcsub(
-            bcadd((string) $this->opening_amount, $this->incomeTotal(), 2),
+            bcadd(
+                bcadd((string) $this->opening_amount, $this->incomeTotal(), 2),
+                $this->cashSalesTotal(),
+                2,
+            ),
             $this->expenseTotal(),
             2,
         );

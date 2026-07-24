@@ -49,6 +49,7 @@ export type CashRegisterSession = {
   opening_amount: string;
   income_total: string;
   expense_total: string;
+  cash_sales_total: string;
   expected_amount: string;
   counted_amount: string | null;
   difference_amount: string | null;
@@ -121,4 +122,55 @@ export type PosOrder = {
   created_by: number | null;
   created_at: string;
   updated_at: string;
+};
+
+export type PosPaymentMethod = 'cash' | 'card' | 'yape' | 'plin' | 'bank_transfer';
+
+export type PosPaymentMethodDefinition = {
+  code: PosPaymentMethod;
+  label: string;
+  description: string;
+  requires_received_amount: boolean;
+  supports_reference: boolean;
+};
+
+export type PosCheckoutPaymentInput =
+  | {
+    method: 'cash';
+    received_amount: string;
+    reference: null;
+  }
+  | {
+    method: Exclude<PosPaymentMethod, 'cash'>;
+    reference: string | null;
+  };
+
+export type PosCheckoutPayload = {
+  expected_total: string;
+  payment: PosCheckoutPaymentInput;
+};
+
+export type PosCheckoutResult = {
+  order: {
+    id: number;
+    number: number;
+    status: 'completed';
+  };
+  sale: {
+    id: number;
+    total: string;
+    payable_total: string;
+  };
+  payment: {
+    method: PosPaymentMethod;
+    amount: string;
+    received_amount: string | null;
+    change_amount: string;
+    reference: string | null;
+  };
+  fiscal_document: {
+    document_type: 'sales_ticket';
+    series_code: string;
+    number: number;
+  };
 };

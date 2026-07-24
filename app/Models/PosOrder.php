@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 
@@ -17,6 +18,8 @@ use Illuminate\Support\Carbon;
  * @property string $subtotal
  * @property string $total
  * @property int|null $created_by
+ * @property int|null $completed_by
+ * @property Carbon|null $completed_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -29,6 +32,8 @@ final class PosOrder extends Model
         'subtotal',
         'total',
         'created_by',
+        'completed_by',
+        'completed_at',
     ];
 
     /** @return BelongsTo<CashRegisterSession, $this> */
@@ -43,10 +48,22 @@ final class PosOrder extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /** @return BelongsTo<User, $this> */
+    public function completer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'completed_by');
+    }
+
     /** @return MorphMany<Productable, $this> */
     public function items(): MorphMany
     {
         return $this->morphMany(Productable::class, 'productable');
+    }
+
+    /** @return HasOne<Sale, $this> */
+    public function sale(): HasOne
+    {
+        return $this->hasOne(Sale::class);
     }
 
     /** @return array<string, string> */
@@ -55,6 +72,7 @@ final class PosOrder extends Model
         return [
             'subtotal' => 'decimal:4',
             'total' => 'decimal:4',
+            'completed_at' => 'datetime',
         ];
     }
 }

@@ -14,6 +14,7 @@ export type DataTableColumn<T> = {
 type DataTableProps<T> = {
   columns: DataTableColumn<T>[];
   data: T[];
+  footer?: ReactNode;
   emptyIcon: string;
   emptyText: string;
   emptyTitle: string;
@@ -32,6 +33,7 @@ type DataTableProps<T> = {
 export function DataTable<T>({
   columns,
   data,
+  footer,
   emptyIcon,
   emptyText,
   emptyTitle,
@@ -64,6 +66,7 @@ export function DataTable<T>({
 
       <MobileRecordList
         data={data}
+        footer={footer ? <>{footer}</> : undefined}
         emptyIcon={emptyIcon}
         emptyText={emptyText}
         emptyTitle={emptyTitle}

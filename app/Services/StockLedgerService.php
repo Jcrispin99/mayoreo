@@ -39,10 +39,18 @@ final class StockLedgerService
     ): InventoryMovement {
         return DB::transaction(function () use ($product, $warehouse, $quantity, $unitCost, $type, $reference, $notes, $createdBy): InventoryMovement {
             $stock = $this->lockStock($product, $warehouse);
+            /** @var numeric-string $normalizedQuantity */
+            $normalizedQuantity = $quantity;
+            /** @var numeric-string $normalizedUnitCost */
+            $normalizedUnitCost = $unitCost;
+            /** @var numeric-string $stockQuantity */
+            $stockQuantity = (string) $stock->quantity;
+            /** @var numeric-string $stockTotalCost */
+            $stockTotalCost = (string) $stock->total_cost;
 
-            $incomingTotalCost = bcmul($quantity, $unitCost, self::COST_SCALE);
-            $newQuantity = bcadd((string) $stock->quantity, $quantity, self::QUANTITY_SCALE);
-            $newTotalCost = bcadd((string) $stock->total_cost, $incomingTotalCost, self::COST_SCALE);
+            $incomingTotalCost = bcmul($normalizedQuantity, $normalizedUnitCost, self::COST_SCALE);
+            $newQuantity = bcadd($stockQuantity, $normalizedQuantity, self::QUANTITY_SCALE);
+            $newTotalCost = bcadd($stockTotalCost, $incomingTotalCost, self::COST_SCALE);
             $newAverageCost = $this->averageCost($newQuantity, $newTotalCost);
 
             $stock->update([
@@ -55,9 +63,9 @@ final class StockLedgerService
                 'product_id' => $product->id,
                 'warehouse_id' => $warehouse->id,
                 'type' => $type,
-                'quantity' => $quantity,
+                'quantity' => $normalizedQuantity,
                 'direction' => $type === 'adjustment' ? 'increase' : null,
-                'unit_cost' => $unitCost,
+                'unit_cost' => $normalizedUnitCost,
                 'balance_quantity' => $newQuantity,
                 'balance_unit_cost' => $newAverageCost,
                 'balance_total_cost' => $newTotalCost,
@@ -85,18 +93,23 @@ final class StockLedgerService
     ): InventoryMovement {
         return DB::transaction(function () use ($product, $warehouse, $quantity, $type, $reference, $notes, $createdBy): InventoryMovement {
             $stock = $this->lockStock($product, $warehouse);
+            /** @var numeric-string $normalizedQuantity */
+            $normalizedQuantity = $quantity;
+            /** @var numeric-string $stockQuantity */
+            $stockQuantity = (string) $stock->quantity;
 
-            if ($type !== 'sale' && bccomp($quantity, (string) $stock->quantity, self::QUANTITY_SCALE) > 0) {
+            if ($type !== 'sale' && bccomp($normalizedQuantity, $stockQuantity, self::QUANTITY_SCALE) > 0) {
                 throw InsufficientStockException::forProductInWarehouse(
                     $product->id,
                     $warehouse->id,
-                    (string) $stock->quantity,
-                    $quantity,
+                    $stockQuantity,
+                    $normalizedQuantity,
                 );
             }
 
+            /** @var numeric-string $unitCost */
             $unitCost = (string) $stock->average_cost;
-            $newQuantity = bcsub((string) $stock->quantity, $quantity, self::QUANTITY_SCALE);
+            $newQuantity = bcsub($stockQuantity, $normalizedQuantity, self::QUANTITY_SCALE);
             $newTotalCost = bcmul($newQuantity, $unitCost, self::COST_SCALE);
             $newAverageCost = $this->averageCost($newQuantity, $newTotalCost);
 
@@ -110,7 +123,7 @@ final class StockLedgerService
                 'product_id' => $product->id,
                 'warehouse_id' => $warehouse->id,
                 'type' => $type,
-                'quantity' => $quantity,
+                'quantity' => $normalizedQuantity,
                 'direction' => $type === 'adjustment' ? 'decrease' : null,
                 'unit_cost' => $unitCost,
                 'balance_quantity' => $newQuantity,
@@ -137,25 +150,30 @@ final class StockLedgerService
 
     private function lockStock(Product $product, Warehouse $warehouse): Stock
     {
-        $stock = Stock::query()
+        Stock::query()->firstOrCreate(
+            [
+                'warehouse_id' => $warehouse->id,
+                'product_id' => $product->id,
+            ],
+            [
+                'quantity' => 0,
+                'average_cost' => 0,
+                'total_cost' => 0,
+            ],
+        );
+
+        return Stock::query()
             ->where('warehouse_id', $warehouse->id)
             ->where('product_id', $product->id)
             ->lockForUpdate()
-            ->first();
-
-        if ($stock instanceof Stock) {
-            return $stock;
-        }
-
-        return Stock::query()->create([
-            'warehouse_id' => $warehouse->id,
-            'product_id' => $product->id,
-            'quantity' => 0,
-            'average_cost' => 0,
-            'total_cost' => 0,
-        ]);
+            ->firstOrFail();
     }
 
+    /**
+     * @param  numeric-string  $quantity
+     * @param  numeric-string  $totalCost
+     * @return numeric-string
+     */
     private function averageCost(string $quantity, string $totalCost): string
     {
         if (bccomp($quantity, '0', self::QUANTITY_SCALE) <= 0) {

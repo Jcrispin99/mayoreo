@@ -5,6 +5,8 @@ import { AppHeader } from './app-header';
 
 type AppScreenLayoutProps = {
   children: ReactNode;
+  icon?: string;
+  iconColor?: string;
   title: string;
   userName?: string;
   onApplicationsPress?: () => void;
@@ -15,6 +17,8 @@ type AppScreenLayoutProps = {
 
 export function AppScreenLayout({
   children,
+  icon,
+  iconColor,
   title,
   userName,
   onApplicationsPress,
@@ -26,6 +30,8 @@ export function AppScreenLayout({
     <View style={styles.screen}>
       <StatusBar style="light" />
       <AppHeader
+        icon={icon}
+        iconColor={iconColor}
         onApplicationsPress={onApplicationsPress}
         onMenuPress={onMenuPress}
         onNotificationsPress={onNotificationsPress}

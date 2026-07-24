@@ -53,5 +53,5 @@ const styles = StyleSheet.create({
   },
   title: { flex: 1, marginLeft: 12, color: '#342C37', fontSize: 19, fontWeight: '800' },
   close: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
-  content: { paddingHorizontal: 24, paddingBottom: 40 },
+  content: { paddingBottom: 40 },
 });
