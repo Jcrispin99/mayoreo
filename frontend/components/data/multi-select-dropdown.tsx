@@ -79,7 +79,7 @@ export function MultiSelectDropdown({
           onChangeText={setQuery}
           onFocus={keepOpen}
           placeholder={selectedOptions.length === 0 ? placeholder : 'Agregar otro rol…'}
-          placeholderTextColor="#918A94"
+          placeholderTextColor="#60706E"
           style={styles.input}
           value={query}
         />
@@ -124,7 +124,7 @@ export function MultiSelectDropdown({
 
 const styles = StyleSheet.create({
   container: { position: 'relative', zIndex: 2 },
-  label: { marginBottom: 3, color: '#777079', fontSize: 11 },
+  label: { marginBottom: 3, color: '#60706E', fontSize: 11 },
   field: {
     minHeight: 48,
     paddingHorizontal: 4,
@@ -134,9 +134,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     borderBottomWidth: 1,
-    borderBottomColor: '#CFC7D1',
+    borderBottomColor: '#879692',
   },
-  fieldFocused: { borderBottomWidth: 2, borderBottomColor: '#73547B' },
+  fieldFocused: { borderBottomWidth: 2, borderBottomColor: '#B4232D' },
   chip: {
     maxWidth: '100%',
     minHeight: 30,
@@ -145,9 +145,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 15,
-    backgroundColor: '#EEE7F0',
+    backgroundColor: '#FFE5E5',
   },
-  chipLabel: { maxWidth: 190, color: '#503A56', fontSize: 12, fontWeight: '700' },
+  chipLabel: { maxWidth: 190, color: '#B4232D', fontSize: 12, fontWeight: '700' },
   removeButton: {
     width: 25,
     height: 25,
@@ -156,14 +156,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 13,
   },
-  removeText: { color: '#73547B', fontSize: 19, lineHeight: 21 },
+  removeText: { color: '#B4232D', fontSize: 19, lineHeight: 21 },
   input: {
     minWidth: 145,
     minHeight: 34,
     flex: 1,
     paddingHorizontal: 6,
     paddingVertical: 0,
-    color: '#302A33',
+    color: '#172423',
     backgroundColor: 'transparent',
     fontSize: 14,
   },
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#DED8E0',
+    borderColor: '#D7E0DE',
     borderRadius: 7,
     backgroundColor: '#FFFFFF',
   },
@@ -181,14 +181,14 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     justifyContent: 'center',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E8E3E9',
+    borderBottomColor: '#D7E0DE',
   },
   optionPressed: { opacity: 0.78 },
-  optionSelected: { backgroundColor: '#73547B' },
-  optionLabel: { color: '#342E37', fontSize: 13, fontWeight: '700' },
+  optionSelected: { backgroundColor: '#B4232D' },
+  optionLabel: { color: '#172423', fontSize: 13, fontWeight: '700' },
   optionLabelSelected: { color: '#FFFFFF' },
-  optionDescription: { marginTop: 2, color: '#89818C', fontSize: 10 },
-  optionDescriptionSelected: { color: '#E9DDEB' },
-  empty: { padding: 14, color: '#89818C', fontSize: 12 },
+  optionDescription: { marginTop: 2, color: '#60706E', fontSize: 10 },
+  optionDescriptionSelected: { color: '#FFE5E5' },
+  empty: { padding: 14, color: '#60706E', fontSize: 12 },
   pressed: { opacity: 0.62 },
 });

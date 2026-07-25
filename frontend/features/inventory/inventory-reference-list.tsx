@@ -124,7 +124,7 @@ export function InventoryReferenceList({ kind }: InventoryReferenceListProps) {
       key: 'action',
       title: '',
       style: styles.actionColumn,
-      renderCell: () => <Icon source="chevron-right" color="#A49DA7" size={22} />,
+      renderCell: () => <Icon source="chevron-right" color="#60706E" size={22} />,
     },
   ], [kind]);
 
@@ -194,12 +194,12 @@ export function InventoryReferenceList({ kind }: InventoryReferenceListProps) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F7F5F8' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
   compactRow: { minHeight: 68, paddingHorizontal: 16, paddingVertical: 9 },
   detailColumn: { flex: 1 },
   actionColumn: { width: 42, alignItems: 'center' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  name: { flexShrink: 1, color: '#302A33', fontSize: 14, fontWeight: '800' },
-  meta: { marginTop: 4, color: '#827B85', fontSize: 11, lineHeight: 15 },
-  inactive: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 7, color: '#925064', backgroundColor: '#F8E8ED', fontSize: 9, fontWeight: '800' },
+  name: { flexShrink: 1, color: '#172423', fontSize: 14, fontWeight: '800' },
+  meta: { marginTop: 4, color: '#60706E', fontSize: 11, lineHeight: 15 },
+  inactive: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 7, color: '#60706E', backgroundColor: '#EAEFEE', fontSize: 9, fontWeight: '800' },
 });

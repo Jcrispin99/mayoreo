@@ -469,7 +469,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.screen}>
-        <ActivityIndicator color="#28738A" size="large" style={styles.loader} />
+        <ActivityIndicator color="#B4232D" size="large" style={styles.loader} />
       </SafeAreaView>
     );
   }
@@ -480,7 +480,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
     <SafeAreaView style={styles.screen}>
       <View style={styles.topBar}>
         <View style={styles.identity}>
-          <View style={styles.icon}><Icon color="#28738A" size={22} source="point-of-sale" /></View>
+          <View style={styles.icon}><Icon color="#B4232D" size={22} source="point-of-sale" /></View>
           <View style={styles.identityText}>
             <Text numberOfLines={1} style={styles.title}>POS móvil</Text>
             <Text numberOfLines={1} style={styles.cashRegister}>
@@ -494,7 +494,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
               <IconButton
                 accessibilityLabel="Buscar productos"
                 icon="magnify"
-                iconColor="#3C353E"
+                iconColor="#172423"
                 mode="contained-tonal"
                 onPress={() => setSearchExpanded(true)}
                 size={21}
@@ -511,7 +511,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
             <IconButton
               accessibilityLabel="Escanear código de barras"
               icon="barcode-scan"
-              iconColor="#3C353E"
+              iconColor="#172423"
               mode="contained-tonal"
               onPress={() => setScannerVisible(true)}
               size={21}
@@ -523,7 +523,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
               <IconButton
                 accessibilityLabel="Abrir menú del POS"
                 icon="menu"
-                iconColor="#3C353E"
+                iconColor="#172423"
                 mode="contained-tonal"
                 onPress={() => setMenuVisible(true)}
                 size={24}
@@ -558,7 +558,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
 
       {error ? (
         <View style={styles.workspace}>
-          <Icon color="#A44256" size={38} source="alert-circle-outline" />
+          <Icon color="#8F1D2C" size={38} source="alert-circle-outline" />
           <Text style={styles.error}>{error}</Text>
         </View>
       ) : session?.status === 'open' ? (
@@ -577,7 +577,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
         />
       ) : (
         <View style={styles.workspace}>
-          <Icon color="#A44256" size={38} source="lock-outline" />
+          <Icon color="#8F1D2C" size={38} source="lock-outline" />
           <Text style={styles.error}>Esta apertura de caja ya está cerrada.</Text>
         </View>
       )}
@@ -645,7 +645,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
               <Text style={styles.expectedValue}>S/ {Number(session?.expected_amount ?? 0).toFixed(2)}</Text>
             </View>
             <TextInput
-              activeOutlineColor="#A44256"
+              activeOutlineColor="#8F1D2C"
               autoFocus
               error={Boolean(closeError)}
               keyboardType="decimal-pad"
@@ -653,7 +653,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
               left={<TextInput.Affix text="S/" />}
               mode="outlined"
               onChangeText={(value) => { setCountedAmount(value); setCloseError(''); }}
-              outlineColor="#D8D1DA"
+              outlineColor="#879692"
               style={styles.closeInput}
               value={countedAmount}
             />
@@ -662,11 +662,12 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
           <Dialog.Actions>
             <Button disabled={closing} onPress={() => setCloseDialogVisible(false)}>Cancelar</Button>
             <Button
-              buttonColor="#A44256"
+              buttonColor="#8F1D2C"
               disabled={closing}
               loading={closing}
               mode="contained"
               onPress={() => void closeCashRegister()}
+              textColor="#FFFFFF"
             >
               Cerrar caja
             </Button>
@@ -686,29 +687,29 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F6F8F9' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
   loader: { flex: 1 },
-  topBar: { minHeight: 68, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#DCE3E5', backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  topBar: { minHeight: 68, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#D7E0DE', backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   identity: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
   identityText: { flex: 1, minWidth: 0 },
-  icon: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#E6F2F5', alignItems: 'center', justifyContent: 'center' },
-  title: { color: '#302A33', fontSize: 14, fontWeight: '900' },
-  cashRegister: { marginTop: 2, color: '#7C757F', fontSize: 9 },
+  icon: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#FFE5E5', alignItems: 'center', justifyContent: 'center' },
+  title: { color: '#172423', fontSize: 14, fontWeight: '900' },
+  cashRegister: { marginTop: 2, color: '#60706E', fontSize: 9 },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   searchAction: { position: 'relative' },
-  activeFilterCount: { position: 'absolute', top: -2, right: -2, minWidth: 17, height: 17, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#D18A25' },
+  activeFilterCount: { position: 'absolute', top: -2, right: -2, minWidth: 17, height: 17, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#FF4D4D' },
   activeFilterCountText: { color: '#FFFFFF', fontSize: 8, fontWeight: '900' },
-  actionButton: { margin: 0, backgroundColor: '#F2F4F5' },
-  menuButton: { margin: 0, backgroundColor: '#ECE8ED' },
+  actionButton: { margin: 0, backgroundColor: '#EAEFEE' },
+  menuButton: { margin: 0, backgroundColor: '#EAEFEE' },
   workspace: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center' },
-  error: { marginTop: 10, color: '#A44256', fontSize: 11, fontWeight: '700' },
+  error: { marginTop: 10, color: '#8F1D2C', fontSize: 11, fontWeight: '700' },
   dialogTitle: { textAlign: 'center' },
-  dialogHelp: { color: '#777079', fontSize: 11, lineHeight: 17, textAlign: 'center' },
-  expectedRow: { marginTop: 16, padding: 12, borderRadius: 9, backgroundColor: '#F5F1F6', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  expectedLabel: { color: '#746C77', fontSize: 9, fontWeight: '800' },
-  expectedValue: { color: '#76557E', fontSize: 13, fontWeight: '900' },
+  dialogHelp: { color: '#60706E', fontSize: 11, lineHeight: 17, textAlign: 'center' },
+  expectedRow: { marginTop: 16, padding: 12, borderRadius: 9, backgroundColor: '#EAEFEE', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  expectedLabel: { color: '#60706E', fontSize: 9, fontWeight: '800' },
+  expectedValue: { color: '#B4232D', fontSize: 13, fontWeight: '900' },
   closeInput: { marginTop: 14, backgroundColor: '#FFFFFF' },
-  closeError: { marginTop: 6, color: '#A44256', fontSize: 9, fontWeight: '700' },
-  errorSnackbar: { backgroundColor: '#8D3448' },
-  successSnackbar: { backgroundColor: '#28738A' },
+  closeError: { marginTop: 6, color: '#8F1D2C', fontSize: 9, fontWeight: '700' },
+  errorSnackbar: { backgroundColor: '#8F1D2C' },
+  successSnackbar: { backgroundColor: '#247451' },
 });

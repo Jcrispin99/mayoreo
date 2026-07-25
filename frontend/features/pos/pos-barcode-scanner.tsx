@@ -72,14 +72,14 @@ export function PosBarcodeScanner({ visible, onClose, onScanned }: PosBarcodeSca
         ) : !permission.granted ? (
           <View style={styles.centered}>
             <View style={styles.permissionIcon}>
-              <Icon color="#28738A" size={38} source="camera-outline" />
+              <Icon color="#B4232D" size={38} source="camera-outline" />
             </View>
             <Text style={styles.permissionTitle}>Permiso de cámara requerido</Text>
             <Text style={styles.permissionText}>
               Necesitamos la cámara para leer el código de barras del producto.
             </Text>
             <Button
-              buttonColor="#28738A"
+              buttonColor="#FF4D4D"
               icon="camera"
               mode="contained"
               onPress={() => {
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   closeButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 21, backgroundColor: '#2A3236' },
   centered: { flex: 1, paddingHorizontal: 32, alignItems: 'center', justifyContent: 'center', gap: 14 },
   statusText: { color: '#DCE4E7', fontSize: 11 },
-  permissionIcon: { width: 70, height: 70, alignItems: 'center', justifyContent: 'center', borderRadius: 35, backgroundColor: '#E6F2F5' },
+  permissionIcon: { width: 70, height: 70, alignItems: 'center', justifyContent: 'center', borderRadius: 35, backgroundColor: '#FFE5E5' },
   permissionTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: '900', textAlign: 'center' },
   permissionText: { maxWidth: 340, color: '#B8C2C6', fontSize: 11, lineHeight: 17, textAlign: 'center' },
   cameraContainer: { flex: 1, position: 'relative', overflow: 'hidden' },

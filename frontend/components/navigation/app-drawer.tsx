@@ -1,6 +1,7 @@
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Icon, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { COLORS } from '../../theme/colors';
 import { getInitials } from '../layout/app-header';
 
 type AppDrawerProps = {
@@ -29,11 +30,11 @@ export function AppDrawer({
         <SafeAreaView edges={['top', 'bottom']} style={styles.drawer}>
           <View style={styles.header}>
             <View style={styles.logo}>
-              <Icon source="view-grid-outline" color="#FFFFFF" size={24} />
+              <Icon source="view-grid-outline" color={COLORS.onPrimary} size={24} />
             </View>
             <Text style={styles.brand}>Mayoreo</Text>
             <Pressable accessibilityLabel="Cerrar menú" hitSlop={8} onPress={onClose} style={styles.close}>
-              <Icon source="close" color="#5F5863" size={23} />
+              <Icon source="close" color={COLORS.textMuted} size={23} />
             </Pressable>
           </View>
 
@@ -53,22 +54,22 @@ export function AppDrawer({
 
           <Text style={styles.label}>MENÚ</Text>
           <Pressable onPress={onHomePress} style={[styles.item, styles.itemActive]}>
-            <Icon source="home-variant-outline" color="#73547B" size={23} />
+            <Icon source="home-variant-outline" color={COLORS.primaryDark} size={23} />
             <Text style={styles.itemActiveText}>Inicio</Text>
           </Pressable>
           <Pressable onPress={onSettingsPress} style={styles.item}>
-            <Icon source="cog-outline" color="#716A75" size={23} />
+            <Icon source="cog-outline" color={COLORS.textMuted} size={23} />
             <Text style={styles.itemText}>Configuración</Text>
           </Pressable>
           <Pressable onPress={onHelpPress} style={styles.item}>
-            <Icon source="help-circle-outline" color="#716A75" size={23} />
+            <Icon source="help-circle-outline" color={COLORS.textMuted} size={23} />
             <Text style={styles.itemText}>Ayuda</Text>
           </Pressable>
 
           <View style={styles.spacer} />
           <View style={styles.divider} />
           <Pressable accessibilityRole="button" onPress={onLogoutPress} style={styles.item}>
-            <Icon source="logout" color="#BE485D" size={23} />
+            <Icon source="logout" color={COLORS.error} size={23} />
             <Text style={styles.logoutText}>Cerrar sesión</Text>
           </Pressable>
           <Text style={styles.version}>Mayoreo móvil · v1.0</Text>
@@ -86,13 +87,13 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: 'rgba(25, 18, 28, 0.48)',
+    backgroundColor: 'rgba(23, 36, 35, 0.42)',
   },
   drawer: {
     width: '84%',
     maxWidth: 350,
     paddingHorizontal: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.surface,
   },
   header: { height: 67, flexDirection: 'row', alignItems: 'center' },
   logo: {
@@ -101,9 +102,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 12,
-    backgroundColor: '#62426F',
+    backgroundColor: COLORS.primary,
   },
-  brand: { marginLeft: 11, color: '#342C37', fontSize: 20, fontWeight: '800' },
+  brand: { marginLeft: 11, color: COLORS.text, fontSize: 20, fontWeight: '800' },
   close: {
     width: 38,
     height: 38,
@@ -118,7 +119,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 16,
-    backgroundColor: '#F5F1F6',
+    backgroundColor: COLORS.surfaceSubtle,
   },
   profileAvatar: {
     width: 46,
@@ -126,16 +127,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 15,
-    backgroundColor: '#73547B',
+    backgroundColor: COLORS.primary,
   },
-  profileInitials: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  profileInitials: { color: COLORS.onPrimary, fontSize: 15, fontWeight: '800' },
   profileCopy: { flex: 1, marginLeft: 12 },
-  profileName: { color: '#382F3B', fontSize: 14, fontWeight: '800' },
-  profileEmail: { marginTop: 3, color: '#887F8B', fontSize: 11 },
+  profileName: { color: COLORS.text, fontSize: 14, fontWeight: '800' },
+  profileEmail: { marginTop: 3, color: COLORS.textMuted, fontSize: 11 },
   label: {
     marginBottom: 9,
     marginLeft: 12,
-    color: '#A39CA6',
+    color: COLORS.textMuted,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.3,
@@ -148,16 +149,16 @@ const styles = StyleSheet.create({
     gap: 13,
     borderRadius: 13,
   },
-  itemActive: { backgroundColor: '#F0EAF2' },
-  itemText: { color: '#625B66', fontSize: 14, fontWeight: '600' },
-  itemActiveText: { color: '#684770', fontSize: 14, fontWeight: '800' },
+  itemActive: { backgroundColor: COLORS.primaryContainer },
+  itemText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '600' },
+  itemActiveText: { color: COLORS.primaryDark, fontSize: 14, fontWeight: '800' },
   spacer: { flex: 1, minHeight: 24 },
-  divider: { height: 1, marginBottom: 5, backgroundColor: '#EEE9EF' },
-  logoutText: { color: '#B74559', fontSize: 14, fontWeight: '700' },
+  divider: { height: 1, marginBottom: 5, backgroundColor: COLORS.border },
+  logoutText: { color: COLORS.error, fontSize: 14, fontWeight: '700' },
   version: {
     marginTop: 10,
     marginBottom: 4,
-    color: '#AEA7B0',
+    color: COLORS.textMuted,
     fontSize: 10,
     textAlign: 'center',
   },

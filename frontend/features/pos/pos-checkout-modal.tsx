@@ -130,7 +130,7 @@ function CheckoutSuccess({
 
       <View style={styles.successFooter}>
         <Button
-          buttonColor="#28738A"
+          buttonColor="#FF4D4D"
           contentStyle={styles.primaryButtonContent}
           disabled={finishing}
           loading={finishing}
@@ -331,7 +331,7 @@ export function PosCheckoutModal({
                     </Text>
                     <View style={styles.orderMeta}>
                       <View style={styles.orderMetaIcon}>
-                        <Icon color="#28738A" size={20} source="receipt-text-outline" />
+                        <Icon color="#B4232D" size={20} source="receipt-text-outline" />
                       </View>
                       <View style={styles.orderMetaText}>
                         <Text style={styles.orderMetaTitle}>Orden {order.number}</Text>
@@ -343,7 +343,7 @@ export function PosCheckoutModal({
                   </View>
 
                   <View style={styles.checkoutNote}>
-                    <Icon color="#5F7077" size={20} source="shield-check-outline" />
+                    <Icon color="#60706E" size={20} source="shield-check-outline" />
                     <Text style={styles.checkoutNoteText}>
                       El total será validado nuevamente antes de registrar la venta y descontar el stock.
                     </Text>
@@ -358,7 +358,7 @@ export function PosCheckoutModal({
 
                   {methodsLoading ? (
                     <View style={styles.methodsLoading}>
-                      <ActivityIndicator color="#28738A" size="small" />
+                      <ActivityIndicator color="#B4232D" size="small" />
                       <Text style={styles.methodsLoadingText}>Cargando métodos de pago…</Text>
                     </View>
                   ) : methodsError ? (
@@ -389,7 +389,7 @@ export function PosCheckoutModal({
                           >
                             <View style={[styles.methodIcon, selected && styles.methodIconSelected]}>
                               <Icon
-                                color={selected ? '#FFFFFF' : '#28738A'}
+                                color={selected ? '#FFFFFF' : '#B4232D'}
                                 size={23}
                                 source={PAYMENT_METHOD_ICONS[option.code]}
                               />
@@ -401,7 +401,7 @@ export function PosCheckoutModal({
                               <Text style={styles.methodDescription}>{option.description}</Text>
                             </View>
                             <Icon
-                              color={selected ? '#28738A' : '#BAC3C6'}
+                              color={selected ? '#B4232D' : '#879692'}
                               size={20}
                               source={selected ? 'radiobox-marked' : 'radiobox-blank'}
                             />
@@ -414,7 +414,7 @@ export function PosCheckoutModal({
                   {method === 'cash' ? (
                     <View style={styles.paymentForm}>
                       <TextInput
-                        activeOutlineColor="#28738A"
+                        activeOutlineColor="#B4232D"
                         disabled={submitting}
                         error={receivedCents === null || cashShortfall > 0}
                         keyboardType="decimal-pad"
@@ -425,7 +425,7 @@ export function PosCheckoutModal({
                           setReceivedAmount(value);
                           setError('');
                         }}
-                        outlineColor="#CBD6D9"
+                        outlineColor="#879692"
                         selectTextOnFocus
                         style={styles.amountInput}
                         value={receivedAmount}
@@ -510,7 +510,7 @@ export function PosCheckoutModal({
                       </View>
 
                       <TextInput
-                        activeOutlineColor="#28738A"
+                        activeOutlineColor="#B4232D"
                         disabled={submitting}
                         label="Número de operación o referencia (opcional)"
                         mode="outlined"
@@ -518,7 +518,7 @@ export function PosCheckoutModal({
                           setReference(value);
                           setError('');
                         }}
-                        outlineColor="#CBD6D9"
+                        outlineColor="#879692"
                         style={styles.referenceInput}
                         value={reference}
                       />
@@ -534,7 +534,7 @@ export function PosCheckoutModal({
 
                   {error ? (
                     <View accessibilityLiveRegion="polite" style={styles.errorBox}>
-                      <Icon color="#A44256" size={20} source="alert-circle-outline" />
+                      <Icon color="#8F1D2C" size={20} source="alert-circle-outline" />
                       <Text style={styles.errorText}>{error}</Text>
                     </View>
                   ) : null}
@@ -544,7 +544,7 @@ export function PosCheckoutModal({
               <View style={styles.footer}>
                 <View style={styles.footerInner}>
                   <Button
-                    buttonColor="#28738A"
+                    buttonColor="#FF4D4D"
                     contentStyle={styles.primaryButtonContent}
                     disabled={submitting || !validPayment}
                     icon="lock-check-outline"
@@ -568,85 +568,85 @@ export function PosCheckoutModal({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  screen: { flex: 1, backgroundColor: '#F5F7F8' },
-  header: { borderBottomWidth: 1, borderBottomColor: '#DCE3E5', backgroundColor: '#FFFFFF' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
+  header: { borderBottomWidth: 1, borderBottomColor: '#D7E0DE', backgroundColor: '#FFFFFF' },
   headerInner: { width: '100%', maxWidth: 1120, minHeight: 66, paddingHorizontal: 12, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8 },
-  backButton: { margin: 0, backgroundColor: '#EEF2F3' },
+  backButton: { margin: 0, backgroundColor: '#EAEFEE' },
   headerText: { flex: 1, minWidth: 0 },
-  headerTitle: { color: '#302A33', fontSize: 18, fontWeight: '900' },
-  headerSubtitle: { marginTop: 2, color: '#788287', fontSize: 10 },
+  headerTitle: { color: '#172423', fontSize: 18, fontWeight: '900' },
+  headerSubtitle: { marginTop: 2, color: '#60706E', fontSize: 10 },
   content: { width: '100%', maxWidth: 1080, flexGrow: 1, alignSelf: 'center', padding: 14, paddingBottom: 28, gap: 14 },
   wideContent: { flexDirection: 'row', alignItems: 'flex-start', padding: 22, gap: 20 },
   summaryColumn: { gap: 12 },
-  paymentColumn: { padding: 15, gap: 15, borderWidth: 1, borderColor: '#DEE5E7', borderRadius: 15, backgroundColor: '#FFFFFF' },
+  paymentColumn: { padding: 15, gap: 15, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 15, backgroundColor: '#FFFFFF' },
   wideColumn: { flex: 1, minWidth: 0 },
-  totalCard: { overflow: 'hidden', padding: 20, borderWidth: 1, borderColor: '#D8E2E5', borderRadius: 16, backgroundColor: '#FFFFFF' },
-  eyebrow: { color: '#738086', fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
-  total: { marginTop: 6, color: '#28738A', fontSize: 42, lineHeight: 50, fontWeight: '900' },
-  orderMeta: { marginTop: 18, paddingTop: 16, flexDirection: 'row', alignItems: 'center', gap: 11, borderTopWidth: 1, borderTopColor: '#E1E7E9' },
-  orderMetaIcon: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#E8F3F5' },
+  totalCard: { overflow: 'hidden', padding: 20, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 16, backgroundColor: '#FFFFFF' },
+  eyebrow: { color: '#60706E', fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
+  total: { marginTop: 6, color: '#B4232D', fontSize: 42, lineHeight: 50, fontWeight: '900' },
+  orderMeta: { marginTop: 18, paddingTop: 16, flexDirection: 'row', alignItems: 'center', gap: 11, borderTopWidth: 1, borderTopColor: '#D7E0DE' },
+  orderMetaIcon: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#FFE5E5' },
   orderMetaText: { flex: 1, minWidth: 0 },
   orderMetaTitle: { color: '#3D484D', fontSize: 13, fontWeight: '900' },
-  orderMetaDetail: { marginTop: 3, color: '#7C878B', fontSize: 10 },
-  checkoutNote: { padding: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: 11, backgroundColor: '#EAF0F2' },
-  checkoutNoteText: { flex: 1, color: '#5F7077', fontSize: 10, lineHeight: 15 },
-  sectionTitle: { color: '#384348', fontSize: 16, fontWeight: '900' },
-  sectionHelp: { marginTop: 3, color: '#7E888C', fontSize: 10, lineHeight: 15 },
+  orderMetaDetail: { marginTop: 3, color: '#60706E', fontSize: 10 },
+  checkoutNote: { padding: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: 11, backgroundColor: '#EAEFEE' },
+  checkoutNoteText: { flex: 1, color: '#60706E', fontSize: 10, lineHeight: 15 },
+  sectionTitle: { color: '#172423', fontSize: 16, fontWeight: '900' },
+  sectionHelp: { marginTop: 3, color: '#60706E', fontSize: 10, lineHeight: 15 },
   methods: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   methodsLoading: { minHeight: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
-  methodsLoadingText: { color: '#748085', fontSize: 10 },
-  methodsError: { minHeight: 64, padding: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#FBF0F3' },
-  methodCard: { minWidth: 190, minHeight: 66, flexGrow: 1, flexBasis: '47%', padding: 10, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: '#D8E0E2', borderRadius: 11, backgroundColor: '#FFFFFF' },
-  methodCardSelected: { borderColor: '#28738A', backgroundColor: '#EDF7F8' },
+  methodsLoadingText: { color: '#60706E', fontSize: 10 },
+  methodsError: { minHeight: 64, padding: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#FCE8EA' },
+  methodCard: { minWidth: 190, minHeight: 66, flexGrow: 1, flexBasis: '47%', padding: 10, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 11, backgroundColor: '#FFFFFF' },
+  methodCardSelected: { borderColor: '#B4232D', backgroundColor: '#FFE5E5' },
   methodCardPressed: { backgroundColor: '#F2F6F7' },
   disabledControl: { opacity: 0.58 },
-  methodIcon: { width: 39, height: 39, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#E8F3F5' },
-  methodIconSelected: { backgroundColor: '#28738A' },
+  methodIcon: { width: 39, height: 39, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#FFE5E5' },
+  methodIconSelected: { backgroundColor: '#B4232D' },
   methodText: { flex: 1, minWidth: 0 },
   methodLabel: { color: '#4A555A', fontSize: 11, fontWeight: '900' },
-  methodLabelSelected: { color: '#28738A' },
-  methodDescription: { marginTop: 2, color: '#879095', fontSize: 8 },
+  methodLabelSelected: { color: '#B4232D' },
+  methodDescription: { marginTop: 2, color: '#60706E', fontSize: 8 },
   paymentForm: { gap: 10 },
   amountInput: { backgroundColor: '#FFFFFF', fontSize: 20, fontWeight: '900' },
   quickAmounts: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  quickAmount: { minHeight: 36, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#C8D5D8', borderRadius: 18, backgroundColor: '#FFFFFF' },
-  quickAmountSelected: { borderColor: '#28738A', backgroundColor: '#E6F2F5' },
+  quickAmount: { minHeight: 36, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#879692', borderRadius: 18, backgroundColor: '#FFFFFF' },
+  quickAmountSelected: { borderColor: '#B4232D', backgroundColor: '#FFE5E5' },
   quickAmountText: { color: '#5E696E', fontSize: 10, fontWeight: '800' },
-  quickAmountTextSelected: { color: '#28738A' },
-  fieldError: { color: '#A44256', fontSize: 10, fontWeight: '700' },
-  cashSummary: { overflow: 'hidden', borderWidth: 1, borderColor: '#DCE4E6', borderRadius: 12, backgroundColor: '#F8FAFA' },
-  cashSummaryRow: { minHeight: 43, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderBottomWidth: 1, borderBottomColor: '#E1E7E9' },
+  quickAmountTextSelected: { color: '#B4232D' },
+  fieldError: { color: '#8F1D2C', fontSize: 10, fontWeight: '700' },
+  cashSummary: { overflow: 'hidden', borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 12, backgroundColor: '#F8FAFA' },
+  cashSummaryRow: { minHeight: 43, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderBottomWidth: 1, borderBottomColor: '#D7E0DE' },
   cashSummaryLabel: { color: '#687479', fontSize: 10, fontWeight: '700' },
-  cashSummaryValue: { color: '#424E53', fontSize: 12, fontWeight: '900' },
+  cashSummaryValue: { color: '#172423', fontSize: 12, fontWeight: '900' },
   changeRow: { minHeight: 61, borderBottomWidth: 0, backgroundColor: '#E9F6F1' },
   changeLabel: { color: '#32735F', fontSize: 12, fontWeight: '900' },
   changeValue: { flex: 1, color: '#26745D', fontSize: 25, fontWeight: '900', textAlign: 'right' },
   fixedAmount: { padding: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 11, backgroundColor: '#EDF5F7' },
   fixedAmountLabel: { color: '#526167', fontSize: 10, fontWeight: '900' },
-  fixedAmountHelp: { marginTop: 2, color: '#7F898D', fontSize: 8 },
-  fixedAmountValue: { color: '#28738A', fontSize: 18, fontWeight: '900' },
+  fixedAmountHelp: { marginTop: 2, color: '#60706E', fontSize: 8 },
+  fixedAmountValue: { color: '#B4232D', fontSize: 18, fontWeight: '900' },
   referenceInput: { backgroundColor: '#FFFFFF' },
   externalNote: { padding: 11, flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 10, backgroundColor: '#FBF5E7' },
   externalNoteText: { flex: 1, color: '#6E5A24', fontSize: 9, lineHeight: 14 },
-  errorBox: { padding: 11, flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderWidth: 1, borderColor: '#ECCAD2', borderRadius: 10, backgroundColor: '#FBF0F3' },
-  errorText: { flex: 1, color: '#934052', fontSize: 10, lineHeight: 15, fontWeight: '700' },
-  footer: { borderTopWidth: 1, borderTopColor: '#DCE3E5', backgroundColor: '#FFFFFF' },
+  errorBox: { padding: 11, flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderWidth: 1, borderColor: '#8F1D2C', borderRadius: 10, backgroundColor: '#FCE8EA' },
+  errorText: { flex: 1, color: '#8F1D2C', fontSize: 10, lineHeight: 15, fontWeight: '700' },
+  footer: { borderTopWidth: 1, borderTopColor: '#D7E0DE', backgroundColor: '#FFFFFF' },
   footerInner: { width: '100%', maxWidth: 1080, paddingHorizontal: 14, paddingVertical: 10, alignSelf: 'center' },
   primaryButtonContent: { minHeight: 48 },
   successScreen: { flex: 1 },
   successContent: { width: '100%', maxWidth: 560, flexGrow: 1, padding: 22, alignSelf: 'center', alignItems: 'center', justifyContent: 'center' },
   successIcon: { width: 96, height: 96, alignItems: 'center', justifyContent: 'center', borderRadius: 48, backgroundColor: '#2E8B70' },
   successTitle: { marginTop: 20, color: '#303A3E', fontSize: 27, fontWeight: '900', textAlign: 'center' },
-  successSubtitle: { maxWidth: 430, marginTop: 7, color: '#778287', fontSize: 11, lineHeight: 17, textAlign: 'center' },
-  successDocument: { marginTop: 21, paddingHorizontal: 22, paddingVertical: 12, alignItems: 'center', borderRadius: 12, backgroundColor: '#E8F3F5' },
-  successDocumentLabel: { color: '#6B797E', fontSize: 9, fontWeight: '800' },
-  successDocumentNumber: { marginTop: 3, color: '#28738A', fontSize: 20, fontWeight: '900' },
-  successSummary: { width: '100%', marginTop: 17, overflow: 'hidden', borderWidth: 1, borderColor: '#DDE4E6', borderRadius: 14, backgroundColor: '#FFFFFF' },
-  successRow: { minHeight: 50, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderBottomWidth: 1, borderBottomColor: '#E4E9EB' },
-  successLabel: { color: '#707B80', fontSize: 10, fontWeight: '700' },
-  successValue: { flex: 1, color: '#3E494E', fontSize: 13, fontWeight: '900', textAlign: 'right' },
+  successSubtitle: { maxWidth: 430, marginTop: 7, color: '#60706E', fontSize: 11, lineHeight: 17, textAlign: 'center' },
+  successDocument: { marginTop: 21, paddingHorizontal: 22, paddingVertical: 12, alignItems: 'center', borderRadius: 12, backgroundColor: '#E0F3EA' },
+  successDocumentLabel: { color: '#60706E', fontSize: 9, fontWeight: '800' },
+  successDocumentNumber: { marginTop: 3, color: '#247451', fontSize: 20, fontWeight: '900' },
+  successSummary: { width: '100%', marginTop: 17, overflow: 'hidden', borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 14, backgroundColor: '#FFFFFF' },
+  successRow: { minHeight: 50, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderBottomWidth: 1, borderBottomColor: '#D7E0DE' },
+  successLabel: { color: '#60706E', fontSize: 10, fontWeight: '700' },
+  successValue: { flex: 1, color: '#172423', fontSize: 13, fontWeight: '900', textAlign: 'right' },
   changeSuccess: { minHeight: 86, padding: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E8F6F0' },
   changeSuccessLabel: { color: '#32735F', fontSize: 10, fontWeight: '900' },
   changeSuccessValue: { width: '100%', marginTop: 4, color: '#26745D', fontSize: 31, fontWeight: '900', textAlign: 'center' },
-  successFooter: { width: '100%', maxWidth: 560, paddingHorizontal: 18, paddingVertical: 10, alignSelf: 'center', borderTopWidth: 1, borderTopColor: '#E1E7E9' },
+  successFooter: { width: '100%', maxWidth: 560, paddingHorizontal: 18, paddingVertical: 10, alignSelf: 'center', borderTopWidth: 1, borderTopColor: '#D7E0DE' },
 });

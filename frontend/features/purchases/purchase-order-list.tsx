@@ -9,9 +9,9 @@ import type { PurchaseOrder, Supplier, Warehouse } from './purchase-types';
 
 const PAGE_SIZE = 20;
 const STATUS = {
-  draft: { label: 'Borrador', color: '#73547B', backgroundColor: '#F0EAF2' },
+  draft: { label: 'Borrador', color: '#B4232D', backgroundColor: '#FFE5E5' },
   confirmed: { label: 'Confirmada', color: '#26705D', backgroundColor: '#E3F4EE' },
-  cancelled: { label: 'Cancelada', color: '#925064', backgroundColor: '#F8E8ED' },
+  cancelled: { label: 'Cancelada', color: '#8F1D2C', backgroundColor: '#FCE8EA' },
 } as const;
 
 const STATUS_FILTERS = [
@@ -180,14 +180,14 @@ export function PurchaseOrderList() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F7F5F8' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
   detailColumn: { flex: 1 },
   itemsColumn: { width: 105, alignItems: 'flex-end' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  name: { flexShrink: 1, color: '#302A33', fontSize: 14, fontWeight: '800' },
-  status: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, color: '#73547B', backgroundColor: '#F0EAF2', fontSize: 9, fontWeight: '800' },
-  meta: { marginTop: 4, color: '#827B85', fontSize: 11, lineHeight: 15 },
+  name: { flexShrink: 1, color: '#172423', fontSize: 14, fontWeight: '800' },
+  status: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, color: '#B4232D', backgroundColor: '#FFE5E5', fontSize: 9, fontWeight: '800' },
+  meta: { marginTop: 4, color: '#60706E', fontSize: 11, lineHeight: 15 },
   amountCell: { alignItems: 'flex-end', gap: 3 },
-  amount: { color: '#403743', fontSize: 12, fontWeight: '800' },
-  itemCount: { color: '#756E78', fontSize: 10, fontWeight: '700' },
+  amount: { color: '#172423', fontSize: 12, fontWeight: '800' },
+  itemCount: { color: '#60706E', fontSize: 10, fontWeight: '700' },
 });

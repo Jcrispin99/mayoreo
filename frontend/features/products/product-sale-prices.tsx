@@ -185,7 +185,7 @@ function PriceTierEditor({ baseUnit, productId, tier, visible, onClose, onDelete
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalScreen}>
           <View style={styles.modalHeader}>
             <Pressable accessibilityLabel="Volver a precios de venta" hitSlop={8} onPress={onClose} style={styles.backIconButton}>
-              <Icon source="arrow-left" color="#283142" size={22} />
+              <Icon source="arrow-left" color="#172423" size={22} />
             </Pressable>
             <Text style={styles.modalTitle}>{tier ? 'Editar precio de venta' : 'Nuevo precio de venta'}</Text>
           </View>
@@ -244,11 +244,11 @@ function PriceTierEditor({ baseUnit, productId, tier, visible, onClose, onDelete
                   <Text style={styles.deleteText}>Esta acción no se puede deshacer.</Text>
                   <View style={styles.deleteActions}>
                     <Button disabled={deleting} mode="text" onPress={() => setConfirmingDelete(false)}>Cancelar</Button>
-                    <Button loading={deleting} mode="contained" buttonColor="#A33E50" onPress={() => void remove()}>Eliminar</Button>
+                    <Button loading={deleting} mode="contained" buttonColor="#8F1D2C" onPress={() => void remove()} textColor="#FFFFFF">Eliminar</Button>
                   </View>
                 </View>
               ) : (
-                <Button icon="trash-can-outline" mode="text" onPress={() => setConfirmingDelete(true)} textColor="#A33E50">
+                <Button icon="trash-can-outline" mode="text" onPress={() => setConfirmingDelete(true)} textColor="#8F1D2C">
                   Eliminar rango
                 </Button>
               )
@@ -257,7 +257,7 @@ function PriceTierEditor({ baseUnit, productId, tier, visible, onClose, onDelete
 
           <View style={styles.modalFooter}>
             <Button disabled={saving || deleting} mode="outlined" onPress={onClose}>Cancelar</Button>
-            <Button buttonColor="#73547B" disabled={deleting} loading={saving} mode="contained" onPress={() => void save()}>
+            <Button buttonColor="#FF4D4D" disabled={deleting} loading={saving} mode="contained" onPress={() => void save()}>
               Guardar precio
             </Button>
           </View>
@@ -327,7 +327,7 @@ export function ProductSalePrices({ productId }: { productId: string }) {
     <ModuleLayout module={PRODUCTS_MODULE} selectedItemId="product-list">
       <View style={styles.screen}>
         {loading ? (
-          <ActivityIndicator color="#73547B" size="large" style={styles.loader} />
+          <ActivityIndicator color="#B4232D" size="large" style={styles.loader} />
         ) : (
           <ScrollView contentContainerStyle={styles.content}>
             <View style={styles.pageHeader}>
@@ -367,7 +367,7 @@ export function ProductSalePrices({ productId }: { productId: string }) {
 
             {tiers.length === 0 && !error ? (
               <View style={styles.emptyState}>
-                <Icon source="tag-multiple-outline" color="#8C8190" size={36} />
+                <Icon source="tag-multiple-outline" color="#60706E" size={36} />
                 <Text style={styles.emptyTitle}>Aún no hay precios de venta</Text>
                 <Text style={styles.emptyText}>Agrega el primer rango para definir precios de menudeo, mayor o saco.</Text>
               </View>
@@ -421,57 +421,57 @@ export function ProductSalePrices({ productId }: { productId: string }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#FAF9FA' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
   loader: { flex: 1 },
   content: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 20, paddingBottom: 48 },
   pageHeader: { flexDirection: 'row', alignItems: 'center' },
   titleRow: { marginTop: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 },
-  title: { color: '#28222C', fontSize: 24, fontWeight: '800' },
-  subtitle: { marginTop: 4, color: '#756D79', fontSize: 13 },
+  title: { color: '#172423', fontSize: 24, fontWeight: '800' },
+  subtitle: { marginTop: 4, color: '#60706E', fontSize: 13 },
   loadError: { marginTop: 16, alignItems: 'flex-start' },
-  error: { padding: 12, borderRadius: 8, color: '#923E4E', backgroundColor: '#FBEAEC' },
-  unitNotice: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 6, backgroundColor: '#F1EDF3' },
-  unitNoticeText: { color: '#5D5261', fontSize: 12, fontWeight: '700' },
-  sectionHeader: { marginTop: 28, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 9, borderBottomWidth: 1, borderBottomColor: '#E0DAE2' },
-  sectionTitle: { flex: 1, color: '#4A414E', fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
-  counter: { minWidth: 24, paddingHorizontal: 7, paddingVertical: 2, textAlign: 'center', color: '#73547B', fontSize: 11, fontWeight: '800', borderRadius: 6, backgroundColor: '#EEE7F0' },
+  error: { padding: 12, borderRadius: 8, color: '#8F1D2C', backgroundColor: '#FCE8EA' },
+  unitNotice: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 6, backgroundColor: '#EAEFEE' },
+  unitNoticeText: { color: '#172423', fontSize: 12, fontWeight: '700' },
+  sectionHeader: { marginTop: 28, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 9, borderBottomWidth: 1, borderBottomColor: '#D7E0DE' },
+  sectionTitle: { flex: 1, color: '#172423', fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
+  counter: { minWidth: 24, paddingHorizontal: 7, paddingVertical: 2, textAlign: 'center', color: '#B4232D', fontSize: 11, fontWeight: '800', borderRadius: 6, backgroundColor: '#FFE5E5' },
   addButton: { borderRadius: 6 },
   addButtonContent: { height: 30, paddingHorizontal: 2 },
   addButtonLabel: { marginHorizontal: 5, marginVertical: 0, fontSize: 11, lineHeight: 14 },
-  emptyState: { marginTop: 16, padding: 34, alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#E0DCE2', borderRadius: 8, backgroundColor: '#FFFFFF' },
-  emptyTitle: { color: '#443C47', fontSize: 15, fontWeight: '800' },
-  emptyText: { maxWidth: 390, textAlign: 'center', color: '#8A838D', fontSize: 11, lineHeight: 17 },
+  emptyState: { marginTop: 16, padding: 34, alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 8, backgroundColor: '#FFFFFF' },
+  emptyTitle: { color: '#172423', fontSize: 15, fontWeight: '800' },
+  emptyText: { maxWidth: 390, textAlign: 'center', color: '#60706E', fontSize: 11, lineHeight: 17 },
   tierList: { marginTop: 12, gap: 10 },
-  tierCard: { minHeight: 92, padding: 15, gap: 13, borderWidth: 1, borderColor: '#DED8E0', borderRadius: 8, backgroundColor: '#FFFFFF' },
-  tierCardPressed: { backgroundColor: '#F5F1F6' },
+  tierCard: { minHeight: 92, padding: 15, gap: 13, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 8, backgroundColor: '#FFFFFF' },
+  tierCardPressed: { backgroundColor: '#EAEFEE' },
   tierHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  tierTitle: { flex: 1, color: '#39313D', fontSize: 14, fontWeight: '800' },
+  tierTitle: { flex: 1, color: '#172423', fontSize: 14, fontWeight: '800' },
   tierDetails: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 },
   statusBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5, backgroundColor: '#E4F3E8' },
-  inactiveBadge: { backgroundColor: '#EEECEF' },
+  inactiveBadge: { backgroundColor: '#EAEFEE' },
   statusText: { color: '#337347', fontSize: 9, fontWeight: '800', textTransform: 'uppercase' },
-  inactiveStatusText: { color: '#777079' },
-  rangeText: { flexGrow: 1, flexShrink: 1, color: '#7C737F', fontSize: 11, lineHeight: 16 },
+  inactiveStatusText: { color: '#60706E' },
+  rangeText: { flexGrow: 1, flexShrink: 1, color: '#60706E', fontSize: 11, lineHeight: 16 },
   priceColumn: { alignItems: 'flex-end' },
-  priceText: { color: '#73547B', fontSize: 15, fontWeight: '900' },
-  priceUnit: { marginTop: 2, color: '#8A818D', fontSize: 10 },
+  priceText: { color: '#B4232D', fontSize: 15, fontWeight: '900' },
+  priceUnit: { marginTop: 2, color: '#60706E', fontSize: 10 },
   modalSafeArea: { flex: 1, backgroundColor: '#FFFFFF' },
   modalScreen: { flex: 1 },
   modalHeader: { minHeight: 56, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#DCDDE0' },
   backIconButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
-  modalTitle: { marginLeft: 4, color: '#202938', fontSize: 16, fontWeight: '800' },
+  modalTitle: { marginLeft: 4, color: '#172423', fontSize: 16, fontWeight: '800' },
   editorContent: { width: '100%', maxWidth: 720, alignSelf: 'center', padding: 20, paddingTop: 28, gap: 18, paddingBottom: 40 },
   input: { backgroundColor: 'transparent' },
   inputRow: { flexDirection: 'row', gap: 14 },
   rowInput: { flex: 1 },
-  fieldHelp: { marginTop: -13, color: '#8A838D', fontSize: 10, lineHeight: 15 },
-  switchRow: { minHeight: 64, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#D8D1DA' },
+  fieldHelp: { marginTop: -13, color: '#60706E', fontSize: 10, lineHeight: 15 },
+  switchRow: { minHeight: 64, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#879692' },
   switchCopy: { flex: 1, marginRight: 12 },
-  switchTitle: { color: '#413A44', fontSize: 14, fontWeight: '700' },
-  switchDescription: { marginTop: 3, color: '#8A838D', fontSize: 10 },
-  deleteConfirmation: { padding: 14, gap: 6, borderRadius: 8, backgroundColor: '#FBEAEC' },
-  deleteTitle: { color: '#823747', fontSize: 13, fontWeight: '800' },
-  deleteText: { color: '#8A5360', fontSize: 11 },
+  switchTitle: { color: '#172423', fontSize: 14, fontWeight: '700' },
+  switchDescription: { marginTop: 3, color: '#60706E', fontSize: 10 },
+  deleteConfirmation: { padding: 14, gap: 6, borderRadius: 8, backgroundColor: '#FCE8EA' },
+  deleteTitle: { color: '#8F1D2C', fontSize: 13, fontWeight: '800' },
+  deleteText: { color: '#8F1D2C', fontSize: 11 },
   deleteActions: { marginTop: 6, flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
   modalFooter: { padding: 14, flexDirection: 'row', justifyContent: 'flex-end', gap: 10, borderTopWidth: 1, borderTopColor: '#DCDDE0', backgroundColor: '#FFFFFF' },
 });

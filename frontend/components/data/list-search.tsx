@@ -65,7 +65,7 @@ export function ListSearch({
             }}
             style={styles.collapsedButton}
           >
-            <Icon source="magnify" color="#465263" size={21} />
+            <Icon source="magnify" color="#172423" size={21} />
             {activeOptions.length > 0 ? (
               <View pointerEvents="none" style={styles.activeCount}>
                 <Text style={styles.activeCountText}>{activeOptions.length}</Text>
@@ -81,7 +81,7 @@ export function ListSearch({
   return (
     <View style={styles.container}>
       <View style={styles.searchBox}>
-        <Icon source="magnify" color="#465263" size={20} />
+        <Icon source="magnify" color="#172423" size={20} />
         <ScrollView
           contentContainerStyle={styles.searchContent}
           horizontal
@@ -98,7 +98,7 @@ export function ListSearch({
             >
               {option.icon ? <Icon source={option.icon} color="#493D20" size={15} /> : null}
               <Text style={styles.filterChipText}>{option.label}</Text>
-              <Icon source="close" color="#687181" size={15} />
+              <Icon source="close" color="#60706E" size={15} />
             </Pressable>
           ))}
           <TextInput
@@ -106,7 +106,7 @@ export function ListSearch({
             autoFocus={collapsible}
             onChangeText={onQueryChange}
             placeholder={placeholder}
-            placeholderTextColor="#8A8F99"
+            placeholderTextColor="#60706E"
             style={styles.input}
             value={query}
           />
@@ -124,7 +124,7 @@ export function ListSearch({
             }}
             style={styles.collapseButton}
           >
-            <Icon source="close" color="#687181" size={19} />
+            <Icon source="close" color="#60706E" size={19} />
           </Pressable>
         ) : null}
 
@@ -138,7 +138,7 @@ export function ListSearch({
             >
               <Icon
                 source={filterIcon}
-                color={filtersVisible || activeOptions.length > 0 ? '#73547B' : '#243445'}
+                color={filtersVisible || activeOptions.length > 0 ? '#B4232D' : '#172423'}
                 size={21}
               />
             </Pressable>
@@ -149,7 +149,7 @@ export function ListSearch({
           visible={filtersVisible}
         >
           <View style={styles.menuTitle}>
-            <Icon source="filter-variant" color="#73547B" size={19} />
+            <Icon source="filter-variant" color="#B4232D" size={19} />
             <Text style={styles.menuTitleText}>{filtersTitle}</Text>
           </View>
           {filterOptions.length === 0 ? (
@@ -188,11 +188,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#CDD2DA',
+    borderColor: '#879692',
     borderRadius: 21,
     backgroundColor: '#FFFFFF',
   },
-  activeCount: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#D18A25' },
+  activeCount: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#FF4D4D' },
   activeCountText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
   searchBox: {
     height: 42,
@@ -200,13 +200,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#CDD2DA',
+    borderColor: '#879692',
     borderRadius: 5,
     backgroundColor: '#FFFFFF',
   },
   searchContent: { minWidth: '100%', alignItems: 'center', gap: 6, paddingLeft: 8 },
   searchScroll: { flex: 1 },
-  input: { minWidth: 120, flexGrow: 1, height: 40, paddingHorizontal: 4, color: '#263244', fontSize: 13, outlineStyle: 'none' } as never,
+  input: { minWidth: 120, flexGrow: 1, height: 40, paddingHorizontal: 4, color: '#172423', fontSize: 13, outlineStyle: 'none' } as never,
   collapseButton: { width: 38, height: 40, alignItems: 'center', justifyContent: 'center' },
   filterChip: {
     height: 28,
@@ -215,23 +215,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     borderRadius: 4,
-    backgroundColor: '#E9ECF0',
+    backgroundColor: '#EAEFEE',
   },
-  filterChipText: { color: '#344054', fontSize: 11, fontWeight: '700' },
+  filterChipText: { color: '#172423', fontSize: 11, fontWeight: '700' },
   filterButton: {
     width: 42,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderLeftWidth: 1,
-    borderLeftColor: '#CDD2DA',
+    borderLeftColor: '#879692',
     backgroundColor: '#F7F8FA',
   },
-  filterButtonActive: { borderLeftColor: '#168C8C', backgroundColor: '#EFFAFA' },
+  filterButtonActive: { borderLeftColor: '#B4232D', backgroundColor: '#FFE5E5' },
   menu: { width: 280, maxHeight: 420, backgroundColor: '#FFFFFF' },
   menuTitle: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  menuTitleText: { color: '#2E3542', fontSize: 15, fontWeight: '800' },
-  groupLabel: { paddingHorizontal: 16, paddingTop: 10, color: '#8A7F8D', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
-  selectedOption: { color: '#5E3D66', fontWeight: '800' },
-  noFilters: { paddingHorizontal: 16, paddingBottom: 16, color: '#85808A', fontSize: 12 },
+  menuTitleText: { color: '#172423', fontSize: 15, fontWeight: '800' },
+  groupLabel: { paddingHorizontal: 16, paddingTop: 10, color: '#60706E', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  selectedOption: { color: '#B4232D', fontWeight: '800' },
+  noFilters: { paddingHorizontal: 16, paddingBottom: 16, color: '#60706E', fontSize: 12 },
 });

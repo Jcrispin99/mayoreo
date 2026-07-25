@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { Icon, Text } from 'react-native-paper';
 import type { MenuModule } from '../../config/menu';
+import { COLORS } from '../../theme/colors';
 
 type ApplicationGridProps = {
   modules: MenuModule[];
@@ -74,7 +75,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    color: '#37313A',
+    color: COLORS.text,
     fontSize: 20,
     fontWeight: '900',
     letterSpacing: -0.25,
@@ -93,15 +94,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#DED8E1',
+    borderColor: COLORS.border,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.surface,
   },
   cardPending: { width: '46%' },
   cardPressed: {
     opacity: 0.78,
-    borderColor: '#C8BCCB',
-    backgroundColor: '#F4F0F5',
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryContainer,
     transform: [{ scale: 0.985 }],
   },
   iconTile: {
@@ -117,7 +118,7 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 30,
     paddingHorizontal: 4,
-    color: '#3D3640',
+    color: COLORS.text,
     fontSize: 12,
     lineHeight: 15,
     fontWeight: '800',

@@ -34,7 +34,7 @@ export function ListPagination({
           onPress={() => onPageChange(currentPage - 1)}
           style={({ pressed }) => [styles.navigationButton, pressed && styles.pressed]}
         >
-          <Icon source="chevron-left" color={currentPage <= 1 ? '#B9B3BC' : '#4F5867'} size={23} />
+          <Icon source="chevron-left" color={currentPage <= 1 ? '#B9B3BC' : '#60706E'} size={23} />
         </Pressable>
         <View style={styles.separator} />
         <Pressable
@@ -44,7 +44,7 @@ export function ListPagination({
           onPress={() => onPageChange(currentPage + 1)}
           style={({ pressed }) => [styles.navigationButton, pressed && styles.pressed]}
         >
-          <Icon source="chevron-right" color={currentPage >= totalPages ? '#B9B3BC' : '#4F5867'} size={23} />
+          <Icon source="chevron-right" color={currentPage >= totalPages ? '#B9B3BC' : '#60706E'} size={23} />
         </Pressable>
       </View>
       <Pressable
@@ -53,7 +53,7 @@ export function ListPagination({
         onPress={onSearchPress ?? (() => undefined)}
         style={({ pressed }) => [styles.searchButton, searchActive && styles.searchActive, pressed && styles.searchPressed]}
       >
-        <Icon source="magnify" color="#344152" size={21} />
+        <Icon source="magnify" color="#172423" size={21} />
       </Pressable>
     </View>
   );
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
     borderRadius: 4,
-    backgroundColor: '#E9EBEF',
+    backgroundColor: '#EAEFEE',
   },
   navigationButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   separator: { width: 1, height: '100%', backgroundColor: '#D2D6DC' },
@@ -81,8 +81,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#DFE2E7',
     borderRadius: 4,
-    backgroundColor: '#ECEEF2',
+    backgroundColor: '#EAEFEE',
   },
-  searchPressed: { borderColor: '#168C8C', backgroundColor: '#F3FBFA' },
-  searchActive: { borderColor: '#168C8C', backgroundColor: '#F3FBFA' },
+  searchPressed: { borderColor: '#B4232D', backgroundColor: '#FFE5E5' },
+  searchActive: { borderColor: '#B4232D', backgroundColor: '#FFE5E5' },
 });

@@ -59,7 +59,7 @@ export function PosPaymentMethodList() {
       style: styles.iconColumn,
       renderCell: (method) => (
         <View style={styles.iconBox}>
-          <Icon color="#28738A" size={25} source={PAYMENT_METHOD_ICONS[method.code]} />
+          <Icon color="#B4232D" size={25} source={PAYMENT_METHOD_ICONS[method.code]} />
         </View>
       ),
     },
@@ -119,14 +119,14 @@ export function PosPaymentMethodList() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F7F5F8' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
   row: { minHeight: 94, paddingHorizontal: 16, paddingVertical: 12 },
   iconColumn: { width: 54 },
   detailColumn: { flex: 1 },
-  iconBox: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#E5F1F4' },
+  iconBox: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#FFE5E5' },
   nameRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  name: { color: '#302A33', fontSize: 14, fontWeight: '900' },
-  code: { color: '#28738A', fontSize: 9, fontWeight: '800' },
-  description: { marginTop: 4, color: '#77717A', fontSize: 10, lineHeight: 15 },
+  name: { color: '#172423', fontSize: 14, fontWeight: '900' },
+  code: { color: '#B4232D', fontSize: 9, fontWeight: '800' },
+  description: { marginTop: 4, color: '#60706E', fontSize: 10, lineHeight: 15 },
   behavior: { marginTop: 4, color: '#4E6F78', fontSize: 9, fontWeight: '700' },
 });

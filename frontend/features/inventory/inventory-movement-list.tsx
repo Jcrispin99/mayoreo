@@ -171,21 +171,21 @@ export function InventoryMovementList({ initialFlow = 'all', productId, showBack
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F7F5F8' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
   backButton: { alignSelf: 'flex-start', marginTop: 8, marginLeft: 8 },
   flowActions: { padding: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8, backgroundColor: '#FFFFFF' },
   detailColumn: { flex: 1 },
   quantityColumn: { width: 120, alignItems: 'flex-end' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  product: { flexShrink: 1, color: '#302A33', fontSize: 13, fontWeight: '800' },
+  product: { flexShrink: 1, color: '#172423', fontSize: 13, fontWeight: '800' },
   flowBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, fontSize: 9, fontWeight: '800' },
   flowIn: { color: '#26705D', backgroundColor: '#E3F4EE' },
-  flowOut: { color: '#925064', backgroundColor: '#F8E8ED' },
-  meta: { marginTop: 4, color: '#827B85', fontSize: 10, lineHeight: 15 },
-  notes: { marginTop: 3, color: '#716A75', fontSize: 10, fontStyle: 'italic' },
+  flowOut: { color: '#8F1D2C', backgroundColor: '#FCE8EA' },
+  meta: { marginTop: 4, color: '#60706E', fontSize: 10, lineHeight: 15 },
+  notes: { marginTop: 3, color: '#60706E', fontSize: 10, fontStyle: 'italic' },
   numberCell: { alignItems: 'flex-end' },
   quantity: { fontSize: 13, fontWeight: '900' },
   quantityIn: { color: '#26705D' },
-  quantityOut: { color: '#A04459' },
-  balance: { marginTop: 4, color: '#827B85', fontSize: 9 },
+  quantityOut: { color: '#8F1D2C' },
+  balance: { marginTop: 4, color: '#60706E', fontSize: 9 },
 });

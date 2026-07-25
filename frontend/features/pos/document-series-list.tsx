@@ -67,7 +67,7 @@ export function DocumentSeriesList() {
         </View>
       ),
     },
-    { key: 'action', title: '', style: styles.actionColumn, renderCell: () => <Icon source="chevron-right" color="#A49DA7" size={22} /> },
+    { key: 'action', title: '', style: styles.actionColumn, renderCell: () => <Icon source="chevron-right" color="#60706E" size={22} /> },
   ], []);
 
   function toggleFilter(filterId: string) {
@@ -115,15 +115,15 @@ export function DocumentSeriesList() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F7F5F8' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
   row: { minHeight: 82, paddingHorizontal: 16, paddingVertical: 10 },
   detailColumn: { flex: 1 },
   actionColumn: { width: 38, alignItems: 'center' },
   nameRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 7 },
-  code: { color: '#302A33', fontSize: 14, fontWeight: '900' },
-  type: { color: '#28738A', fontSize: 10, fontWeight: '800' },
-  inactive: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 7, color: '#925064', backgroundColor: '#F8E8ED', fontSize: 9, fontWeight: '800' },
-  meta: { marginTop: 5, color: '#77717A', fontSize: 11 },
+  code: { color: '#172423', fontSize: 14, fontWeight: '900' },
+  type: { color: '#B4232D', fontSize: 10, fontWeight: '800' },
+  inactive: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 7, color: '#60706E', backgroundColor: '#EAEFEE', fontSize: 9, fontWeight: '800' },
+  meta: { marginTop: 5, color: '#60706E', fontSize: 11 },
   assigned: { marginTop: 4, color: '#8A5A32', fontSize: 10, fontWeight: '700' },
-  available: { marginTop: 4, color: '#168C6B', fontSize: 10, fontWeight: '700' },
+  available: { marginTop: 4, color: '#247451', fontSize: 10, fontWeight: '700' },
 });

@@ -73,11 +73,11 @@ export function DocumentSeriesForm({ documentSeriesId }: Props) {
   return (
     <ModuleLayout module={POS_MODULE} selectedItemId="document-series">
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.screen}>
-        {loading ? <ActivityIndicator color="#28738A" size="large" style={styles.loader} /> : (
+        {loading ? <ActivityIndicator color="#B4232D" size="large" style={styles.loader} /> : (
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <View style={styles.header}>
               <Button compact icon="arrow-left" mode="text" onPress={() => router.back()}>Volver</Button>
-              <Button buttonColor="#28738A" compact disabled={saving} loading={saving} mode="contained" onPress={() => void save()}>Guardar</Button>
+              <Button buttonColor="#FF4D4D" compact disabled={saving} loading={saving} mode="contained" onPress={() => void save()}>Guardar</Button>
             </View>
             <Text style={styles.title}>{editing ? 'Editar serie' : 'Nueva serie'}</Text>
             <Text style={styles.subtitle}>Configura una serie de venta y su correlativo inicial.</Text>
@@ -87,7 +87,7 @@ export function DocumentSeriesForm({ documentSeriesId }: Props) {
                 anchor={(
                   <Pressable disabled={locked} onPress={() => setTypeMenuVisible(true)} style={[styles.selector, locked && styles.disabled]}>
                     <View><Text style={styles.label}>Tipo de documento *</Text><Text style={styles.value}>{TYPES.find((item) => item.id === type)?.label}</Text></View>
-                    <Icon source="chevron-down" size={22} color="#6F6872" />
+                    <Icon source="chevron-down" size={22} color="#60706E" />
                   </Pressable>
                 )}
                 onDismiss={() => setTypeMenuVisible(false)}
@@ -95,9 +95,9 @@ export function DocumentSeriesForm({ documentSeriesId }: Props) {
               >
                 {TYPES.map((item) => <Menu.Item key={item.id} onPress={() => { setType(item.id); setTypeMenuVisible(false); }} title={item.label} />)}
               </Menu>
-              <TextInput activeOutlineColor="#28738A" autoCapitalize="characters" disabled={locked} label="Serie *" mode="outlined" onChangeText={setCode} outlineColor="#D8D1DA" style={styles.input} value={code} />
-              <TextInput activeOutlineColor="#28738A" disabled={locked} keyboardType="number-pad" label="Último correlativo *" mode="outlined" onChangeText={(value) => setCurrentNumber(value.replace(/\D/g, '') || '0')} outlineColor="#D8D1DA" style={styles.input} value={currentNumber} />
-              <View style={styles.status}><View><Text style={styles.statusTitle}>Serie activa</Text><Text style={styles.statusHelp}>Solo las series activas pueden asignarse a una caja.</Text></View><Switch color="#28738A" onValueChange={setActive} value={active} /></View>
+              <TextInput activeOutlineColor="#B4232D" autoCapitalize="characters" disabled={locked} label="Serie *" mode="outlined" onChangeText={setCode} outlineColor="#879692" style={styles.input} value={code} />
+              <TextInput activeOutlineColor="#B4232D" disabled={locked} keyboardType="number-pad" label="Último correlativo *" mode="outlined" onChangeText={(value) => setCurrentNumber(value.replace(/\D/g, '') || '0')} outlineColor="#879692" style={styles.input} value={currentNumber} />
+              <View style={styles.status}><View><Text style={styles.statusTitle}>Serie activa</Text><Text style={styles.statusHelp}>Solo las series activas pueden asignarse a una caja.</Text></View><Switch color="#B4232D" onValueChange={setActive} value={active} /></View>
             </View>
           </ScrollView>
         )}
@@ -107,14 +107,14 @@ export function DocumentSeriesForm({ documentSeriesId }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F7F5F8' }, loader: { flex: 1 },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' }, loader: { flex: 1 },
   content: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 20, paddingBottom: 48, gap: 15 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { color: '#302A33', fontSize: 25, fontWeight: '900' }, subtitle: { marginTop: -10, color: '#77717A', fontSize: 13 },
-  error: { padding: 12, borderRadius: 10, color: '#9B324A', backgroundColor: '#FBE8ED', fontSize: 12, fontWeight: '700' },
-  card: { padding: 18, borderWidth: 1, borderColor: '#E2DCE4', borderRadius: 14, backgroundColor: '#FFFFFF', gap: 16 },
-  selector: { minHeight: 62, paddingHorizontal: 14, borderWidth: 1, borderColor: '#D8D1DA', borderRadius: 5, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  disabled: { opacity: 0.55, backgroundColor: '#F3F1F4' }, label: { color: '#77717A', fontSize: 10, fontWeight: '800' }, value: { marginTop: 3, color: '#302A33', fontSize: 14, fontWeight: '700' },
-  input: { height: 56, backgroundColor: '#FFFFFF' }, status: { padding: 14, borderRadius: 10, backgroundColor: '#F6F4F7', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 14 },
-  statusTitle: { color: '#3D363F', fontSize: 13, fontWeight: '800' }, statusHelp: { marginTop: 3, color: '#89828C', fontSize: 10 },
+  title: { color: '#172423', fontSize: 25, fontWeight: '900' }, subtitle: { marginTop: -10, color: '#60706E', fontSize: 13 },
+  error: { padding: 12, borderRadius: 10, color: '#8F1D2C', backgroundColor: '#FCE8EA', fontSize: 12, fontWeight: '700' },
+  card: { padding: 18, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 14, backgroundColor: '#FFFFFF', gap: 16 },
+  selector: { minHeight: 62, paddingHorizontal: 14, borderWidth: 1, borderColor: '#879692', borderRadius: 5, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  disabled: { opacity: 0.55, backgroundColor: '#EAEFEE' }, label: { color: '#60706E', fontSize: 10, fontWeight: '800' }, value: { marginTop: 3, color: '#172423', fontSize: 14, fontWeight: '700' },
+  input: { height: 56, backgroundColor: '#FFFFFF' }, status: { padding: 14, borderRadius: 10, backgroundColor: '#EAEFEE', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 14 },
+  statusTitle: { color: '#172423', fontSize: 13, fontWeight: '800' }, statusHelp: { marginTop: 3, color: '#60706E', fontSize: 10 },
 });

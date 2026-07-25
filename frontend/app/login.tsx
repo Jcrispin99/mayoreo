@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 import { useAuth } from '../lib/auth-context';
+import { COLORS } from '../theme/colors';
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -26,9 +27,9 @@ export default function LoginScreen() {
   }
 
   return (
-    <View className="flex-1 justify-center gap-4 bg-white px-6">
+    <View className="flex-1 justify-center gap-4 px-6" style={styles.screen}>
       <StatusBar style="dark" />
-      <Text variant="headlineMedium" className="mb-4 text-center">
+      <Text variant="headlineMedium" className="mb-4 text-center" style={styles.title}>
         Iniciar sesión
       </Text>
       <TextInput
@@ -40,10 +41,21 @@ export default function LoginScreen() {
         mode="outlined"
       />
       <TextInput label="Contraseña" value={password} onChangeText={setPassword} secureTextEntry mode="outlined" />
-      {error ? <Text style={{ color: 'red' }}>{error}</Text> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
       <Button mode="contained" onPress={handleLogin} loading={loading} disabled={loading}>
         Entrar
       </Button>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { backgroundColor: COLORS.background },
+  title: { color: COLORS.text, fontWeight: '800' },
+  error: {
+    padding: 10,
+    borderRadius: 10,
+    color: COLORS.error,
+    backgroundColor: COLORS.errorContainer,
+  },
+});

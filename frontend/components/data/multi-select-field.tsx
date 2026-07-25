@@ -53,22 +53,22 @@ export function MultiSelectField({
 }
 
 const styles = StyleSheet.create({
-  container: { marginTop: 8, borderTopWidth: 1, borderTopColor: '#DED8E0' },
+  container: { marginTop: 8, borderTopWidth: 1, borderTopColor: '#D7E0DE' },
   heading: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { color: '#443C47', fontSize: 14, fontWeight: '800' },
-  count: { color: '#827986', fontSize: 10 },
+  title: { color: '#172423', fontSize: 14, fontWeight: '800' },
+  count: { color: '#60706E', fontSize: 10 },
   option: {
     minHeight: 54,
     paddingRight: 10,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#E6E1E7',
+    borderBottomColor: '#D7E0DE',
   },
-  optionSelected: { backgroundColor: '#F6F0F7' },
+  optionSelected: { backgroundColor: '#FFE5E5' },
   optionPressed: { opacity: 0.75 },
   optionCopy: { flex: 1, marginLeft: 4 },
-  optionLabel: { color: '#342E37', fontSize: 13, fontWeight: '700' },
-  optionDescription: { marginTop: 2, color: '#89818C', fontSize: 10 },
-  empty: { paddingVertical: 18, color: '#89818C', fontSize: 12 },
+  optionLabel: { color: '#172423', fontSize: 13, fontWeight: '700' },
+  optionDescription: { marginTop: 2, color: '#60706E', fontSize: 10 },
+  empty: { paddingVertical: 18, color: '#60706E', fontSize: 12 },
 });

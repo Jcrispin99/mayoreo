@@ -400,7 +400,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
       <ModuleLayout module={ACCOUNTING_MODULE} selectedItemId="sales">
         <View style={styles.screen}>
           {loading ? (
-            <ActivityIndicator color="#2F7461" size="large" style={styles.loader} />
+            <ActivityIndicator color="#B4232D" size="large" style={styles.loader} />
           ) : sale ? (
             <ScrollView contentContainerStyle={styles.content}>
               <View style={styles.header}>
@@ -474,7 +474,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
             </ScrollView>
           ) : (
             <View style={styles.centerState}>
-              <Icon color="#9A919D" size={42} source="receipt-text-remove-outline" />
+              <Icon color="#60706E" size={42} source="receipt-text-remove-outline" />
               <Text style={styles.centerTitle}>No se pudo abrir la venta</Text>
               <Text style={styles.centerText}>{error}</Text>
               <Button mode="outlined" onPress={() => router.back()}>Volver</Button>
@@ -492,7 +492,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
         style={styles.screen}
       >
         {loading ? (
-          <ActivityIndicator color="#2F7461" size="large" style={styles.loader} />
+          <ActivityIndicator color="#B4232D" size="large" style={styles.loader} />
         ) : (
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <View style={styles.header}>
@@ -500,7 +500,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
                 Volver
               </Button>
               <Button
-                buttonColor="#2F7461"
+                buttonColor="#FF4D4D"
                 disabled={saving}
                 loading={saving}
                 mode="contained"
@@ -523,7 +523,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
                     <Text numberOfLines={1} style={styles.selectorText}>
                       {selectedCustomer?.name ?? 'Seleccionar cliente'}
                     </Text>
-                    <Icon color="#746C78" size={21} source="chevron-down" />
+                    <Icon color="#60706E" size={21} source="chevron-down" />
                   </Pressable>
                 )}
                 onDismiss={() => setOpenMenu(null)}
@@ -548,7 +548,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
                     <Text numberOfLines={1} style={styles.selectorText}>
                       {selectedWarehouse?.name ?? 'Seleccionar almacén'}
                     </Text>
-                    <Icon color="#746C78" size={21} source="chevron-down" />
+                    <Icon color="#60706E" size={21} source="chevron-down" />
                   </Pressable>
                 )}
                 onDismiss={() => setOpenMenu(null)}
@@ -575,7 +575,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
                         ? `${selectedSeries.series_code} · próximo ${selectedSeries.next_number}`
                         : 'Seleccionar serie'}
                     </Text>
-                    <Icon color="#746C78" size={21} source="chevron-down" />
+                    <Icon color="#60706E" size={21} source="chevron-down" />
                   </Pressable>
                 )}
                 onDismiss={() => setOpenMenu(null)}
@@ -630,7 +630,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
             <View style={styles.lines}>
               {lines.length === 0 ? (
                 <View style={styles.emptyLines}>
-                  <Icon color="#82958D" size={34} source="package-variant-plus" />
+                  <Icon color="#60706E" size={34} source="package-variant-plus" />
                   <Text style={styles.emptyLinesTitle}>Agrega el primer producto</Text>
                   <Text style={styles.emptyLinesText}>
                     Puedes vender en gramos, kilos, mililitros, litros o unidades compatibles.
@@ -651,7 +651,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
                       <IconButton
                         accessibilityLabel="Quitar producto"
                         icon="trash-can-outline"
-                        iconColor="#A34455"
+                        iconColor="#8F1D2C"
                         onPress={() => setLines((current) => current.filter((item) => item.key !== line.key))}
                         size={20}
                       />
@@ -666,7 +666,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
                           <Text numberOfLines={1} style={styles.selectorText}>
                             {product ? `${product.name} · ${product.sku}` : 'Seleccionar producto'}
                           </Text>
-                          <Icon color="#746C78" size={21} source="chevron-down" />
+                          <Icon color="#60706E" size={21} source="chevron-down" />
                         </Pressable>
                       )}
                       onDismiss={() => setOpenMenu(null)}
@@ -703,7 +703,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
                                   ?? line.unitCode
                                   ?? 'Unidad'}
                               </Text>
-                              <Icon color="#746C78" size={21} source="chevron-down" />
+                              <Icon color="#60706E" size={21} source="chevron-down" />
                             </Pressable>
                           )}
                           onDismiss={() => setOpenMenu(null)}
@@ -755,7 +755,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
                   ]}
                 >
                   <Icon
-                    color={paymentMethod === method.code ? '#FFFFFF' : '#2F7461'}
+                    color={paymentMethod === method.code ? '#FFFFFF' : '#B4232D'}
                     size={22}
                     source={PAYMENT_ICONS[method.code]}
                   />
@@ -779,7 +779,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
                           ? `${selectedCashSession.cash_register.name} · sesión #${selectedCashSession.id}`
                           : 'Seleccionar caja abierta'}
                       </Text>
-                      <Icon color="#746C78" size={21} source="chevron-down" />
+                      <Icon color="#60706E" size={21} source="chevron-down" />
                     </Pressable>
                   )}
                   onDismiss={() => setOpenMenu(null)}
@@ -840,59 +840,59 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#FAF9FA' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
   loader: { flex: 1 },
   content: { width: '100%', maxWidth: 800, alignSelf: 'center', padding: 20, paddingBottom: 60 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  title: { marginTop: 20, color: '#28222C', fontSize: 24, fontWeight: '900' },
-  subtitle: { marginTop: 6, color: '#7C7480', fontSize: 12, lineHeight: 18 },
-  error: { marginTop: 16, padding: 12, borderRadius: 9, color: '#923E4E', backgroundColor: '#FBEAEC', fontSize: 11, lineHeight: 17 },
+  title: { marginTop: 20, color: '#172423', fontSize: 24, fontWeight: '900' },
+  subtitle: { marginTop: 6, color: '#60706E', fontSize: 12, lineHeight: 18 },
+  error: { marginTop: 16, padding: 12, borderRadius: 9, color: '#8F1D2C', backgroundColor: '#FCE8EA', fontSize: 11, lineHeight: 17 },
   formSection: { marginTop: 24, gap: 18 },
-  fieldLabel: { marginBottom: -9, color: '#777079', fontSize: 10, fontWeight: '700' },
-  selector: { minHeight: 48, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#CFC7D1' },
-  selectorText: { flex: 1, color: '#302A33', fontSize: 13 },
+  fieldLabel: { marginBottom: -9, color: '#60706E', fontSize: 10, fontWeight: '700' },
+  selector: { minHeight: 48, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#879692' },
+  selectorText: { flex: 1, color: '#172423', fontSize: 13 },
   input: { backgroundColor: 'transparent' },
   sectionHeader: { marginTop: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14 },
-  sectionTitle: { color: '#3C343F', fontSize: 16, fontWeight: '900' },
-  sectionHelp: { marginTop: 3, color: '#837B86', fontSize: 10 },
+  sectionTitle: { color: '#172423', fontSize: 16, fontWeight: '900' },
+  sectionHelp: { marginTop: 3, color: '#60706E', fontSize: 10 },
   lines: { marginTop: 14, gap: 12 },
   emptyLines: { padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#D7E4DF', borderStyle: 'dashed', borderRadius: 13, backgroundColor: '#F5FAF8' },
   emptyLinesTitle: { marginTop: 7, color: '#46675D', fontSize: 13, fontWeight: '800' },
-  emptyLinesText: { marginTop: 4, maxWidth: 360, textAlign: 'center', color: '#829088', fontSize: 10, lineHeight: 15 },
-  lineCard: { padding: 15, borderWidth: 1, borderColor: '#E1DDE3', borderRadius: 13, backgroundColor: '#FFFFFF' },
+  emptyLinesText: { marginTop: 4, maxWidth: 360, textAlign: 'center', color: '#60706E', fontSize: 10, lineHeight: 15 },
+  lineCard: { padding: 15, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 13, backgroundColor: '#FFFFFF' },
   lineHeader: { marginBottom: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  lineNumber: { color: '#5C535F', fontSize: 11, fontWeight: '900' },
+  lineNumber: { color: '#172423', fontSize: 11, fontWeight: '900' },
   quantityRow: { marginTop: 12, flexDirection: 'row', alignItems: 'flex-end', gap: 14 },
   quantityInput: { flex: 1, backgroundColor: 'transparent' },
   unitInput: { flex: 1 },
-  lineSummary: { marginTop: 15, paddingTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTopWidth: 1, borderTopColor: '#ECE8ED' },
-  lineTier: { flex: 1, color: '#777079', fontSize: 10, lineHeight: 14 },
-  lineAmount: { color: '#2F7461', fontSize: 13, fontWeight: '900' },
+  lineSummary: { marginTop: 15, paddingTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTopWidth: 1, borderTopColor: '#EAEFEE' },
+  lineTier: { flex: 1, color: '#60706E', fontSize: 10, lineHeight: 14 },
+  lineAmount: { color: '#B4232D', fontSize: 13, fontWeight: '900' },
   paymentMethods: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   paymentMethod: { minWidth: 112, paddingHorizontal: 13, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#BCD6CC', borderRadius: 11, backgroundColor: '#F2F8F6' },
-  paymentMethodSelected: { borderColor: '#2F7461', backgroundColor: '#2F7461' },
+  paymentMethodSelected: { borderColor: '#B4232D', backgroundColor: '#B4232D' },
   paymentMethodText: { color: '#315E51', fontSize: 11, fontWeight: '800' },
   paymentMethodTextSelected: { color: '#FFFFFF' },
   warning: { marginTop: -9, color: '#A05A2D', fontSize: 10, lineHeight: 15 },
   referenceInput: { marginTop: 18 },
   totalCard: { marginTop: 28, padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderWidth: 1, borderColor: '#C9DED5', borderRadius: 14, backgroundColor: '#EDF6F2' },
   totalLabel: { color: '#3E5D54', fontSize: 13, fontWeight: '900' },
-  totalHint: { marginTop: 3, color: '#779086', fontSize: 9 },
+  totalHint: { marginTop: 3, color: '#60706E', fontSize: 9 },
   totalValue: { color: '#23634F', fontSize: 22, fontWeight: '900' },
   sourceBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
-  posBadge: { backgroundColor: '#E3F1F5' },
-  wholesaleBadge: { backgroundColor: '#E4F2ED' },
+  posBadge: { backgroundColor: '#FFE5E5' },
+  wholesaleBadge: { backgroundColor: '#FFE5E5' },
   sourceBadgeText: { color: '#315E51', fontSize: 10, fontWeight: '900' },
-  detailCard: { marginTop: 24, padding: 16, gap: 11, borderWidth: 1, borderColor: '#E1DDE3', borderRadius: 13, backgroundColor: '#FFFFFF' },
+  detailCard: { marginTop: 24, padding: 16, gap: 11, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 13, backgroundColor: '#FFFFFF' },
   detailRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 },
-  detailLabel: { color: '#817A83', fontSize: 10, fontWeight: '700' },
-  detailValue: { flex: 1, textAlign: 'right', color: '#3F3742', fontSize: 11, fontWeight: '800' },
-  detailLines: { marginTop: 12, borderWidth: 1, borderColor: '#E1DDE3', borderRadius: 13, overflow: 'hidden' },
-  detailLine: { padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: '#ECE8ED', backgroundColor: '#FFFFFF' },
+  detailLabel: { color: '#60706E', fontSize: 10, fontWeight: '700' },
+  detailValue: { flex: 1, textAlign: 'right', color: '#172423', fontSize: 11, fontWeight: '800' },
+  detailLines: { marginTop: 12, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 13, overflow: 'hidden' },
+  detailLine: { padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: '#EAEFEE', backgroundColor: '#FFFFFF' },
   detailLineCopy: { flex: 1 },
-  lineProduct: { color: '#3D3540', fontSize: 12, fontWeight: '900' },
-  lineMeta: { marginTop: 4, color: '#817A83', fontSize: 9, lineHeight: 14 },
+  lineProduct: { color: '#172423', fontSize: 12, fontWeight: '900' },
+  lineMeta: { marginTop: 4, color: '#60706E', fontSize: 9, lineHeight: 14 },
   centerState: { flex: 1, padding: 30, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  centerTitle: { color: '#4A414D', fontSize: 16, fontWeight: '900' },
-  centerText: { maxWidth: 420, textAlign: 'center', color: '#817A83', fontSize: 11 },
+  centerTitle: { color: '#172423', fontSize: 16, fontWeight: '900' },
+  centerText: { maxWidth: 420, textAlign: 'center', color: '#60706E', fontSize: 11 },
 });

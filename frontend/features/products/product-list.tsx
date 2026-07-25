@@ -194,5 +194,5 @@ export function ProductList({ onCreate, onEdit }: ProductListProps) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F7F5F8' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
 });

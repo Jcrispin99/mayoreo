@@ -132,7 +132,7 @@ export function AccountingSaleList() {
           <Text style={styles.itemCount}>
             {sale.items.length} {sale.items.length === 1 ? 'ítem' : 'ítems'}
           </Text>
-          <Icon color="#9B949D" size={19} source="chevron-right" />
+          <Icon color="#60706E" size={19} source="chevron-right" />
         </View>
       ),
     },
@@ -204,21 +204,21 @@ export function AccountingSaleList() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F7F5F8' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
   row: { minHeight: 88, paddingHorizontal: 16 },
   detailColumn: { flex: 1 },
   amountColumn: { width: 120, alignItems: 'flex-end' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  document: { flexShrink: 1, color: '#302A33', fontSize: 14, fontWeight: '900' },
+  document: { flexShrink: 1, color: '#172423', fontSize: 14, fontWeight: '900' },
   source: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, fontSize: 9, fontWeight: '900' },
-  sourcePos: { color: '#28738A', backgroundColor: '#E3F1F5' },
-  sourceWholesale: { color: '#2F7461', backgroundColor: '#E4F2ED' },
-  customer: { marginTop: 5, color: '#564E59', fontSize: 11, fontWeight: '700' },
-  meta: { marginTop: 3, color: '#827B85', fontSize: 10, lineHeight: 14 },
+  sourcePos: { color: '#B4232D', backgroundColor: '#FFE5E5' },
+  sourceWholesale: { color: '#B4232D', backgroundColor: '#FFE5E5' },
+  customer: { marginTop: 5, color: '#172423', fontSize: 11, fontWeight: '700' },
+  meta: { marginTop: 3, color: '#60706E', fontSize: 10, lineHeight: 14 },
   amountCell: { alignItems: 'flex-end', gap: 3 },
-  amount: { color: '#2F7461', fontSize: 13, fontWeight: '900' },
-  itemCount: { color: '#827B85', fontSize: 9 },
-  pageTotal: { minHeight: 56, paddingHorizontal: 20, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderTopWidth: 1, borderTopColor: '#D8D3DA', backgroundColor: '#FFFFFF' },
-  pageTotalLabel: { color: '#514A54', fontSize: 12, fontWeight: '900' },
-  pageTotalValue: { color: '#403743', fontSize: 16, fontWeight: '900' },
+  amount: { color: '#B4232D', fontSize: 13, fontWeight: '900' },
+  itemCount: { color: '#60706E', fontSize: 9 },
+  pageTotal: { minHeight: 56, paddingHorizontal: 20, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderTopWidth: 1, borderTopColor: '#D7E0DE', backgroundColor: '#FFFFFF' },
+  pageTotalLabel: { color: '#172423', fontSize: 12, fontWeight: '900' },
+  pageTotalValue: { color: '#172423', fontSize: 16, fontWeight: '900' },
 });

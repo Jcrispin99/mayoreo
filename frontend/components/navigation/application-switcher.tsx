@@ -2,6 +2,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Icon, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { MenuModule } from '../../config/menu';
+import { COLORS } from '../../theme/colors';
 import { ApplicationGrid } from '../menu/application-grid';
 
 type ApplicationSwitcherProps = {
@@ -17,11 +18,11 @@ export function ApplicationSwitcher({ modules, visible, onClose, onModulePress }
       <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
         <View style={styles.header}>
           <View style={styles.logo}>
-            <Icon source="view-grid-outline" color="#FFFFFF" size={23} />
+            <Icon source="view-grid-outline" color={COLORS.onPrimary} size={23} />
           </View>
           <Text style={styles.title}>Aplicaciones</Text>
           <Pressable accessibilityLabel="Cerrar aplicaciones" onPress={onClose} style={styles.close}>
-            <Icon source="close" color="#5F5863" size={25} />
+            <Icon source="close" color={COLORS.textMuted} size={25} />
           </Pressable>
         </View>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -33,15 +34,15 @@ export function ApplicationSwitcher({ modules, visible, onClose, onModulePress }
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F2EFF5' },
+  screen: { flex: 1, backgroundColor: COLORS.background },
   header: {
     height: 66,
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#E1DCE4',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.surface,
   },
   logo: {
     width: 40,
@@ -49,9 +50,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 12,
-    backgroundColor: '#62426F',
+    backgroundColor: COLORS.primary,
   },
-  title: { flex: 1, marginLeft: 12, color: '#342C37', fontSize: 19, fontWeight: '800' },
+  title: { flex: 1, marginLeft: 12, color: COLORS.text, fontSize: 19, fontWeight: '800' },
   close: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
   content: { paddingBottom: 40 },
 });

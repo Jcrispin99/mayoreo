@@ -166,13 +166,13 @@ export function InventoryReferenceForm({ itemId, kind }: InventoryReferenceFormP
     <ModuleLayout module={INVENTORY_MODULE} selectedItemId={kind}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.screen}>
         {loading ? (
-          <ActivityIndicator color="#73547B" size="large" style={styles.loader} />
+          <ActivityIndicator color="#B4232D" size="large" style={styles.loader} />
         ) : (
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <View style={styles.header}>
               <Button compact icon="arrow-left" mode="text" onPress={() => router.back()}>Volver</Button>
               <Button
-                buttonColor="#73547B"
+                buttonColor="#FF4D4D"
                 compact
                 disabled={saving}
                 loading={saving}
@@ -222,7 +222,7 @@ export function InventoryReferenceForm({ itemId, kind }: InventoryReferenceFormP
                         style={[styles.selector, editing && styles.selectorDisabled]}
                       >
                         <Text style={styles.selectorText}>{selectedStore?.name ?? 'Seleccionar tienda'}</Text>
-                        <Icon source="chevron-down" color="#746C78" size={21} />
+                        <Icon source="chevron-down" color="#60706E" size={21} />
                       </Pressable>
                     }
                     onDismiss={() => setStoreMenuVisible(false)}
@@ -250,7 +250,7 @@ export function InventoryReferenceForm({ itemId, kind }: InventoryReferenceFormP
                     anchor={
                       <Pressable onPress={() => setTypeMenuVisible(true)} style={styles.selector}>
                         <Text style={styles.selectorText}>{TYPE_LABELS[unitType]}</Text>
-                        <Icon source="chevron-down" color="#746C78" size={21} />
+                        <Icon source="chevron-down" color="#60706E" size={21} />
                       </Pressable>
                     }
                     onDismiss={() => setTypeMenuVisible(false)}
@@ -306,11 +306,11 @@ export function InventoryReferenceForm({ itemId, kind }: InventoryReferenceFormP
                     </Text>
                     <View style={styles.dangerActions}>
                       <Button disabled={saving} onPress={() => setConfirmingDelete(false)}>Cancelar</Button>
-                      <Button loading={saving} mode="contained" onPress={() => void remove()} textColor="#FFFFFF" buttonColor="#B33F55">Eliminar</Button>
+                      <Button loading={saving} mode="contained" onPress={() => void remove()} textColor="#FFFFFF" buttonColor="#8F1D2C">Eliminar</Button>
                     </View>
                   </View>
                 ) : (
-                  <Button icon="trash-can-outline" mode="text" onPress={() => setConfirmingDelete(true)} textColor="#B33F55">
+                  <Button icon="trash-can-outline" mode="text" onPress={() => setConfirmingDelete(true)} textColor="#8F1D2C">
                     Eliminar {config.article} {config.singular}
                   </Button>
                 )}
@@ -324,25 +324,25 @@ export function InventoryReferenceForm({ itemId, kind }: InventoryReferenceFormP
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#FAF9FA' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
   loader: { flex: 1 },
   content: { width: '100%', maxWidth: 720, alignSelf: 'center', padding: 20, paddingBottom: 48 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { marginTop: 20, color: '#28222C', fontSize: 24, fontWeight: '800' },
-  subtitle: { marginTop: 6, color: '#7C7480', fontSize: 12, lineHeight: 18 },
-  error: { marginTop: 16, padding: 12, borderRadius: 8, color: '#923E4E', backgroundColor: '#FBEAEC' },
+  title: { marginTop: 20, color: '#172423', fontSize: 24, fontWeight: '800' },
+  subtitle: { marginTop: 6, color: '#60706E', fontSize: 12, lineHeight: 18 },
+  error: { marginTop: 16, padding: 12, borderRadius: 8, color: '#8F1D2C', backgroundColor: '#FCE8EA' },
   form: { marginTop: 22, gap: 19 },
   input: { backgroundColor: 'transparent' },
-  fieldLabel: { marginBottom: 3, color: '#777079', fontSize: 11 },
-  selector: { minHeight: 48, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#CFC7D1' },
+  fieldLabel: { marginBottom: 3, color: '#60706E', fontSize: 11 },
+  selector: { minHeight: 48, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#879692' },
   selectorDisabled: { opacity: 0.65 },
-  selectorText: { flex: 1, color: '#302A33', fontSize: 15 },
-  switchRow: { minHeight: 62, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#DED8E0' },
+  selectorText: { flex: 1, color: '#172423', fontSize: 15 },
+  switchRow: { minHeight: 62, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#D7E0DE' },
   switchCopy: { flex: 1 },
-  switchText: { flex: 1, color: '#443C47', fontSize: 14, fontWeight: '700' },
-  switchHelp: { marginTop: 3, color: '#8A838D', fontSize: 10 },
-  dangerZone: { marginTop: 42, paddingTop: 18, borderTopWidth: 1, borderTopColor: '#E5DADD', alignItems: 'flex-start' },
-  dangerTitle: { color: '#8F3448', fontSize: 15, fontWeight: '800' },
-  dangerText: { marginTop: 7, color: '#7C6970', fontSize: 11, lineHeight: 17 },
+  switchText: { flex: 1, color: '#172423', fontSize: 14, fontWeight: '700' },
+  switchHelp: { marginTop: 3, color: '#60706E', fontSize: 10 },
+  dangerZone: { marginTop: 42, paddingTop: 18, borderTopWidth: 1, borderTopColor: '#D7E0DE', alignItems: 'flex-start' },
+  dangerTitle: { color: '#8F1D2C', fontSize: 15, fontWeight: '800' },
+  dangerText: { marginTop: 7, color: '#60706E', fontSize: 11, lineHeight: 17 },
   dangerActions: { marginTop: 12, flexDirection: 'row', gap: 8 },
 });

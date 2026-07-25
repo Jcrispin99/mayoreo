@@ -77,7 +77,7 @@ function ProductCard({
             style={styles.productImage}
           />
         ) : (
-          <Icon color="#9AA4A8" size={42} source="image-outline" />
+          <Icon color="#60706E" size={42} source="image-outline" />
         )}
         {product.is_favorite ? (
           <View pointerEvents="none" style={styles.favoriteBadge}>
@@ -314,13 +314,13 @@ export function PosProductCatalog({
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={loading ? (
           <View style={styles.emptyCatalog}>
-            <ActivityIndicator color="#28738A" size="large" />
+            <ActivityIndicator color="#B4232D" size="large" />
             <Text style={styles.stateTitle}>Cargando productos</Text>
             <Text style={styles.stateText}>Consultando un bloque del catálogo de esta caja.</Text>
           </View>
         ) : error ? (
           <View style={styles.emptyCatalog}>
-            <Icon color="#A44256" size={42} source="alert-circle-outline" />
+            <Icon color="#8F1D2C" size={42} source="alert-circle-outline" />
             <Text style={styles.stateTitle}>No se pudo abrir el catálogo</Text>
             <Text style={styles.errorText}>{error}</Text>
             <Button icon="reload" mode="outlined" onPress={() => setReloadKey((current) => current + 1)}>
@@ -329,7 +329,7 @@ export function PosProductCatalog({
           </View>
         ) : (
           <View style={styles.emptyCatalog}>
-            <Icon color="#929DA1" size={44} source={filtered ? 'filter-variant' : 'package-variant'} />
+            <Icon color="#60706E" size={44} source={filtered ? 'filter-variant' : 'package-variant'} />
             <Text style={styles.stateTitle}>{filtered ? 'Sin coincidencias' : 'Catálogo vacío'}</Text>
             <Text style={styles.stateText}>
               {filtered
@@ -339,7 +339,7 @@ export function PosProductCatalog({
           </View>
         )}
         ListFooterComponent={loadingMore ? (
-          <ActivityIndicator color="#28738A" style={styles.loadMore} />
+          <ActivityIndicator color="#B4232D" style={styles.loadMore} />
         ) : loadMoreError ? (
           <View style={styles.loadMoreError}>
             <Text style={styles.errorText}>{loadMoreError}</Text>
@@ -374,32 +374,32 @@ export function PosProductCatalog({
 }
 
 const styles = StyleSheet.create({
-  catalog: { flex: 1, backgroundColor: '#F6F8F9' },
-  searchArea: { paddingHorizontal: 12, paddingBottom: 8, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E1E7E9' },
+  catalog: { flex: 1, backgroundColor: '#F3F6F5' },
+  searchArea: { paddingHorizontal: 12, paddingBottom: 8, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#D7E0DE' },
   searchComponent: { maxWidth: 760, width: '100%', alignSelf: 'center' },
   productList: { width: '100%', alignSelf: 'center', paddingHorizontal: 12, paddingBottom: 20 },
-  sectionTitle: { color: '#302A33', fontSize: 15, fontWeight: '900' },
+  sectionTitle: { color: '#172423', fontSize: 15, fontWeight: '900' },
   catalogHeading: { paddingTop: 12, paddingBottom: 8 },
   productRow: { width: '100%', gap: 8, marginBottom: 8 },
   productCard: { overflow: 'hidden', borderWidth: 1, borderColor: '#DFE5E7', borderRadius: 10, backgroundColor: '#FFFFFF' },
   productCardPressed: { borderColor: '#75A9B7', transform: [{ scale: 0.985 }] },
   productCardAdding: { opacity: 0.72 },
-  imageFrame: { position: 'relative', width: '100%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEF2F3' },
+  imageFrame: { position: 'relative', width: '100%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EAEFEE' },
   productImage: { width: '100%', height: '100%' },
-  favoriteBadge: { position: 'absolute', top: 7, left: 7, width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', borderRadius: 15, backgroundColor: '#D18A25' },
-  orderQuantityBadge: { position: 'absolute', top: 7, right: 7, width: 31, height: 31, paddingHorizontal: 3, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', borderRadius: 16, backgroundColor: '#28738A' },
+  favoriteBadge: { position: 'absolute', top: 7, left: 7, width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', borderRadius: 15, backgroundColor: '#FF4D4D' },
+  orderQuantityBadge: { position: 'absolute', top: 7, right: 7, width: 31, height: 31, paddingHorizontal: 3, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', borderRadius: 16, backgroundColor: '#B4232D' },
   orderQuantityText: { width: '100%', color: '#FFFFFF', fontSize: 10, fontWeight: '900', textAlign: 'center' },
   cardBody: { padding: 8 },
-  productName: { minHeight: 35, color: '#2D2830', fontSize: 13, lineHeight: 17, fontWeight: '900' },
-  productSku: { marginTop: 2, color: '#7D767F', fontSize: 9, fontWeight: '700' },
+  productName: { minHeight: 35, color: '#172423', fontSize: 13, lineHeight: 17, fontWeight: '900' },
+  productSku: { marginTop: 2, color: '#60706E', fontSize: 9, fontWeight: '700' },
   stockRow: { minWidth: 0, marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 4 },
   stockText: { flex: 1, color: '#337B67', fontSize: 10, fontWeight: '800' },
-  price: { marginTop: 5, color: '#76557E', fontSize: 11, fontWeight: '900' },
-  lowerPrice: { marginTop: 2, color: '#8B838C', fontSize: 8, fontWeight: '700' },
-  missingPrice: { color: '#9A7278', fontSize: 9 },
+  price: { marginTop: 5, color: '#B4232D', fontSize: 11, fontWeight: '900' },
+  lowerPrice: { marginTop: 2, color: '#60706E', fontSize: 8, fontWeight: '700' },
+  missingPrice: { color: '#8F1D2C', fontSize: 9 },
   stateTitle: { color: '#4D565A', fontSize: 16, fontWeight: '900', textAlign: 'center' },
-  stateText: { maxWidth: 360, color: '#879196', fontSize: 11, lineHeight: 17, textAlign: 'center' },
-  errorText: { maxWidth: 380, color: '#A44256', fontSize: 11, lineHeight: 17, textAlign: 'center' },
+  stateText: { maxWidth: 360, color: '#60706E', fontSize: 11, lineHeight: 17, textAlign: 'center' },
+  errorText: { maxWidth: 380, color: '#8F1D2C', fontSize: 11, lineHeight: 17, textAlign: 'center' },
   emptyCatalog: { minHeight: 220, padding: 24, alignItems: 'center', justifyContent: 'center', gap: 9 },
   loadMore: { paddingVertical: 18 },
   loadMoreError: { paddingVertical: 12, alignItems: 'center', gap: 2 },

@@ -26,7 +26,7 @@ export function ProductImageField({ disabled = false, imageUri, onPress }: Produ
         <Image resizeMode="cover" source={{ uri: imageUrlForDevice(imageUri) }} style={styles.image} />
       ) : (
         <View style={styles.placeholder}>
-          <Icon source="camera-plus-outline" color="#8B7D90" size={34} />
+          <Icon source="camera-plus-outline" color="#60706E" size={34} />
           <Text style={styles.placeholderText}>Agregar foto</Text>
         </View>
       )}
@@ -46,15 +46,15 @@ const styles = StyleSheet.create({
     height: 104,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#D8D0DA',
+    borderColor: '#D7E0DE',
     borderRadius: 12,
-    backgroundColor: '#F5F2F6',
+    backgroundColor: '#EAEFEE',
   },
   pressed: { opacity: 0.78 },
   disabled: { opacity: 0.6 },
   image: { width: '100%', height: '100%' },
   placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  placeholderText: { marginTop: 5, color: '#746B78', fontSize: 10, fontWeight: '700' },
+  placeholderText: { marginTop: 5, color: '#60706E', fontSize: 10, fontWeight: '700' },
   editBadge: {
     position: 'absolute',
     right: 6,
@@ -64,6 +64,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
-    backgroundColor: '#73547B',
+    backgroundColor: '#B4232D',
   },
 });

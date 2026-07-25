@@ -17,7 +17,7 @@ export function ProductableLines({ items, products, readOnly, onAdd, onOpen }: P
   return (
     <View style={styles.container}>
       {!readOnly ? (
-        <Button buttonColor="#E0E2E5" mode="contained" onPress={onAdd} textColor="#2F3848">
+        <Button buttonColor="#EAEFEE" mode="contained" onPress={onAdd} textColor="#172423">
           Agregar
         </Button>
       ) : null}
@@ -66,18 +66,18 @@ export function ProductableLines({ items, products, readOnly, onAdd, onOpen }: P
 
 const styles = StyleSheet.create({
   container: { gap: 14 },
-  empty: { paddingVertical: 36, paddingHorizontal: 20, alignItems: 'center', borderWidth: 1, borderColor: '#E0DCE2', borderRadius: 8, backgroundColor: '#FFFFFF' },
-  emptyTitle: { color: '#443C47', fontSize: 14, fontWeight: '800' },
-  emptyText: { marginTop: 5, textAlign: 'center', color: '#8A838D', fontSize: 11, lineHeight: 17 },
+  empty: { paddingVertical: 36, paddingHorizontal: 20, alignItems: 'center', borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 8, backgroundColor: '#FFFFFF' },
+  emptyTitle: { color: '#172423', fontSize: 14, fontWeight: '800' },
+  emptyText: { marginTop: 5, textAlign: 'center', color: '#60706E', fontSize: 11, lineHeight: 17 },
   card: { padding: 16, borderWidth: 1, borderColor: '#D8DADF', backgroundColor: '#FFFFFF' },
-  cardPressed: { backgroundColor: '#F7F2F7', borderColor: '#BFAFC2' },
+  cardPressed: { backgroundColor: '#F7F2F7', borderColor: '#879692' },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
-  productName: { flex: 1, color: '#394253', fontSize: 13, fontWeight: '900', lineHeight: 19 },
-  subtotal: { color: '#394253', fontSize: 13, fontWeight: '900' },
-  sku: { marginTop: 3, color: '#7D8490', fontSize: 10, fontWeight: '700' },
+  productName: { flex: 1, color: '#172423', fontSize: 13, fontWeight: '900', lineHeight: 19 },
+  subtotal: { color: '#172423', fontSize: 13, fontWeight: '900' },
+  sku: { marginTop: 3, color: '#60706E', fontSize: 10, fontWeight: '700' },
   details: { marginTop: 17, gap: 10 },
   detail: { color: '#6B7380', fontSize: 12 },
-  totalRow: { paddingTop: 15, flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#DED8E0' },
-  totalLabel: { color: '#403743', fontSize: 16, fontWeight: '800' },
-  totalValue: { color: '#C26A34', fontSize: 19, fontWeight: '900' },
+  totalRow: { paddingTop: 15, flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#D7E0DE' },
+  totalLabel: { color: '#172423', fontSize: 16, fontWeight: '800' },
+  totalValue: { color: '#B4232D', fontSize: 19, fontWeight: '900' },
 });

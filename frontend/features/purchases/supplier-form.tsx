@@ -107,13 +107,13 @@ export function SupplierForm({ supplierId }: SupplierFormProps) {
     <ModuleLayout module={PURCHASES_MODULE} selectedItemId="suppliers">
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.screen}>
         {loading ? (
-          <ActivityIndicator color="#C26A34" size="large" style={styles.loader} />
+          <ActivityIndicator color="#B4232D" size="large" style={styles.loader} />
         ) : (
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <View style={styles.header}>
               <Button compact icon="arrow-left" mode="text" onPress={() => router.back()}>Volver</Button>
               <Button
-                buttonColor="#C26A34"
+                buttonColor="#FF4D4D"
                 compact
                 disabled={saving}
                 loading={saving}
@@ -166,11 +166,11 @@ export function SupplierForm({ supplierId }: SupplierFormProps) {
                     <Text style={styles.dangerText}>Si el proveedor tiene compras registradas, el sistema puede impedir su eliminación; en ese caso puedes desactivarlo.</Text>
                     <View style={styles.dangerActions}>
                       <Button disabled={saving} onPress={() => setConfirmingDelete(false)}>Cancelar</Button>
-                      <Button buttonColor="#B33F55" loading={saving} mode="contained" onPress={() => void remove()} textColor="#FFFFFF">Eliminar</Button>
+                      <Button buttonColor="#8F1D2C" loading={saving} mode="contained" onPress={() => void remove()} textColor="#FFFFFF">Eliminar</Button>
                     </View>
                   </View>
                 ) : (
-                  <Button icon="trash-can-outline" mode="text" onPress={() => setConfirmingDelete(true)} textColor="#B33F55">Eliminar el proveedor</Button>
+                  <Button icon="trash-can-outline" mode="text" onPress={() => setConfirmingDelete(true)} textColor="#8F1D2C">Eliminar el proveedor</Button>
                 )}
               </View>
             ) : null}
@@ -182,21 +182,21 @@ export function SupplierForm({ supplierId }: SupplierFormProps) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#FAF9FA' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
   loader: { flex: 1 },
   content: { width: '100%', maxWidth: 720, alignSelf: 'center', padding: 20, paddingBottom: 48 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { marginTop: 20, color: '#28222C', fontSize: 24, fontWeight: '800' },
-  subtitle: { marginTop: 6, color: '#7C7480', fontSize: 12, lineHeight: 18 },
-  error: { marginTop: 16, padding: 12, borderRadius: 8, color: '#923E4E', backgroundColor: '#FBEAEC' },
+  title: { marginTop: 20, color: '#172423', fontSize: 24, fontWeight: '800' },
+  subtitle: { marginTop: 6, color: '#60706E', fontSize: 12, lineHeight: 18 },
+  error: { marginTop: 16, padding: 12, borderRadius: 8, color: '#8F1D2C', backgroundColor: '#FCE8EA' },
   form: { marginTop: 22, gap: 19 },
   input: { backgroundColor: 'transparent' },
-  switchRow: { minHeight: 62, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#DED8E0' },
+  switchRow: { minHeight: 62, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#D7E0DE' },
   switchCopy: { flex: 1 },
-  switchText: { color: '#443C47', fontSize: 14, fontWeight: '700' },
-  switchHelp: { marginTop: 3, color: '#8A838D', fontSize: 10 },
-  dangerZone: { marginTop: 42, paddingTop: 18, borderTopWidth: 1, borderTopColor: '#E5DADD', alignItems: 'flex-start' },
-  dangerTitle: { color: '#8F3448', fontSize: 15, fontWeight: '800' },
-  dangerText: { marginTop: 7, color: '#7C6970', fontSize: 11, lineHeight: 17 },
+  switchText: { color: '#172423', fontSize: 14, fontWeight: '700' },
+  switchHelp: { marginTop: 3, color: '#60706E', fontSize: 10 },
+  dangerZone: { marginTop: 42, paddingTop: 18, borderTopWidth: 1, borderTopColor: '#D7E0DE', alignItems: 'flex-start' },
+  dangerTitle: { color: '#8F1D2C', fontSize: 15, fontWeight: '800' },
+  dangerText: { marginTop: 7, color: '#60706E', fontSize: 11, lineHeight: 17 },
   dangerActions: { marginTop: 12, flexDirection: 'row', gap: 8 },
 });

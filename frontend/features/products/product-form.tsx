@@ -169,7 +169,7 @@ export function ProductForm({ productId }: ProductFormProps) {
     <ModuleLayout module={PRODUCTS_MODULE} selectedItemId="product-list">
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.screen}>
         {loading ? (
-          <ActivityIndicator color="#73547B" size="large" style={styles.loader} />
+          <ActivityIndicator color="#B4232D" size="large" style={styles.loader} />
         ) : (
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <View style={styles.formHeader}>
@@ -177,7 +177,7 @@ export function ProductForm({ productId }: ProductFormProps) {
                 Volver
               </Button>
               <Button
-                buttonColor="#73547B"
+                buttonColor="#FF4D4D"
                 compact
                 disabled={saving}
                 loading={saving}
@@ -208,15 +208,15 @@ export function ProductForm({ productId }: ProductFormProps) {
                     onPress={() => setFavorite((current) => !current)}
                     style={styles.favoriteButton}
                   >
-                    <Icon source={favorite ? 'star' : 'star-outline'} color={favorite ? '#D18A25' : '#817986'} size={27} />
+                    <Icon source={favorite ? 'star' : 'star-outline'} color={favorite ? '#FF4D4D' : '#60706E'} size={27} />
                   </Pressable>
                   <TextInput
                     label="Nombre del producto *"
                     mode="flat"
                     onChangeText={setName}
                     style={[styles.input, styles.nameInput]}
-                    underlineColor="#CFC7D1"
-                    activeUnderlineColor="#73547B"
+                    underlineColor="#879692"
+                    activeUnderlineColor="#B4232D"
                     value={name}
                   />
                 </View>
@@ -233,8 +233,8 @@ export function ProductForm({ productId }: ProductFormProps) {
                 mode="flat"
                 onChangeText={setSku}
                 style={styles.input}
-                underlineColor="#CFC7D1"
-                activeUnderlineColor="#73547B"
+                underlineColor="#879692"
+                activeUnderlineColor="#B4232D"
                 value={sku}
               />
               <TextInput
@@ -243,8 +243,8 @@ export function ProductForm({ productId }: ProductFormProps) {
                 mode="flat"
                 onChangeText={setBarcode}
                 style={styles.input}
-                underlineColor="#CFC7D1"
-                activeUnderlineColor="#73547B"
+                underlineColor="#879692"
+                activeUnderlineColor="#B4232D"
                 value={barcode}
               />
 
@@ -261,7 +261,7 @@ export function ProductForm({ productId }: ProductFormProps) {
                       <Text style={[styles.selectorText, !selectedUnit && styles.placeholderText]}>
                         {selectedUnit ? `${selectedUnit.name} (${selectedUnit.code})` : 'Seleccionar unidad'}
                       </Text>
-                      <Icon source="chevron-down" color="#746C78" size={21} />
+                      <Icon source="chevron-down" color="#60706E" size={21} />
                     </Pressable>
                   }
                   onDismiss={() => setUnitMenuVisible(false)}
@@ -288,8 +288,8 @@ export function ProductForm({ productId }: ProductFormProps) {
                 numberOfLines={3}
                 onChangeText={setDescription}
                 style={[styles.input, styles.descriptionInput]}
-                underlineColor="#CFC7D1"
-                activeUnderlineColor="#73547B"
+                underlineColor="#879692"
+                activeUnderlineColor="#B4232D"
                 value={description}
               />
 
@@ -313,25 +313,25 @@ export function ProductForm({ productId }: ProductFormProps) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#FAF9FA' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
   loader: { flex: 1 },
   content: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 20, paddingBottom: 48 },
   formHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   movementActions: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  title: { marginTop: 18, color: '#28222C', fontSize: 24, fontWeight: '800' },
-  error: { marginTop: 14, padding: 12, borderRadius: 8, color: '#923E4E', backgroundColor: '#FBEAEC' },
+  title: { marginTop: 18, color: '#172423', fontSize: 24, fontWeight: '800' },
+  error: { marginTop: 14, padding: 12, borderRadius: 8, color: '#8F1D2C', backgroundColor: '#FCE8EA' },
   identitySection: { marginTop: 18, flexDirection: 'row', alignItems: 'center' },
   identityFields: { flex: 1, marginRight: 18 },
   nameRow: { flexDirection: 'row', alignItems: 'center' },
   favoriteButton: { width: 38, height: 44, alignItems: 'center', justifyContent: 'center' },
   nameInput: { flex: 1, fontSize: 20 },
-  imageHelp: { marginTop: 7, marginLeft: 38, color: '#8A818D', fontSize: 10 },
+  imageHelp: { marginTop: 7, marginLeft: 38, color: '#60706E', fontSize: 10 },
   section: { marginTop: 30, gap: 18 },
   sectionTitle: {
     paddingBottom: 9,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0DAE2',
-    color: '#4A414E',
+    borderBottomColor: '#D7E0DE',
+    color: '#172423',
     fontSize: 13,
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -339,26 +339,26 @@ const styles = StyleSheet.create({
   },
   input: { backgroundColor: 'transparent' },
   descriptionInput: { minHeight: 88 },
-  fieldLabel: { marginBottom: 2, color: '#777079', fontSize: 11 },
+  fieldLabel: { marginBottom: 2, color: '#60706E', fontSize: 11 },
   selector: {
     minHeight: 48,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#CFC7D1',
+    borderBottomColor: '#879692',
   },
-  selectorText: { flex: 1, color: '#302A33', fontSize: 15 },
-  placeholderText: { color: '#807984' },
+  selectorText: { flex: 1, color: '#172423', fontSize: 15 },
+  placeholderText: { color: '#60706E' },
   switchRow: {
     minHeight: 64,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#D8D1DA',
+    borderBottomColor: '#879692',
   },
   switchCopy: { flex: 1, marginRight: 12 },
-  switchTitle: { color: '#413A44', fontSize: 14, fontWeight: '700' },
-  switchDescription: { marginTop: 3, color: '#8A838D', fontSize: 10 },
+  switchTitle: { color: '#172423', fontSize: 14, fontWeight: '700' },
+  switchDescription: { marginTop: 3, color: '#60706E', fontSize: 10 },
 });

@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { COLORS } from '../../theme/colors';
 import { AppHeader } from './app-header';
 
 type AppScreenLayoutProps = {
@@ -28,7 +29,7 @@ export function AppScreenLayout({
 }: AppScreenLayoutProps) {
   return (
     <View style={styles.screen}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <AppHeader
         icon={icon}
         iconColor={iconColor}
@@ -45,6 +46,6 @@ export function AppScreenLayout({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F7F5F8' },
+  screen: { flex: 1, backgroundColor: COLORS.background },
   content: { flex: 1 },
 });

@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Icon, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { COLORS } from '../../theme/colors';
 
 type AppHeaderProps = {
   icon?: string;
@@ -27,7 +28,7 @@ export function getInitials(name?: string) {
 
 export function AppHeader({
   icon = 'view-grid-outline',
-  iconColor = '#6D4A85',
+  iconColor = COLORS.primaryDark,
   title,
   userName,
   onApplicationsPress,
@@ -45,7 +46,7 @@ export function AppHeader({
           onPress={onApplicationsPress ?? onMenuPress}
           style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
         >
-          <Icon source={onApplicationsPress ? 'view-grid-outline' : 'menu'} color="#FFFFFF" size={24} />
+          <Icon source={onApplicationsPress ? 'view-grid-outline' : 'menu'} color={COLORS.text} size={24} />
         </Pressable>
 
         <View style={styles.brand}>
@@ -66,7 +67,7 @@ export function AppHeader({
               onPress={onMenuPress}
               style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
             >
-              <Icon source="menu" color="#FFFFFF" size={25} />
+              <Icon source="menu" color={COLORS.text} size={25} />
             </Pressable>
           ) : null}
           {onNotificationsPress ? (
@@ -77,7 +78,7 @@ export function AppHeader({
               onPress={onNotificationsPress}
               style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
             >
-              <Icon source="bell-outline" color="#FFFFFF" size={23} />
+              <Icon source="bell-outline" color={COLORS.text} size={23} />
               <View style={styles.notificationDot} />
             </Pressable>
           ) : null}
@@ -98,14 +99,16 @@ export function AppHeader({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { backgroundColor: '#62426F' },
+  safeArea: { backgroundColor: COLORS.surface },
   bar: {
     height: 64,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#62426F',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.surface,
   },
   iconButton: {
     width: 40,
@@ -129,11 +132,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 9,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.primaryContainer,
   },
   title: {
     flexShrink: 1,
-    color: '#FFFFFF',
+    color: COLORS.text,
     fontSize: 19,
     fontWeight: '800',
     letterSpacing: 0.2,
@@ -151,9 +154,9 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: '#F6B756',
+    backgroundColor: COLORS.secondary,
     borderWidth: 1.5,
-    borderColor: '#62426F',
+    borderColor: COLORS.surface,
   },
   avatar: {
     width: 36,
@@ -161,9 +164,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 18,
-    backgroundColor: '#F2E8F3',
+    backgroundColor: COLORS.primaryContainer,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.32)',
+    borderColor: COLORS.surface,
   },
-  avatarText: { color: '#62426F', fontSize: 12, fontWeight: '800' },
+  avatarText: { color: COLORS.onPrimaryContainer, fontSize: 12, fontWeight: '800' },
 });

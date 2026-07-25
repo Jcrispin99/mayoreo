@@ -40,7 +40,7 @@ export function ListToolbar({
       <View style={styles.toolbarRow}>
         <View style={styles.headingRow}>
           {onCreate ? (
-            <Button buttonColor="#73547B" compact icon="plus" mode="contained" onPress={onCreate}>
+            <Button buttonColor="#FF4D4D" compact icon="plus" mode="contained" onPress={onCreate}>
               {createLabel}
             </Button>
           ) : null}
@@ -76,11 +76,11 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#DED9E0',
+    borderBottomColor: '#D7E0DE',
     backgroundColor: '#FFFFFF',
   },
   toolbarRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 14 },
   pagination: { marginLeft: 'auto' },
   headingRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  heading: { color: '#332D36', fontSize: 20, fontWeight: '800' },
+  heading: { color: '#172423', fontSize: 20, fontWeight: '800' },
 });

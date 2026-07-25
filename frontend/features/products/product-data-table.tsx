@@ -39,7 +39,7 @@ function ProductImageCell({ product }: { product: ProductListItem }) {
           style={styles.image}
         />
       ) : (
-        <Icon source="image-outline" color="#A39CA6" size={30} />
+        <Icon source="image-outline" color="#60706E" size={30} />
       )}
     </View>
   );
@@ -84,7 +84,7 @@ function ProductFavoriteCell({
     >
       <Icon
         source={product.is_favorite ? 'star' : 'star-outline'}
-        color={product.is_favorite ? '#D18A25' : '#817986'}
+        color={product.is_favorite ? '#FF4D4D' : '#60706E'}
         size={25}
       />
     </Pressable>
@@ -158,12 +158,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
     borderRadius: 8,
-    backgroundColor: '#F4F1F5',
+    backgroundColor: '#EAEFEE',
   },
   image: { width: '100%', height: '100%' },
   name: { color: '#24202A', fontSize: 14, lineHeight: 18, fontWeight: '800' },
   reference: { marginTop: 2, color: '#6A626F', fontSize: 10, fontWeight: '700' },
   detail: { marginTop: 4, color: '#4F4755', fontSize: 12 },
   favoriteButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
-  favoriteButtonPressed: { backgroundColor: '#F2EAF4' },
+  favoriteButtonPressed: { backgroundColor: '#EAEFEE' },
 });

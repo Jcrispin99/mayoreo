@@ -104,7 +104,7 @@ export function CashRegisterList() {
         return (
           <View style={styles.actions}>
             <Button
-              buttonColor={openSession ? '#E3F4EE' : '#28738A'}
+              buttonColor={openSession ? '#E3F4EE' : '#FF4D4D'}
               contentStyle={styles.openButtonContent}
               disabled={!item.is_active && !openSession}
               labelStyle={[styles.openButtonLabel, openSession && styles.activeSessionLabel]}
@@ -118,7 +118,7 @@ export function CashRegisterList() {
             <IconButton
               accessibilityLabel={`Configurar ${item.name}`}
               icon="cog-outline"
-              iconColor="#625A67"
+              iconColor="#60706E"
               mode="contained-tonal"
               onPress={() => openEdit(item)}
               size={19}
@@ -195,7 +195,7 @@ export function CashRegisterList() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F7F5F8' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
   row: { minHeight: 88, paddingHorizontal: 16, paddingVertical: 10 },
   detailColumn: { flex: 1 },
   actionsColumn: { width: 158, alignItems: 'flex-end' },
@@ -204,10 +204,10 @@ const styles = StyleSheet.create({
   openButtonContent: { minHeight: 40, paddingHorizontal: 12 },
   openButtonLabel: { marginHorizontal: 0, marginVertical: 0, fontSize: 11, fontWeight: '900' },
   activeSessionLabel: { color: '#226D5C' },
-  settingsButton: { width: 40, height: 40, margin: 0, borderRadius: 9, backgroundColor: '#ECE8ED' },
+  settingsButton: { width: 40, height: 40, margin: 0, borderRadius: 9, backgroundColor: '#EAEFEE' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  name: { flexShrink: 1, color: '#302A33', fontSize: 14, fontWeight: '800' },
-  inactive: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 7, color: '#925064', backgroundColor: '#F8E8ED', fontSize: 9, fontWeight: '800' },
+  name: { flexShrink: 1, color: '#172423', fontSize: 14, fontWeight: '800' },
+  inactive: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 7, color: '#60706E', backgroundColor: '#EAEFEE', fontSize: 9, fontWeight: '800' },
   meta: { marginTop: 4, color: '#736D77', fontSize: 11, lineHeight: 15 },
-  series: { marginTop: 4, color: '#168C8C', fontSize: 10, fontWeight: '700' },
+  series: { marginTop: 4, color: '#B4232D', fontSize: 10, fontWeight: '700' },
 });

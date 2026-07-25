@@ -1,3 +1,5 @@
+import { MODULE_COLORS } from '../theme/colors';
+
 /**
  * Configuración central del launcher.
  *
@@ -35,8 +37,8 @@ export const MENU_MODULES: MenuModule[] = [
     title: 'Inventario',
     subtitle: 'Productos, tiendas y almacenes',
     icon: 'warehouse',
-    color: '#168C8C',
-    softColor: '#E1F5F3',
+    color: MODULE_COLORS.inventory.color,
+    softColor: MODULE_COLORS.inventory.softColor,
     order: 10,
     items: [
       {
@@ -81,8 +83,8 @@ export const MENU_MODULES: MenuModule[] = [
     title: 'Compras',
     subtitle: 'Órdenes de compra y proveedores',
     icon: 'cart-arrow-down',
-    color: '#C26A34',
-    softColor: '#FBEDE3',
+    color: MODULE_COLORS.purchases.color,
+    softColor: MODULE_COLORS.purchases.softColor,
     order: 20,
     items: [
       {
@@ -106,8 +108,8 @@ export const MENU_MODULES: MenuModule[] = [
     title: 'POS',
     subtitle: 'Cajas, cobros y correlativos',
     icon: 'cash-register',
-    color: '#28738A',
-    softColor: '#E3F1F5',
+    color: MODULE_COLORS.pos.color,
+    softColor: MODULE_COLORS.pos.softColor,
     order: 30,
     items: [
       {
@@ -138,8 +140,8 @@ export const MENU_MODULES: MenuModule[] = [
     title: 'Clientes',
     subtitle: 'Directorio y datos de contacto',
     icon: 'account-heart-outline',
-    color: '#426B8A',
-    softColor: '#E7F0F6',
+    color: MODULE_COLORS.customers.color,
+    softColor: MODULE_COLORS.customers.softColor,
     order: 40,
     items: [
       {
@@ -156,8 +158,8 @@ export const MENU_MODULES: MenuModule[] = [
     title: 'Contabilidad',
     subtitle: 'Ventas, cobros y análisis',
     icon: 'chart-box-outline',
-    color: '#2F7461',
-    softColor: '#E4F2ED',
+    color: MODULE_COLORS.accounting.color,
+    softColor: MODULE_COLORS.accounting.softColor,
     order: 50,
     items: [
       {
@@ -174,8 +176,8 @@ export const MENU_MODULES: MenuModule[] = [
     title: 'Usuarios',
     subtitle: 'Usuarios, roles y permisos',
     icon: 'account-group-outline',
-    color: '#73547B',
-    softColor: '#F0EAF2',
+    color: MODULE_COLORS.access.color,
+    softColor: MODULE_COLORS.access.softColor,
     order: 60,
     items: [
       {

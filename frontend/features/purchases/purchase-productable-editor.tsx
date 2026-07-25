@@ -113,7 +113,7 @@ export function PurchaseProductableEditor({
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.screen}>
           <View style={styles.header}>
             <Pressable accessibilityLabel="Volver a la compra" hitSlop={8} onPress={onClose} style={styles.backButton}>
-              <Icon source="arrow-left" color="#283142" size={22} />
+              <Icon source="arrow-left" color="#172423" size={22} />
             </Pressable>
             <Text style={styles.headerTitle}>{readOnly ? 'Detalle de la línea' : initialItem ? 'Editar línea de la compra' : 'Crear línea de la compra'}</Text>
           </View>
@@ -128,7 +128,7 @@ export function PurchaseProductableEditor({
                   <Text numberOfLines={1} style={styles.selectorText}>
                     {selectedProduct ? `${selectedProduct.name} · ${selectedProduct.sku}` : 'Seleccionar producto'}
                   </Text>
-                  {!readOnly ? <Icon source="chevron-down" color="#168C8C" size={20} /> : null}
+                  {!readOnly ? <Icon source="chevron-down" color="#B4232D" size={20} /> : null}
                 </Pressable>
               }
               onDismiss={() => setProductMenuVisible(false)}
@@ -146,7 +146,7 @@ export function PurchaseProductableEditor({
                   anchor={
                     <Pressable disabled={readOnly} onPress={() => setUnitMenuVisible(true)} style={[styles.selector, readOnly && styles.disabled]}>
                       <Text style={styles.selectorText}>{selectedUnit?.name ?? selectedProduct.base_unit?.name ?? 'Unidad base'}</Text>
-                      {!readOnly ? <Icon source="chevron-down" color="#168C8C" size={20} /> : null}
+                      {!readOnly ? <Icon source="chevron-down" color="#B4232D" size={20} /> : null}
                     </Pressable>
                   }
                   onDismiss={() => setUnitMenuVisible(false)}
@@ -175,11 +175,11 @@ export function PurchaseProductableEditor({
             ) : (
               <>
                 <View style={styles.primaryActions}>
-                  <Button buttonColor="#795171" mode="contained" onPress={saveAndClose} style={styles.primaryButton}>Guardar y cerrar</Button>
-                  <Button buttonColor="#795171" mode="contained" onPress={saveAndCreateAnother} style={styles.primaryButton}>Guardar y crear nuevo</Button>
+                  <Button buttonColor="#FF4D4D" mode="contained" onPress={saveAndClose} style={styles.primaryButton}>Guardar y cerrar</Button>
+                  <Button buttonColor="#FF4D4D" mode="contained" onPress={saveAndCreateAnother} style={styles.primaryButton}>Guardar y crear nuevo</Button>
                 </View>
-                <Button buttonColor="#E5E7EA" mode="contained" onPress={onClose} textColor="#414B5D">Descartar</Button>
-                {initialItem ? <Button mode="text" onPress={() => { onDelete(initialItem.key); onClose(); }} textColor="#B33F55">Eliminar línea</Button> : null}
+                <Button buttonColor="#2DD4BF" mode="contained" onPress={onClose} textColor="#073B35">Descartar</Button>
+                {initialItem ? <Button mode="text" onPress={() => { onDelete(initialItem.key); onClose(); }} textColor="#8F1D2C">Eliminar línea</Button> : null}
               </>
             )}
           </View>
@@ -194,17 +194,17 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   header: { minHeight: 56, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#DCDDE0' },
   backButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { marginLeft: 4, color: '#202938', fontSize: 16, fontWeight: '800' },
+  headerTitle: { marginLeft: 4, color: '#172423', fontSize: 16, fontWeight: '800' },
   content: { width: '100%', maxWidth: 720, alignSelf: 'center', padding: 14, paddingTop: 28, gap: 20, paddingBottom: 40 },
-  error: { padding: 12, borderRadius: 8, color: '#923E4E', backgroundColor: '#FBEAEC' },
-  label: { marginBottom: -16, color: '#202938', fontSize: 14, fontWeight: '700' },
-  selector: { minHeight: 48, paddingHorizontal: 2, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#168C8C' },
+  error: { padding: 12, borderRadius: 8, color: '#8F1D2C', backgroundColor: '#FCE8EA' },
+  label: { marginBottom: -16, color: '#172423', fontSize: 14, fontWeight: '700' },
+  selector: { minHeight: 48, paddingHorizontal: 2, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#B4232D' },
   selectorText: { flex: 1, color: '#303A49', fontSize: 14 },
   disabled: { opacity: 0.72 },
   input: { backgroundColor: 'transparent' },
-  summary: { marginTop: 10, padding: 15, flexDirection: 'row', justifyContent: 'space-between', borderRadius: 8, backgroundColor: '#F5F2F5' },
+  summary: { marginTop: 10, padding: 15, flexDirection: 'row', justifyContent: 'space-between', borderRadius: 8, backgroundColor: '#EAEFEE' },
   summaryLabel: { color: '#5D5661', fontSize: 13, fontWeight: '700' },
-  summaryValue: { color: '#795171', fontSize: 16, fontWeight: '900' },
+  summaryValue: { color: '#B4232D', fontSize: 16, fontWeight: '900' },
   footer: { padding: 14, gap: 10, borderTopWidth: 1, borderTopColor: '#DCDDE0', backgroundColor: '#FFFFFF' },
   primaryActions: { flexDirection: 'row', gap: 12 },
   primaryButton: { flex: 1 },

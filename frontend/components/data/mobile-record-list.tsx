@@ -34,7 +34,7 @@ export function MobileRecordList<T>({
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#73547B" size="large" />
+        <ActivityIndicator color="#B4232D" size="large" />
       </View>
     );
   }
@@ -42,7 +42,7 @@ export function MobileRecordList<T>({
   if (error) {
     return (
       <View style={styles.center}>
-        <Icon source="cloud-alert-outline" color="#A24B5D" size={40} />
+        <Icon source="cloud-alert-outline" color="#8F1D2C" size={40} />
         <Text style={styles.error}>{error}</Text>
         <Button onPress={onRetry}>Reintentar</Button>
       </View>
@@ -60,7 +60,7 @@ export function MobileRecordList<T>({
       ListFooterComponent={footer}
       ListEmptyComponent={
         <View style={styles.center}>
-          <Icon source={emptyIcon} color="#9A8C9E" size={42} />
+          <Icon source={emptyIcon} color="#60706E" size={42} />
           <Text style={styles.emptyTitle}>{emptyTitle}</Text>
           <Text style={styles.emptyText}>{emptyText}</Text>
         </View>
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   list: { paddingBottom: 32 },
   emptyList: { flexGrow: 1 },
   center: { flex: 1, padding: 32, alignItems: 'center', justifyContent: 'center' },
-  error: { marginTop: 10, marginBottom: 6, color: '#8C3E4D', textAlign: 'center' },
-  emptyTitle: { marginTop: 12, color: '#443C47', fontSize: 16, fontWeight: '800' },
-  emptyText: { marginTop: 5, color: '#8C858F', fontSize: 12, textAlign: 'center' },
+  error: { marginTop: 10, marginBottom: 6, color: '#8F1D2C', textAlign: 'center' },
+  emptyTitle: { marginTop: 12, color: '#172423', fontSize: 16, fontWeight: '800' },
+  emptyText: { marginTop: 5, color: '#60706E', fontSize: 12, textAlign: 'center' },
 });

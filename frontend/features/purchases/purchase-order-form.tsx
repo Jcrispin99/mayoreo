@@ -199,12 +199,12 @@ export function PurchaseOrderForm({ purchaseId }: PurchaseOrderFormProps) {
   return (
     <ModuleLayout module={PURCHASES_MODULE} selectedItemId="purchase-orders">
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.screen}>
-        {loading ? <ActivityIndicator color="#C26A34" size="large" style={styles.loader} /> : (
+        {loading ? <ActivityIndicator color="#B4232D" size="large" style={styles.loader} /> : (
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <View style={styles.header}>
               <Button compact icon="arrow-left" mode="text" onPress={() => router.back()}>Volver</Button>
               {!readOnly ? (
-                <Button buttonColor="#C26A34" disabled={saving} loading={saving} mode="contained" onPress={() => void save()}>
+                <Button buttonColor="#FF4D4D" disabled={saving} loading={saving} mode="contained" onPress={() => void save()}>
                   {editing ? 'Guardar cambios' : 'Guardar borrador'}
                 </Button>
               ) : null}
@@ -223,7 +223,7 @@ export function PurchaseOrderForm({ purchaseId }: PurchaseOrderFormProps) {
             <View style={styles.generalFields}>
               <Text style={styles.fieldLabel}>Proveedor *</Text>
               <Menu
-                anchor={<Pressable disabled={readOnly} onPress={() => setOpenMenu({ type: 'supplier' })} style={[styles.selector, readOnly && styles.selectorDisabled]}><Text style={styles.selectorText}>{selectedSupplier?.name ?? 'Seleccionar proveedor'}</Text>{!readOnly ? <Icon source="chevron-down" color="#746C78" size={21} /> : null}</Pressable>}
+                anchor={<Pressable disabled={readOnly} onPress={() => setOpenMenu({ type: 'supplier' })} style={[styles.selector, readOnly && styles.selectorDisabled]}><Text style={styles.selectorText}>{selectedSupplier?.name ?? 'Seleccionar proveedor'}</Text>{!readOnly ? <Icon source="chevron-down" color="#60706E" size={21} /> : null}</Pressable>}
                 onDismiss={() => setOpenMenu(null)}
                 visible={openMenu?.type === 'supplier'}
               >
@@ -232,7 +232,7 @@ export function PurchaseOrderForm({ purchaseId }: PurchaseOrderFormProps) {
 
               <Text style={styles.fieldLabel}>Almacén de destino *</Text>
               <Menu
-                anchor={<Pressable disabled={readOnly} onPress={() => setOpenMenu({ type: 'warehouse' })} style={[styles.selector, readOnly && styles.selectorDisabled]}><Text style={styles.selectorText}>{selectedWarehouse?.name ?? 'Seleccionar almacén'}</Text>{!readOnly ? <Icon source="chevron-down" color="#746C78" size={21} /> : null}</Pressable>}
+                anchor={<Pressable disabled={readOnly} onPress={() => setOpenMenu({ type: 'warehouse' })} style={[styles.selector, readOnly && styles.selectorDisabled]}><Text style={styles.selectorText}>{selectedWarehouse?.name ?? 'Seleccionar almacén'}</Text>{!readOnly ? <Icon source="chevron-down" color="#60706E" size={21} /> : null}</Pressable>}
                 onDismiss={() => setOpenMenu(null)}
                 visible={openMenu?.type === 'warehouse'}
               >
@@ -271,32 +271,32 @@ export function PurchaseOrderForm({ purchaseId }: PurchaseOrderFormProps) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#FAF9FA' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
   loader: { flex: 1 },
   content: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 20, paddingBottom: 56 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { marginTop: 20, color: '#28222C', fontSize: 24, fontWeight: '800' },
-  subtitle: { marginTop: 6, color: '#7C7480', fontSize: 12, lineHeight: 18 },
-  error: { marginTop: 16, padding: 12, borderRadius: 8, color: '#923E4E', backgroundColor: '#FBEAEC' },
+  title: { marginTop: 20, color: '#172423', fontSize: 24, fontWeight: '800' },
+  subtitle: { marginTop: 6, color: '#60706E', fontSize: 12, lineHeight: 18 },
+  error: { marginTop: 16, padding: 12, borderRadius: 8, color: '#8F1D2C', backgroundColor: '#FCE8EA' },
   generalFields: { marginTop: 24, gap: 18 },
-  productsHeader: { marginTop: 30, minHeight: 42, paddingHorizontal: 17, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D5D2D6', borderTopColor: '#795171', borderBottomWidth: 0, backgroundColor: '#FFFFFF' },
-  productsHeaderText: { color: '#202938', fontSize: 13, fontWeight: '800' },
+  productsHeader: { marginTop: 30, minHeight: 42, paddingHorizontal: 17, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D5D2D6', borderTopColor: '#B4232D', borderBottomWidth: 0, backgroundColor: '#FFFFFF' },
+  productsHeaderText: { color: '#172423', fontSize: 13, fontWeight: '800' },
   productsContent: { paddingTop: 18, borderTopWidth: 1, borderTopColor: '#D5D2D6' },
   section: { marginTop: 24, gap: 14 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: '#3C343F', fontSize: 16, fontWeight: '800' },
-  fieldLabel: { marginBottom: -10, color: '#777079', fontSize: 11 },
-  selector: { minHeight: 48, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#CFC7D1' },
+  sectionTitle: { color: '#172423', fontSize: 16, fontWeight: '800' },
+  fieldLabel: { marginBottom: -10, color: '#60706E', fontSize: 11 },
+  selector: { minHeight: 48, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#879692' },
   selectorDisabled: { opacity: 0.72 },
-  selectorText: { flex: 1, color: '#302A33', fontSize: 14 },
+  selectorText: { flex: 1, color: '#172423', fontSize: 14 },
   input: { backgroundColor: 'transparent' },
-  itemCard: { padding: 15, gap: 13, borderWidth: 1, borderColor: '#E4DEE6', borderRadius: 12, backgroundColor: '#FFFFFF' },
+  itemCard: { padding: 15, gap: 13, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 12, backgroundColor: '#FFFFFF' },
   itemHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  itemTitle: { color: '#554D58', fontSize: 12, fontWeight: '800' },
+  itemTitle: { color: '#172423', fontSize: 12, fontWeight: '800' },
   numberRow: { flexDirection: 'row', gap: 14 },
   numberInput: { flex: 1, backgroundColor: 'transparent' },
-  subtotal: { textAlign: 'right', color: '#766E79', fontSize: 11, fontWeight: '700' },
-  totalRow: { paddingTop: 14, flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#DED8E0' },
-  totalLabel: { color: '#403743', fontSize: 16, fontWeight: '800' },
-  totalValue: { color: '#C26A34', fontSize: 19, fontWeight: '900' },
+  subtotal: { textAlign: 'right', color: '#60706E', fontSize: 11, fontWeight: '700' },
+  totalRow: { paddingTop: 14, flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#D7E0DE' },
+  totalLabel: { color: '#172423', fontSize: 16, fontWeight: '800' },
+  totalValue: { color: '#B4232D', fontSize: 19, fontWeight: '900' },
 });

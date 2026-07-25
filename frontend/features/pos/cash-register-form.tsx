@@ -172,12 +172,12 @@ export function CashRegisterForm({ cashRegisterId }: CashRegisterFormProps) {
     <ModuleLayout module={POS_MODULE} selectedItemId="cash-registers">
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.screen}>
         {loading ? (
-          <ActivityIndicator color="#28738A" size="large" style={styles.loader} />
+          <ActivityIndicator color="#B4232D" size="large" style={styles.loader} />
         ) : (
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <View style={styles.header}>
               <Button compact icon="arrow-left" mode="text" onPress={() => router.back()}>Volver</Button>
-              <Button buttonColor="#28738A" compact disabled={saving} loading={saving} mode="contained" onPress={() => void save()}>
+              <Button buttonColor="#FF4D4D" compact disabled={saving} loading={saving} mode="contained" onPress={() => void save()}>
                 Guardar
               </Button>
             </View>
@@ -193,7 +193,7 @@ export function CashRegisterForm({ cashRegisterId }: CashRegisterFormProps) {
                 onPress={() => setActiveTab('general')}
                 style={[styles.tab, activeTab === 'general' && styles.activeTab]}
               >
-                <Icon color={activeTab === 'general' ? '#28738A' : '#77717A'} size={18} source="tune-variant" />
+                <Icon color={activeTab === 'general' ? '#B4232D' : '#60706E'} size={18} source="tune-variant" />
                 <Text style={[styles.tabText, activeTab === 'general' && styles.activeTabText]}>Datos generales</Text>
               </Pressable>
               <Pressable
@@ -202,7 +202,7 @@ export function CashRegisterForm({ cashRegisterId }: CashRegisterFormProps) {
                 onPress={() => setActiveTab('billing')}
                 style={[styles.tab, activeTab === 'billing' && styles.activeTab]}
               >
-                <Icon color={activeTab === 'billing' ? '#28738A' : '#77717A'} size={18} source="file-document-outline" />
+                <Icon color={activeTab === 'billing' ? '#B4232D' : '#60706E'} size={18} source="file-document-outline" />
                 <Text style={[styles.tabText, activeTab === 'billing' && styles.activeTabText]}>Facturación</Text>
               </Pressable>
             </View>
@@ -216,23 +216,23 @@ export function CashRegisterForm({ cashRegisterId }: CashRegisterFormProps) {
                 <View style={[styles.fieldRow, compactLayout && styles.fieldColumn]}>
                   <View style={styles.fieldControl}>
                     <TextInput
-                      activeOutlineColor="#28738A"
+                      activeOutlineColor="#B4232D"
                       autoCapitalize="characters"
                       label="Código *"
                       mode="outlined"
                       onChangeText={setCode}
-                      outlineColor="#D8D1DA"
+                      outlineColor="#879692"
                       style={styles.textInput}
                       value={code}
                     />
                   </View>
                   <View style={styles.fieldControl}>
                     <TextInput
-                      activeOutlineColor="#28738A"
+                      activeOutlineColor="#B4232D"
                       label="Nombre *"
                       mode="outlined"
                       onChangeText={setName}
-                      outlineColor="#D8D1DA"
+                      outlineColor="#879692"
                       style={styles.textInput}
                       value={name}
                     />
@@ -244,14 +244,14 @@ export function CashRegisterForm({ cashRegisterId }: CashRegisterFormProps) {
                     anchor={(
                       <Pressable onPress={() => setStoreMenuVisible(true)} style={styles.selector}>
                         <View style={styles.selectorIcon}>
-                          <Icon source="storefront-outline" size={22} color="#28738A" />
+                          <Icon source="storefront-outline" size={22} color="#B4232D" />
                         </View>
                         <View style={styles.selectorContent}>
                           <Text style={styles.selectorLabel}>Tienda *</Text>
                           <Text style={selectedStore ? styles.selectorText : styles.selectorPlaceholder}>{selectedStore?.name ?? 'Seleccionar tienda'}</Text>
                           {selectedStore ? <Text style={styles.selectorMeta}>Código {selectedStore.code}</Text> : null}
                         </View>
-                        <Icon source="chevron-down" size={22} color="#6F6872" />
+                        <Icon source="chevron-down" size={22} color="#60706E" />
                       </Pressable>
                     )}
                     onDismiss={() => setStoreMenuVisible(false)}
@@ -266,14 +266,14 @@ export function CashRegisterForm({ cashRegisterId }: CashRegisterFormProps) {
                     anchor={(
                       <Pressable onPress={() => setWarehouseMenuVisible(true)} style={styles.selector}>
                         <View style={styles.selectorIcon}>
-                          <Icon source="warehouse" size={22} color="#28738A" />
+                          <Icon source="warehouse" size={22} color="#B4232D" />
                         </View>
                         <View style={styles.selectorContent}>
                           <Text style={styles.selectorLabel}>Almacén de salida *</Text>
                           <Text style={selectedWarehouse ? styles.selectorText : styles.selectorPlaceholder}>{selectedWarehouse?.name ?? 'Seleccionar almacén'}</Text>
                           {selectedWarehouse ? <Text style={styles.selectorMeta}>{selectedWarehouse.code} · Origen del stock para las ventas</Text> : null}
                         </View>
-                        <Icon source="chevron-down" size={22} color="#6F6872" />
+                        <Icon source="chevron-down" size={22} color="#60706E" />
                       </Pressable>
                     )}
                     onDismiss={() => setWarehouseMenuVisible(false)}
@@ -290,7 +290,7 @@ export function CashRegisterForm({ cashRegisterId }: CashRegisterFormProps) {
                     <Text style={styles.switchTitle}>Caja activa</Text>
                     <Text style={styles.switchHelp}>Solo las cajas activas podrán utilizarse en el POS.</Text>
                   </View>
-                  <Switch color="#28738A" onValueChange={setActive} value={active} />
+                  <Switch color="#B4232D" onValueChange={setActive} value={active} />
                 </View>
               </View>
             ) : (
@@ -315,7 +315,7 @@ export function CashRegisterForm({ cashRegisterId }: CashRegisterFormProps) {
                     </View>
                     {selectedSeries.length === 0 ? (
                       <View style={styles.emptyTableRow}>
-                        <Icon color="#A39CA6" size={24} source="file-document-outline" />
+                        <Icon color="#60706E" size={24} source="file-document-outline" />
                         <Text style={styles.emptyTableText}>Aún no has agregado series a esta caja.</Text>
                       </View>
                     ) : selectedSeries.map((series) => {
@@ -346,7 +346,7 @@ export function CashRegisterForm({ cashRegisterId }: CashRegisterFormProps) {
                               onPress={() => setDefaultSeriesId(series.id)}
                               style={({ pressed }) => [styles.tableAction, isDefault && styles.defaultTableAction, pressed && styles.pressedAction]}
                             >
-                              <Icon color={isDefault ? '#9A6500' : '#817A84'} size={19} source={isDefault ? 'star' : 'star-outline'} />
+                              <Icon color={isDefault ? '#9A6500' : '#60706E'} size={19} source={isDefault ? 'star' : 'star-outline'} />
                             </Pressable>
                             <Pressable
                               accessibilityLabel={`Quitar serie ${series.series_code}`}
@@ -354,7 +354,7 @@ export function CashRegisterForm({ cashRegisterId }: CashRegisterFormProps) {
                               onPress={() => removeSeries(series.id)}
                               style={({ pressed }) => [styles.tableAction, styles.removeTableAction, pressed && styles.pressedAction]}
                             >
-                              <Icon color="#A44256" size={19} source="trash-can-outline" />
+                              <Icon color="#8F1D2C" size={19} source="trash-can-outline" />
                             </Pressable>
                           </View>
                         </View>
@@ -373,7 +373,7 @@ export function CashRegisterForm({ cashRegisterId }: CashRegisterFormProps) {
                         style={[styles.addSeriesSelector, seriesAvailableToAdd.length === 0 && styles.disabledSelector]}
                       >
                         <View style={styles.addSeriesIcon}>
-                          <Icon color="#28738A" size={21} source="plus" />
+                          <Icon color="#B4232D" size={21} source="plus" />
                         </View>
                         <View style={styles.selectorContent}>
                           <Text style={seriesAvailableToAdd.length > 0 ? styles.selectorText : styles.selectorPlaceholder}>
@@ -381,7 +381,7 @@ export function CashRegisterForm({ cashRegisterId }: CashRegisterFormProps) {
                           </Text>
                           <Text style={styles.selectorMeta}>La serie seleccionada se agregará a la tabla</Text>
                         </View>
-                        <Icon color="#6F6872" size={22} source="chevron-down" />
+                        <Icon color="#60706E" size={22} source="chevron-down" />
                       </Pressable>
                     )}
                     onDismiss={() => setAddSeriesMenuVisible(false)}
@@ -412,67 +412,67 @@ export function CashRegisterForm({ cashRegisterId }: CashRegisterFormProps) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F7F5F8' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
   loader: { flex: 1 },
   content: { width: '100%', maxWidth: 1040, alignSelf: 'center', padding: 20, paddingBottom: 48, gap: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { color: '#302A33', fontSize: 25, fontWeight: '900' },
-  subtitle: { marginTop: -10, color: '#77717A', fontSize: 13 },
-  error: { padding: 12, borderRadius: 10, color: '#9B324A', backgroundColor: '#FBE8ED', fontSize: 12, fontWeight: '700' },
-  tabs: { flexDirection: 'row', alignItems: 'flex-end', borderBottomWidth: 1, borderBottomColor: '#D8D1DA', gap: 4 },
-  tab: { flex: 1, minWidth: 0, paddingHorizontal: 12, paddingVertical: 11, borderWidth: 1, borderColor: 'transparent', borderTopLeftRadius: 10, borderTopRightRadius: 10, backgroundColor: '#ECE8ED', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
-  activeTab: { marginBottom: -1, borderColor: '#D8D1DA', borderBottomColor: '#FFFFFF', backgroundColor: '#FFFFFF' },
-  tabText: { color: '#77717A', fontSize: 12, fontWeight: '800' },
-  activeTabText: { color: '#28738A' },
-  section: { padding: 18, borderWidth: 1, borderColor: '#E2DCE4', borderRadius: 14, backgroundColor: '#FFFFFF', gap: 16 },
-  sectionTitle: { color: '#373039', fontSize: 16, fontWeight: '900' },
-  sectionIntro: { marginTop: 4, color: '#89828C', fontSize: 11, lineHeight: 16 },
+  title: { color: '#172423', fontSize: 25, fontWeight: '900' },
+  subtitle: { marginTop: -10, color: '#60706E', fontSize: 13 },
+  error: { padding: 12, borderRadius: 10, color: '#8F1D2C', backgroundColor: '#FCE8EA', fontSize: 12, fontWeight: '700' },
+  tabs: { flexDirection: 'row', alignItems: 'flex-end', borderBottomWidth: 1, borderBottomColor: '#879692', gap: 4 },
+  tab: { flex: 1, minWidth: 0, paddingHorizontal: 12, paddingVertical: 11, borderWidth: 1, borderColor: 'transparent', borderTopLeftRadius: 10, borderTopRightRadius: 10, backgroundColor: '#EAEFEE', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
+  activeTab: { marginBottom: -1, borderColor: '#879692', borderBottomColor: '#FFFFFF', backgroundColor: '#FFFFFF' },
+  tabText: { color: '#60706E', fontSize: 12, fontWeight: '800' },
+  activeTabText: { color: '#B4232D' },
+  section: { padding: 18, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 14, backgroundColor: '#FFFFFF', gap: 16 },
+  sectionTitle: { color: '#172423', fontSize: 16, fontWeight: '900' },
+  sectionIntro: { marginTop: 4, color: '#60706E', fontSize: 11, lineHeight: 16 },
   fieldRow: { width: '100%', flexDirection: 'row', gap: 14 },
   fieldColumn: { flexDirection: 'column' },
   fieldControl: { flex: 1, minWidth: 0 },
   textInput: { width: '100%', height: 56, backgroundColor: '#FFFFFF' },
   locationField: { width: '100%' },
-  selector: { minHeight: 72, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#D8D1DA', borderRadius: 10, backgroundColor: '#FFFFFF', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
-  selectorIcon: { width: 42, height: 42, borderRadius: 10, backgroundColor: '#E6F2F5', justifyContent: 'center', alignItems: 'center' },
+  selector: { minHeight: 72, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#879692', borderRadius: 10, backgroundColor: '#FFFFFF', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  selectorIcon: { width: 42, height: 42, borderRadius: 10, backgroundColor: '#FFE5E5', justifyContent: 'center', alignItems: 'center' },
   selectorContent: { flex: 1, minWidth: 0, gap: 2 },
-  selectorLabel: { color: '#77717A', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
-  selectorText: { color: '#302A33', fontSize: 14, fontWeight: '700' },
-  selectorPlaceholder: { color: '#8D8690', fontSize: 13 },
-  selectorMeta: { color: '#8A838D', fontSize: 10 },
-  statusCard: { padding: 14, borderRadius: 10, backgroundColor: '#F6F4F7', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 16 },
-  switchTitle: { color: '#3D363F', fontSize: 13, fontWeight: '800' },
-  switchHelp: { marginTop: 3, color: '#89828C', fontSize: 10 },
+  selectorLabel: { color: '#60706E', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  selectorText: { color: '#172423', fontSize: 14, fontWeight: '700' },
+  selectorPlaceholder: { color: '#60706E', fontSize: 13 },
+  selectorMeta: { color: '#60706E', fontSize: 10 },
+  statusCard: { padding: 14, borderRadius: 10, backgroundColor: '#EAEFEE', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 16 },
+  switchTitle: { color: '#172423', fontSize: 13, fontWeight: '800' },
+  switchHelp: { marginTop: 3, color: '#60706E', fontSize: 10 },
   emptySeries: { padding: 12, borderRadius: 8, color: '#8A5A32', backgroundColor: '#FFF4E8', fontSize: 11, lineHeight: 16 },
   seriesBlock: { gap: 8 },
   seriesBlockTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  seriesBlockTitle: { color: '#4B444D', fontSize: 12, fontWeight: '800' },
-  seriesCountBadge: { minWidth: 22, height: 22, paddingHorizontal: 6, borderRadius: 11, backgroundColor: '#E6F2F5', alignItems: 'center', justifyContent: 'center' },
-  seriesCountText: { color: '#28738A', fontSize: 10, fontWeight: '900' },
-  seriesTable: { overflow: 'hidden', borderWidth: 1, borderColor: '#DDD7DF', borderRadius: 10, backgroundColor: '#FFFFFF' },
-  seriesTableHeader: { minHeight: 34, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F2F0F3' },
-  tableHeaderText: { color: '#7C757F', fontSize: 8, fontWeight: '900', letterSpacing: 0.5 },
-  seriesTableRow: { minHeight: 66, paddingHorizontal: 12, paddingVertical: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E0E6', flexDirection: 'row', alignItems: 'center' },
+  seriesBlockTitle: { color: '#172423', fontSize: 12, fontWeight: '800' },
+  seriesCountBadge: { minWidth: 22, height: 22, paddingHorizontal: 6, borderRadius: 11, backgroundColor: '#FFE5E5', alignItems: 'center', justifyContent: 'center' },
+  seriesCountText: { color: '#B4232D', fontSize: 10, fontWeight: '900' },
+  seriesTable: { overflow: 'hidden', borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 10, backgroundColor: '#FFFFFF' },
+  seriesTableHeader: { minHeight: 34, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: '#EAEFEE' },
+  tableHeaderText: { color: '#60706E', fontSize: 8, fontWeight: '900', letterSpacing: 0.5 },
+  seriesTableRow: { minHeight: 66, paddingHorizontal: 12, paddingVertical: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#D7E0DE', flexDirection: 'row', alignItems: 'center' },
   defaultSeriesRow: { backgroundColor: '#FFFCF3' },
   seriesColumn: { flex: 1, minWidth: 0 },
   correlativeColumn: { width: 76, alignItems: 'center' },
   actionsColumn: { width: 82, alignItems: 'center' },
   seriesIdentityRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
-  seriesCode: { color: '#302A33', fontSize: 13, fontWeight: '900' },
-  seriesType: { marginTop: 3, color: '#7E7781', fontSize: 10 },
+  seriesCode: { color: '#172423', fontSize: 13, fontWeight: '900' },
+  seriesType: { marginTop: 3, color: '#60706E', fontSize: 10 },
   defaultBadge: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8, backgroundColor: '#FFF0C7', flexDirection: 'row', alignItems: 'center', gap: 3 },
   defaultBadgeText: { color: '#8A5A00', fontSize: 7, fontWeight: '900' },
-  nextNumber: { color: '#3D363F', fontSize: 13, fontWeight: '800' },
-  correlativeMeta: { marginTop: 2, color: '#918A94', fontSize: 8 },
+  nextNumber: { color: '#172423', fontSize: 13, fontWeight: '800' },
+  correlativeMeta: { marginTop: 2, color: '#60706E', fontSize: 8 },
   seriesActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 5 },
-  tableAction: { width: 34, height: 34, borderRadius: 8, backgroundColor: '#F1EEF2', alignItems: 'center', justifyContent: 'center' },
+  tableAction: { width: 34, height: 34, borderRadius: 8, backgroundColor: '#EAEFEE', alignItems: 'center', justifyContent: 'center' },
   defaultTableAction: { backgroundColor: '#FFF0C7' },
-  removeTableAction: { backgroundColor: '#FBECEF' },
+  removeTableAction: { backgroundColor: '#FCE8EA' },
   pressedAction: { opacity: 0.62 },
   emptyTableRow: { minHeight: 82, padding: 16, alignItems: 'center', justifyContent: 'center', gap: 6 },
-  emptyTableText: { color: '#8B848E', fontSize: 10, textAlign: 'center' },
+  emptyTableText: { color: '#60706E', fontSize: 10, textAlign: 'center' },
   addSeriesField: { gap: 5 },
-  addSeriesLabel: { color: '#777079', fontSize: 11, fontWeight: '700' },
-  addSeriesSelector: { minHeight: 62, paddingHorizontal: 12, paddingVertical: 9, borderWidth: 1, borderColor: '#D8D1DA', borderRadius: 10, backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', gap: 11 },
-  addSeriesIcon: { width: 38, height: 38, borderRadius: 9, backgroundColor: '#E6F2F5', justifyContent: 'center', alignItems: 'center' },
-  disabledSelector: { opacity: 0.55, backgroundColor: '#F5F3F6' },
+  addSeriesLabel: { color: '#60706E', fontSize: 11, fontWeight: '700' },
+  addSeriesSelector: { minHeight: 62, paddingHorizontal: 12, paddingVertical: 9, borderWidth: 1, borderColor: '#879692', borderRadius: 10, backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', gap: 11 },
+  addSeriesIcon: { width: 38, height: 38, borderRadius: 9, backgroundColor: '#FFE5E5', justifyContent: 'center', alignItems: 'center' },
+  disabledSelector: { opacity: 0.55, backgroundColor: '#EAEFEE' },
 });

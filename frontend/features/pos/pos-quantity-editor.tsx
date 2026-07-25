@@ -138,7 +138,7 @@ export function PosQuantityEditor({
           <View style={styles.handle} />
           <View style={styles.header}>
             <View style={styles.productIcon}>
-              <Icon color="#28738A" size={22} source={product.base_unit?.type === 'weight' ? 'weight' : 'cup-water'} />
+              <Icon color="#B4232D" size={22} source={product.base_unit?.type === 'weight' ? 'weight' : 'cup-water'} />
             </View>
             <View style={styles.headerText}>
               <Text numberOfLines={2} style={styles.title}>{product.name}</Text>
@@ -151,7 +151,7 @@ export function PosQuantityEditor({
               onPress={onClose}
               style={styles.closeButton}
             >
-              <Icon color="#596469" size={22} source="close" />
+              <Icon color="#60706E" size={22} source="close" />
             </Pressable>
           </View>
 
@@ -184,7 +184,7 @@ export function PosQuantityEditor({
                 setQuantity(value);
                 setError('');
               }}
-              outlineColor="#CBD6D9"
+              outlineColor="#879692"
               right={<TextInput.Affix text={selectedUnit.label} />}
               selectTextOnFocus
               style={styles.quantityInput}
@@ -253,12 +253,12 @@ export function PosQuantityEditor({
               disabled={busy || saving}
               mode="text"
               onPress={onClose}
-              textColor="#667277"
+              textColor="#0F766E"
             >
               Cancelar
             </Button>
             <Button
-              buttonColor="#28738A"
+              buttonColor="#FF4D4D"
               disabled={busy || saving || !valid}
               loading={saving}
               mode="contained"
@@ -278,31 +278,31 @@ const styles = StyleSheet.create({
   backdrop: { position: 'absolute', inset: 0, backgroundColor: 'rgba(29, 35, 38, 0.48)' },
   sheet: { width: '100%', maxWidth: 620, maxHeight: '90%', alignSelf: 'center', borderTopLeftRadius: 22, borderTopRightRadius: 22, backgroundColor: '#FFFFFF' },
   handle: { width: 42, height: 4, marginTop: 8, marginBottom: 5, alignSelf: 'center', borderRadius: 2, backgroundColor: '#CAD2D5' },
-  header: { minHeight: 62, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: '#E2E7E9' },
-  productIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#E8F3F5' },
+  header: { minHeight: 62, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: '#D7E0DE' },
+  productIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#FFE5E5' },
   headerText: { flex: 1, minWidth: 0 },
-  title: { color: '#302A33', fontSize: 15, lineHeight: 19, fontWeight: '900' },
-  sku: { marginTop: 2, color: '#858D91', fontSize: 9, fontWeight: '700' },
-  closeButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: '#F0F3F4' },
+  title: { color: '#172423', fontSize: 15, lineHeight: 19, fontWeight: '900' },
+  sku: { marginTop: 2, color: '#60706E', fontSize: 9, fontWeight: '700' },
+  closeButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: '#EAEFEE' },
   content: { padding: 16, paddingBottom: 12 },
-  label: { marginBottom: 7, color: '#596469', fontSize: 10, fontWeight: '800' },
+  label: { marginBottom: 7, color: '#60706E', fontSize: 10, fontWeight: '800' },
   units: { marginBottom: 14 },
   quantityInput: { backgroundColor: '#FFFFFF', fontSize: 18, fontWeight: '800' },
   quickValues: { marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   quickValue: { minHeight: 34, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#C9D6D9', borderRadius: 17, backgroundColor: '#FFFFFF' },
-  quickValueSelected: { borderColor: '#28738A', backgroundColor: '#E8F3F5' },
+  quickValueSelected: { borderColor: '#B4232D', backgroundColor: '#FFE5E5' },
   quickValueText: { color: '#59656A', fontSize: 10, fontWeight: '800' },
-  quickValueTextSelected: { color: '#28738A' },
-  error: { marginTop: 9, color: '#A44256', fontSize: 10, fontWeight: '700' },
-  summary: { marginTop: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#DCE4E6', borderRadius: 12, backgroundColor: '#F8FAFA' },
-  summaryRow: { minHeight: 50, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderBottomWidth: 1, borderBottomColor: '#E2E7E9' },
+  quickValueTextSelected: { color: '#B4232D' },
+  error: { marginTop: 9, color: '#8F1D2C', fontSize: 10, fontWeight: '700' },
+  summary: { marginTop: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 12, backgroundColor: '#F8FAFA' },
+  summaryRow: { minHeight: 50, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderBottomWidth: 1, borderBottomColor: '#D7E0DE' },
   summaryLabel: { color: '#687378', fontSize: 10, fontWeight: '700' },
-  summaryValue: { color: '#3E494E', fontSize: 11, fontWeight: '900', textAlign: 'right' },
+  summaryValue: { color: '#172423', fontSize: 11, fontWeight: '900', textAlign: 'right' },
   priceDetail: { flex: 1, alignItems: 'flex-end' },
-  unitPrice: { marginTop: 2, color: '#76557E', fontSize: 10, fontWeight: '800' },
+  unitPrice: { marginTop: 2, color: '#B4232D', fontSize: 10, fontWeight: '800' },
   totalRow: { minHeight: 58, borderBottomWidth: 0, backgroundColor: '#EEF7F4' },
   totalLabel: { color: '#337B67', fontSize: 11, fontWeight: '900' },
-  total: { flex: 1, color: '#28738A', fontSize: 22, fontWeight: '900', textAlign: 'right' },
-  editHelp: { marginTop: 9, color: '#7E898D', fontSize: 9, lineHeight: 14, textAlign: 'center' },
-  actions: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 7, borderTopWidth: 1, borderTopColor: '#E1E7E9', backgroundColor: '#FFFFFF' },
+  total: { flex: 1, color: '#B4232D', fontSize: 22, fontWeight: '900', textAlign: 'right' },
+  editHelp: { marginTop: 9, color: '#60706E', fontSize: 9, lineHeight: 14, textAlign: 'center' },
+  actions: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 7, borderTopWidth: 1, borderTopColor: '#D7E0DE', backgroundColor: '#FFFFFF' },
 });

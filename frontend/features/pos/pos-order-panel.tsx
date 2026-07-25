@@ -95,7 +95,7 @@ function OrderLine({
             style={styles.image}
           />
         ) : (
-          <Icon color="#9AA4A8" size={28} source="image-outline" />
+          <Icon color="#60706E" size={28} source="image-outline" />
         )}
       </View>
 
@@ -109,7 +109,7 @@ function OrderLine({
             accessibilityLabel={`Retirar ${item.product.name}`}
             disabled={busy}
             icon="trash-can-outline"
-            iconColor="#A44256"
+            iconColor="#8F1D2C"
             onPress={onRemove}
             size={18}
             style={styles.removeButton}
@@ -123,14 +123,14 @@ function OrderLine({
             onPress={onEditMeasured}
             style={({ pressed }) => [styles.measuredQuantity, pressed && styles.measuredQuantityPressed]}
           >
-            <Icon color="#28738A" size={18} source={item.product.base_unit?.type === 'weight' ? 'weight' : 'cup-water'} />
+            <Icon color="#B4232D" size={18} source={item.product.base_unit?.type === 'weight' ? 'weight' : 'cup-water'} />
             <View style={styles.measuredQuantityText}>
               <Text style={styles.measuredQuantityValue}>
                 {formatBaseQuantity(numericQuantity, item.product.base_unit)}
               </Text>
               <Text style={styles.measuredQuantityHelp}>Toca para cambiar unidad o cantidad</Text>
             </View>
-            <Icon color="#6F7A7E" size={17} source="pencil-outline" />
+            <Icon color="#60706E" size={17} source="pencil-outline" />
           </Pressable>
         ) : (
           <View style={styles.quantityRow}>
@@ -243,7 +243,7 @@ export function PosOrderPanel({
                     onPress={() => onSelectOrder(order.id)}
                     style={[styles.orderTab, selected && styles.orderTabSelected]}
                   >
-                    <Icon color={selected ? '#FFFFFF' : '#556167'} size={17} source="receipt-text-outline" />
+                    <Icon color={selected ? '#FFFFFF' : '#60706E'} size={17} source="receipt-text-outline" />
                     <Text style={[styles.orderTabText, selected && styles.orderTabTextSelected]}>
                       Orden {order.number}
                     </Text>
@@ -264,7 +264,7 @@ export function PosOrderPanel({
                 onPress={onCreateOrder}
                 style={styles.newOrderTab}
               >
-                <Icon color="#28738A" size={18} source="plus" />
+                <Icon color="#0F766E" size={18} source="plus" />
                 <Text style={styles.newOrderText}>Nueva</Text>
               </Pressable>
             </ScrollView>
@@ -276,7 +276,7 @@ export function PosOrderPanel({
               style={[styles.notice, notice.error ? styles.errorNotice : styles.successNotice]}
             >
               <Icon
-                color={notice.error ? '#A44256' : '#28738A'}
+                color={notice.error ? '#8F1D2C' : '#247451'}
                 size={20}
                 source={notice.error ? 'alert-circle-outline' : 'check-circle-outline'}
               />
@@ -295,20 +295,20 @@ export function PosOrderPanel({
 
           {loading ? (
             <View style={styles.empty}>
-              <ActivityIndicator color="#28738A" size="large" />
+              <ActivityIndicator color="#B4232D" size="large" />
               <Text style={styles.emptyTitle}>Cargando órdenes</Text>
             </View>
           ) : !activeOrder ? (
             <View style={styles.empty}>
               <View style={styles.emptyIcon}>
-                <Icon color="#28738A" size={42} source="receipt-text-plus-outline" />
+                <Icon color="#B4232D" size={42} source="receipt-text-plus-outline" />
               </View>
               <Text style={styles.emptyTitle}>Todavía no hay órdenes</Text>
               <Text style={styles.emptyText}>
                 Crea una orden o cierra esta pantalla y toca un producto para comenzar.
               </Text>
               <Button
-                buttonColor="#28738A"
+                buttonColor="#FF4D4D"
                 disabled={busy}
                 icon="plus"
                 mode="contained"
@@ -336,7 +336,7 @@ export function PosOrderPanel({
                 keyboardShouldPersistTaps="handled"
                 ListEmptyComponent={(
                   <View style={styles.empty}>
-                    <Icon color="#A2AAAE" size={42} source="basket-plus-outline" />
+                    <Icon color="#60706E" size={42} source="basket-plus-outline" />
                     <Text style={styles.emptyTitle}>Orden vacía</Text>
                     <Text style={styles.emptyText}>Cierra este panel y toca los productos que deseas agregar.</Text>
                   </View>
@@ -366,7 +366,7 @@ export function PosOrderPanel({
                   <Text style={styles.footerTotal}>{formatMoney(activeOrder.total)}</Text>
                 </View>
                 <Button
-                  buttonColor="#28738A"
+                  buttonColor="#FF4D4D"
                   contentStyle={styles.checkoutButtonContent}
                   disabled={busy || cancelVisible || !sessionOpen || activeOrder.items.length === 0}
                   icon="cash-register"
@@ -386,7 +386,7 @@ export function PosOrderPanel({
                         Volver
                       </Button>
                       <Button
-                        buttonColor="#A44256"
+                        buttonColor="#8F1D2C"
                         compact
                         disabled={busy}
                         loading={busy}
@@ -395,6 +395,7 @@ export function PosOrderPanel({
                           setCancelVisible(false);
                           onCancelOrder(activeOrder);
                         }}
+                        textColor="#FFFFFF"
                       >
                         Confirmar
                       </Button>
@@ -407,7 +408,7 @@ export function PosOrderPanel({
                     icon="close-circle-outline"
                     mode="text"
                     onPress={() => setCancelVisible(true)}
-                    textColor="#A44256"
+                    textColor="#8F1D2C"
                   >
                     Cancelar orden
                   </Button>
@@ -453,74 +454,74 @@ export function PosOrderDock({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  screen: { flex: 1, backgroundColor: '#F6F8F9' },
-  header: { minHeight: 66, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderBottomWidth: 1, borderBottomColor: '#DDE4E6', backgroundColor: '#FFFFFF' },
-  title: { color: '#302A33', fontSize: 18, fontWeight: '900' },
-  subtitle: { marginTop: 2, color: '#7A8387', fontSize: 9 },
-  closeButton: { margin: 0, backgroundColor: '#ECEFF0' },
-  orderTabs: { borderBottomWidth: 1, borderBottomColor: '#E0E6E8', backgroundColor: '#FFFFFF' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
+  header: { minHeight: 66, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderBottomWidth: 1, borderBottomColor: '#D7E0DE', backgroundColor: '#FFFFFF' },
+  title: { color: '#172423', fontSize: 18, fontWeight: '900' },
+  subtitle: { marginTop: 2, color: '#60706E', fontSize: 9 },
+  closeButton: { margin: 0, backgroundColor: '#EAEFEE' },
+  orderTabs: { borderBottomWidth: 1, borderBottomColor: '#D7E0DE', backgroundColor: '#FFFFFF' },
   orderTabsContent: { paddingHorizontal: 12, paddingVertical: 9, gap: 7 },
   orderTab: { minHeight: 34, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#D5DCDF', borderRadius: 17, backgroundColor: '#FFFFFF' },
-  orderTabSelected: { borderColor: '#28738A', backgroundColor: '#28738A' },
-  orderTabText: { color: '#556167', fontSize: 10, fontWeight: '800' },
+  orderTabSelected: { borderColor: '#B4232D', backgroundColor: '#B4232D' },
+  orderTabText: { color: '#60706E', fontSize: 10, fontWeight: '800' },
   orderTabTextSelected: { color: '#FFFFFF' },
-  orderCount: { minWidth: 18, height: 18, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#EDF1F2' },
+  orderCount: { minWidth: 18, height: 18, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#EAEFEE' },
   orderCountSelected: { backgroundColor: '#FFFFFF' },
   orderCountText: { color: '#586267', fontSize: 8, fontWeight: '900' },
-  orderCountTextSelected: { color: '#28738A' },
-  newOrderTab: { minHeight: 34, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#AFCBD3', borderRadius: 17, backgroundColor: '#EFF7F9' },
-  newOrderText: { color: '#28738A', fontSize: 10, fontWeight: '900' },
+  orderCountTextSelected: { color: '#B4232D' },
+  newOrderTab: { minHeight: 34, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#0F766E', borderRadius: 17, backgroundColor: '#D9F8F3' },
+  newOrderText: { color: '#0F766E', fontSize: 10, fontWeight: '900' },
   notice: { marginHorizontal: 12, marginTop: 10, paddingLeft: 11, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 10 },
-  errorNotice: { borderColor: '#ECCAD2', backgroundColor: '#FBF0F3' },
-  successNotice: { borderColor: '#C8DFE4', backgroundColor: '#EDF7F8' },
+  errorNotice: { borderColor: '#8F1D2C', backgroundColor: '#FCE8EA' },
+  successNotice: { borderColor: '#247451', backgroundColor: '#E0F3EA' },
   noticeText: { flex: 1, fontSize: 10, lineHeight: 15, fontWeight: '700' },
-  errorNoticeText: { color: '#934052' },
-  successNoticeText: { color: '#246A7F' },
+  errorNoticeText: { color: '#8F1D2C' },
+  successNoticeText: { color: '#247451' },
   noticeClose: { width: 32, height: 32, margin: 0 },
-  orderSummary: { paddingHorizontal: 16, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#E2E7E9', backgroundColor: '#F9FBFB' },
-  orderLabel: { color: '#384348', fontSize: 13, fontWeight: '900' },
-  orderDetail: { marginTop: 2, color: '#899196', fontSize: 9 },
-  orderTotal: { color: '#76557E', fontSize: 18, fontWeight: '900' },
+  orderSummary: { paddingHorizontal: 16, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#D7E0DE', backgroundColor: '#F9FBFB' },
+  orderLabel: { color: '#172423', fontSize: 13, fontWeight: '900' },
+  orderDetail: { marginTop: 2, color: '#60706E', fontSize: 9 },
+  orderTotal: { color: '#B4232D', fontSize: 18, fontWeight: '900' },
   lines: { padding: 12, gap: 8 },
   emptyLines: { flexGrow: 1 },
-  line: { padding: 9, flexDirection: 'row', gap: 10, borderWidth: 1, borderColor: '#DEE5E7', borderRadius: 10, backgroundColor: '#FFFFFF' },
-  lineImage: { width: 62, height: 62, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: '#EEF2F3' },
+  line: { padding: 9, flexDirection: 'row', gap: 10, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 10, backgroundColor: '#FFFFFF' },
+  lineImage: { width: 62, height: 62, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: '#EAEFEE' },
   image: { width: '100%', height: '100%' },
   lineContent: { flex: 1, minWidth: 0 },
   lineHeading: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
   lineIdentity: { flex: 1, minWidth: 0 },
-  lineName: { color: '#302A33', fontSize: 12, lineHeight: 16, fontWeight: '900' },
-  lineSku: { marginTop: 2, color: '#858D91', fontSize: 8, fontWeight: '700' },
+  lineName: { color: '#172423', fontSize: 12, lineHeight: 16, fontWeight: '900' },
+  lineSku: { marginTop: 2, color: '#60706E', fontSize: 8, fontWeight: '700' },
   removeButton: { width: 30, height: 30, margin: 0 },
   quantityRow: { marginTop: 7, flexDirection: 'row', alignItems: 'center', gap: 5 },
-  measuredQuantity: { minHeight: 42, marginTop: 7, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#C7D9DE', borderRadius: 9, backgroundColor: '#F0F8F9' },
-  measuredQuantityPressed: { backgroundColor: '#E3F1F4' },
+  measuredQuantity: { minHeight: 42, marginTop: 7, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#879692', borderRadius: 9, backgroundColor: '#FFE5E5' },
+  measuredQuantityPressed: { backgroundColor: '#FFE5E5' },
   measuredQuantityText: { flex: 1, minWidth: 0 },
-  measuredQuantityValue: { color: '#28738A', fontSize: 11, fontWeight: '900' },
-  measuredQuantityHelp: { marginTop: 1, color: '#758085', fontSize: 7 },
+  measuredQuantityValue: { color: '#B4232D', fontSize: 11, fontWeight: '900' },
+  measuredQuantityHelp: { marginTop: 1, color: '#60706E', fontSize: 7 },
   quantityButton: { width: 30, height: 30, margin: 0 },
   quantityInput: { width: 76, height: 34, backgroundColor: '#FFFFFF', fontSize: 11, textAlign: 'center' },
-  unit: { maxWidth: 55, color: '#6F797D', fontSize: 9, fontWeight: '700' },
+  unit: { maxWidth: 55, color: '#60706E', fontSize: 9, fontWeight: '700' },
   lineTotals: { marginTop: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  unitPrice: { color: '#7D878B', fontSize: 9 },
-  lineTotal: { color: '#76557E', fontSize: 12, fontWeight: '900' },
+  unitPrice: { color: '#60706E', fontSize: 9 },
+  lineTotal: { color: '#B4232D', fontSize: 12, fontWeight: '900' },
   empty: { flex: 1, minHeight: 220, padding: 26, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  emptyIcon: { width: 76, height: 76, alignItems: 'center', justifyContent: 'center', borderRadius: 38, backgroundColor: '#E8F3F5' },
-  emptyTitle: { color: '#465156', fontSize: 15, fontWeight: '900', textAlign: 'center' },
-  emptyText: { maxWidth: 330, color: '#858E92', fontSize: 10, lineHeight: 16, textAlign: 'center' },
-  footer: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#DDE4E6', backgroundColor: '#FFFFFF' },
+  emptyIcon: { width: 76, height: 76, alignItems: 'center', justifyContent: 'center', borderRadius: 38, backgroundColor: '#FFE5E5' },
+  emptyTitle: { color: '#172423', fontSize: 15, fontWeight: '900', textAlign: 'center' },
+  emptyText: { maxWidth: 330, color: '#60706E', fontSize: 10, lineHeight: 16, textAlign: 'center' },
+  footer: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#D7E0DE', backgroundColor: '#FFFFFF' },
   footerHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
-  footerLabel: { color: '#697377', fontSize: 9, fontWeight: '800' },
-  footerHint: { marginTop: 2, color: '#969DA0', fontSize: 8 },
-  footerTotal: { color: '#76557E', fontSize: 18, fontWeight: '900' },
+  footerLabel: { color: '#60706E', fontSize: 9, fontWeight: '800' },
+  footerHint: { marginTop: 2, color: '#60706E', fontSize: 8 },
+  footerTotal: { color: '#B4232D', fontSize: 18, fontWeight: '900' },
   checkoutButton: { marginTop: 10 },
   checkoutButtonContent: { minHeight: 46 },
-  cancelConfirmation: { marginTop: 7, padding: 9, borderRadius: 7, backgroundColor: '#FBF1F3' },
-  cancelText: { color: '#874052', fontSize: 9, fontWeight: '700' },
+  cancelConfirmation: { marginTop: 7, padding: 9, borderRadius: 7, backgroundColor: '#FCE8EA' },
+  cancelText: { color: '#8F1D2C', fontSize: 9, fontWeight: '700' },
   cancelActions: { marginTop: 5, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 5 },
-  dock: { minHeight: 58, paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#28738A' },
+  dock: { minHeight: 58, paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#B4232D' },
   dockIcon: { position: 'relative', width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: '#1F6174' },
-  dockCount: { position: 'absolute', top: -5, right: -5, minWidth: 18, height: 18, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#D18A25' },
+  dockCount: { position: 'absolute', top: -5, right: -5, minWidth: 18, height: 18, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#FF4D4D' },
   dockCountText: { color: '#FFFFFF', fontSize: 8, fontWeight: '900' },
   dockText: { flex: 1, minWidth: 0 },
   dockTitle: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },

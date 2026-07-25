@@ -150,13 +150,13 @@ export function AccessReferenceForm({ itemId, kind }: AccessReferenceFormProps) 
     <ModuleLayout module={ACCESS_MODULE} selectedItemId={kind}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.screen}>
         {loading ? (
-          <ActivityIndicator color="#73547B" size="large" style={styles.loader} />
+          <ActivityIndicator color="#B4232D" size="large" style={styles.loader} />
         ) : (
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <View style={styles.header}>
               <Button compact icon="arrow-left" mode="text" onPress={() => router.back()}>Volver</Button>
               <Button
-                buttonColor="#73547B"
+                buttonColor="#FF4D4D"
                 compact
                 disabled={saving}
                 loading={saving}
@@ -244,11 +244,11 @@ export function AccessReferenceForm({ itemId, kind }: AccessReferenceFormProps) 
                     <Text style={styles.dangerText}>Esta acción retirará definitivamente {config.article} {config.singular}.</Text>
                     <View style={styles.dangerActions}>
                       <Button disabled={saving} onPress={() => setConfirmingDelete(false)}>Cancelar</Button>
-                      <Button buttonColor="#B33F55" loading={saving} mode="contained" onPress={() => void remove()} textColor="#FFFFFF">Eliminar</Button>
+                      <Button buttonColor="#8F1D2C" loading={saving} mode="contained" onPress={() => void remove()} textColor="#FFFFFF">Eliminar</Button>
                     </View>
                   </View>
                 ) : (
-                  <Button icon="trash-can-outline" mode="text" onPress={() => setConfirmingDelete(true)} textColor="#B33F55">
+                  <Button icon="trash-can-outline" mode="text" onPress={() => setConfirmingDelete(true)} textColor="#8F1D2C">
                     Eliminar {config.article} {config.singular}
                   </Button>
                 )}
@@ -262,18 +262,18 @@ export function AccessReferenceForm({ itemId, kind }: AccessReferenceFormProps) 
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#FAF9FA' },
+  screen: { flex: 1, backgroundColor: '#F3F6F5' },
   loader: { flex: 1 },
   content: { width: '100%', maxWidth: 720, alignSelf: 'center', padding: 20, paddingBottom: 48 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { marginTop: 20, color: '#28222C', fontSize: 24, fontWeight: '800' },
-  subtitle: { marginTop: 6, color: '#7C7480', fontSize: 12, lineHeight: 18 },
-  error: { marginTop: 16, padding: 12, borderRadius: 8, color: '#923E4E', backgroundColor: '#FBEAEC' },
+  title: { marginTop: 20, color: '#172423', fontSize: 24, fontWeight: '800' },
+  subtitle: { marginTop: 6, color: '#60706E', fontSize: 12, lineHeight: 18 },
+  error: { marginTop: 16, padding: 12, borderRadius: 8, color: '#8F1D2C', backgroundColor: '#FCE8EA' },
   form: { marginTop: 22, gap: 19 },
   input: { backgroundColor: 'transparent' },
-  help: { marginTop: -10, color: '#89818C', fontSize: 10 },
-  dangerZone: { marginTop: 42, paddingTop: 18, borderTopWidth: 1, borderTopColor: '#E5DADD', alignItems: 'flex-start' },
-  dangerTitle: { color: '#8F3448', fontSize: 15, fontWeight: '800' },
-  dangerText: { marginTop: 7, color: '#7C6970', fontSize: 11, lineHeight: 17 },
+  help: { marginTop: -10, color: '#60706E', fontSize: 10 },
+  dangerZone: { marginTop: 42, paddingTop: 18, borderTopWidth: 1, borderTopColor: '#D7E0DE', alignItems: 'flex-start' },
+  dangerTitle: { color: '#8F1D2C', fontSize: 15, fontWeight: '800' },
+  dangerText: { marginTop: 7, color: '#60706E', fontSize: 11, lineHeight: 17 },
   dangerActions: { marginTop: 12, flexDirection: 'row', gap: 8 },
 });
