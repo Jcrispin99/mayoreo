@@ -13,6 +13,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $user = User::factory()->create();
+    grantApiPermissions($user, 'pos-config.view', 'pos-config.manage');
     $this->headers = ['Authorization' => 'Bearer '.$user->createToken('cash-register-test')->plainTextToken];
     $this->store = Store::factory()->create();
     $this->warehouse = Warehouse::factory()->for($this->store)->pos()->create();

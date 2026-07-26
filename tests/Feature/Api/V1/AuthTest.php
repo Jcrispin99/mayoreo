@@ -146,7 +146,7 @@ describe('Me', function (): void {
             ->assertJsonStructure([
                 'success',
                 'message',
-                'data' => ['id', 'name', 'email'],
+                'data' => ['id', 'name', 'email', 'permissions'],
             ])
             ->assertJson([
                 'success' => true,
@@ -155,6 +155,17 @@ describe('Me', function (): void {
                     'email' => $user->email,
                 ],
             ]);
+    });
+
+    it('returns the effective permissions granted through roles', function (): void {
+        $user = User::factory()->create();
+        grantApiPermissions($user, 'users.view', 'stores.view');
+        $token = $user->createToken('test-token')->plainTextToken;
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/v1/me')
+            ->assertOk()
+            ->assertJsonPath('data.permissions', ['stores.view', 'users.view']);
     });
 
     it('fails without authentication', function (): void {

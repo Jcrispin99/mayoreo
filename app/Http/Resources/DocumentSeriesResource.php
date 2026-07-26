@@ -16,6 +16,7 @@ final class DocumentSeriesResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'fiscal_issuer_id' => $this->fiscal_issuer_id,
             'document_type' => $this->document_type,
             'series_code' => $this->series_code,
             'current_number' => $this->current_number,

@@ -11,6 +11,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->user = User::factory()->create();
+    grantApiPermissions($this->user, 'warehouses.view', 'warehouses.manage');
     $this->token = $this->user->createToken('test-token')->plainTextToken;
     $this->store = Store::factory()->create();
 });

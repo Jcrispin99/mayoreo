@@ -18,6 +18,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->user = User::factory()->create();
+    grantApiPermissions($this->user, 'cash-sessions.view', 'cash-sessions.manage');
     $this->headers = ['Authorization' => 'Bearer '.$this->user->createToken('pos-catalog-test')->plainTextToken];
     $this->store = Store::factory()->create();
     $this->warehouse = Warehouse::factory()->for($this->store)->pos()->create();

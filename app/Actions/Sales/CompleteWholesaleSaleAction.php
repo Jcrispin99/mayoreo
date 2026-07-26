@@ -21,22 +21,24 @@ use App\Models\Sale;
 use App\Models\SalePayment;
 use App\Models\UnitOfMeasure;
 use App\Models\Warehouse;
+use App\Services\FiscalDocumentIdentityService;
 use App\Services\MoneyService;
 use App\Services\NextSequenceNumberService;
 use App\Services\StockLedgerService;
 use App\Services\UnitConversionService;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 
 final readonly class CompleteWholesaleSaleAction
 {
-    private const TRANSACTION_ATTEMPTS = 5;
+    private const int TRANSACTION_ATTEMPTS = 5;
 
     public function __construct(
         private ResolvePriceTierAction $resolvePriceTierAction,
         private StockLedgerService $stockLedgerService,
         private NextSequenceNumberService $nextSequenceNumberService,
+        private FiscalDocumentIdentityService $fiscalDocumentIdentityService,
         private MoneyService $moneyService,
         private UnitConversionService $unitConversionService,
     ) {}
@@ -79,11 +81,18 @@ final readonly class CompleteWholesaleSaleAction
             }
 
             $customer = $this->lockCustomer($payload['customer_id'] ?? null);
-            $series = $this->lockSeries($payload['document_series_id'] ?? null);
+            $series = $this->lockSeries(
+                $payload['document_series_id'] ?? null,
+                $warehouse,
+            );
+            $fiscalIdentity = $this->fiscalDocumentIdentityService->snapshot(
+                $warehouse,
+                $series,
+            );
             $paymentPayload = $payload['payment'] ?? null;
             $cashSession = $this->lockCashSession($paymentPayload, $warehouse);
             $soldAt = isset($payload['sold_at'])
-                ? Carbon::parse($payload['sold_at'])
+                ? Date::parse($payload['sold_at'])
                 : now();
 
             $recalculatedItems = $this->recalculateItems($payload['items']);
@@ -181,10 +190,12 @@ final readonly class CompleteWholesaleSaleAction
             $number = $this->nextSequenceNumberService->generate(
                 'sales_ticket',
                 $series->series_code,
+                $series->fiscal_issuer_id,
             );
 
             FiscalDocument::query()->create([
                 'sale_id' => $sale->id,
+                ...$fiscalIdentity,
                 'document_type' => 'sales_ticket',
                 'series_code' => $series->series_code,
                 'number' => $number,
@@ -211,9 +222,19 @@ final readonly class CompleteWholesaleSaleAction
         return $customer;
     }
 
-    private function lockSeries(?int $seriesId): DocumentSeries
+    private function lockSeries(?int $seriesId, Warehouse $warehouse): DocumentSeries
     {
+        $fiscalIssuerId = $warehouse->store_id === null
+            ? null
+            : DB::table('stores')
+                ->where('id', $warehouse->store_id)
+                ->value('fiscal_issuer_id');
+
         $query = DocumentSeries::query()
+            ->where(
+                'fiscal_issuer_id',
+                is_numeric($fiscalIssuerId) ? (int) $fiscalIssuerId : null,
+            )
             ->where('document_type', 'sales_ticket')
             ->where('is_active', true);
 

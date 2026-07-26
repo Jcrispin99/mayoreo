@@ -22,6 +22,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->user = User::factory()->create();
+    grantApiPermissions($this->user, 'sales.view', 'sales.manage');
     $this->headers = [
         'Authorization' => 'Bearer '.$this->user->createToken('accounting-test')->plainTextToken,
     ];

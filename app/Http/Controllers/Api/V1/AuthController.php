@@ -11,7 +11,7 @@ use App\Http\Requests\Api\V1\RegisterRequest;
 use App\Http\Requests\Api\V1\ResendVerificationRequest;
 use App\Http\Requests\Api\V1\ResetPasswordRequest;
 use App\Http\Requests\Api\V1\VerifyEmailRequest;
-use App\Http\Resources\UserResource;
+use App\Http\Resources\AuthenticatedUserResource;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Verified;
@@ -35,7 +35,7 @@ final class AuthController extends ApiController
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return $this->created([
-            'user' => new UserResource($user),
+            'user' => new AuthenticatedUserResource($user),
             'token' => $token,
         ], 'User registered successfully. Please check your email to verify your account.');
     }
@@ -51,7 +51,7 @@ final class AuthController extends ApiController
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return $this->success([
-            'user' => new UserResource($user),
+            'user' => new AuthenticatedUserResource($user),
             'token' => $token,
         ], 'Login successful');
     }
@@ -67,7 +67,7 @@ final class AuthController extends ApiController
 
     public function me(Request $request): JsonResponse
     {
-        return $this->success(new UserResource($request->user()));
+        return $this->success(new AuthenticatedUserResource($request->user()));
     }
 
     public function verifyEmail(VerifyEmailRequest $request): JsonResponse

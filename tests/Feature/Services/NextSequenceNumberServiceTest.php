@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Exceptions\DocumentSeriesNotFoundException;
 use App\Models\DocumentSeries;
+use App\Models\FiscalIssuer;
 use App\Services\NextSequenceNumberService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -59,6 +60,26 @@ describe('NextSequenceNumberService', function (): void {
         expect($service->generate('sales_ticket', 'NV01'))->toBe(1)
             ->and($service->generate('invoice', 'F001'))->toBe(1)
             ->and($service->generate('sales_ticket', 'NV01'))->toBe(2);
+    });
+
+    it('keeps the same series code independent for each fiscal issuer', function (): void {
+        $firstIssuer = FiscalIssuer::factory()->create();
+        $secondIssuer = FiscalIssuer::factory()->create();
+
+        foreach ([$firstIssuer, $secondIssuer] as $issuer) {
+            DocumentSeries::factory()->create([
+                'fiscal_issuer_id' => $issuer->id,
+                'document_type' => 'invoice',
+                'series_code' => 'F001',
+                'current_number' => 0,
+            ]);
+        }
+
+        $service = app(NextSequenceNumberService::class);
+
+        expect($service->generate('invoice', 'F001', $firstIssuer->id))->toBe(1)
+            ->and($service->generate('invoice', 'F001', $secondIssuer->id))->toBe(1)
+            ->and($service->generate('invoice', 'F001', $firstIssuer->id))->toBe(2);
     });
 
     it('never repeats or skips a number across many sequential calls', function (): void {

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Requests\Api\V1;
 
 use App\Models\CashRegister;
+use App\Models\DocumentSeries;
+use App\Models\Store;
 use App\Models\Warehouse;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Query\Builder;
@@ -75,9 +77,24 @@ final class SaveCashRegisterRequest extends FormRequest
                 return;
             }
 
-            $seriesIds = array_values(array_map('intval', array_filter($seriesInput, 'is_numeric')));
+            $seriesIds = array_values(array_map(intval(...), array_filter($seriesInput, is_numeric(...))));
             if (! in_array($this->integer('default_sales_series_id'), $seriesIds, true)) {
                 $validator->errors()->add('default_sales_series_id', 'La serie predeterminada debe estar entre las series seleccionadas.');
+            }
+
+            $store = Store::query()->find($this->integer('store_id'));
+            $series = DocumentSeries::query()
+                ->whereIn('id', $seriesIds)
+                ->get();
+
+            if ($store instanceof Store
+                && $series->contains(
+                    static fn (DocumentSeries $documentSeries): bool => $documentSeries->fiscal_issuer_id !== $store->fiscal_issuer_id,
+                )) {
+                $validator->errors()->add(
+                    'sales_series_ids',
+                    'Todas las series deben pertenecer al emisor fiscal configurado para la tienda.',
+                );
             }
 
             $cashRegister = $this->route('cash_register');

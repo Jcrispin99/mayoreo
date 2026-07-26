@@ -14,6 +14,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $user = User::factory()->create();
+    grantApiPermissions($user, 'purchase-orders.view', 'purchase-orders.manage');
     $this->headers = ['Authorization' => 'Bearer '.$user->createToken('t')->plainTextToken];
     $this->supplier = Supplier::factory()->create();
     $this->warehouse = Warehouse::factory()->main()->create();

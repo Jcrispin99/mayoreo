@@ -13,13 +13,17 @@ use Illuminate\Http\Request;
 
 final class DocumentSeriesController extends ApiController
 {
-    private const SALES_TYPES = ['sales_ticket', 'receipt', 'invoice'];
+    private const array SALES_TYPES = ['sales_ticket', 'receipt', 'invoice'];
 
     public function index(Request $request): JsonResponse
     {
         $series = DocumentSeries::query()
             ->with('cashRegisters')
             ->whereIn('document_type', self::SALES_TYPES)
+            ->when(
+                $request->filled('fiscal_issuer_id'),
+                fn ($query) => $query->where('fiscal_issuer_id', $request->integer('fiscal_issuer_id')),
+            )
             ->when($request->filled('document_type'), fn ($query) => $query->where('document_type', $request->string('document_type')))
             ->when($request->filled('is_active'), fn ($query) => $query->where('is_active', $request->boolean('is_active')))
             ->orderBy('document_type')

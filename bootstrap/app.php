@@ -27,8 +27,19 @@ return Application::configure(basePath: dirname(__DIR__))
             'log.api' => LogApiRequests::class,
             'verified' => EnsureEmailVerified::class,
         ]);
+
+        $middleware->trimStrings(except: [
+            'sol_password',
+            'certificate_password',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontFlash([
+            'sol_username',
+            'sol_password',
+            'certificate_password',
+        ]);
+
         $exceptions->render(function (WholesaleSaleTotalChangedException $e) {
             return response()->json([
                 'success' => false,

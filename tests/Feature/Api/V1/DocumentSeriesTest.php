@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\DocumentSeries;
+use App\Models\FiscalIssuer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -10,7 +11,9 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $user = User::factory()->create();
+    grantApiPermissions($user, 'pos-config.view', 'pos-config.manage');
     $this->headers = ['Authorization' => 'Bearer '.$user->createToken('document-series-test')->plainTextToken];
+    $this->issuer = FiscalIssuer::factory()->create();
 });
 
 it('lists only sales series and filters active records', function (): void {
@@ -27,6 +30,7 @@ it('lists only sales series and filters active records', function (): void {
 it('creates and updates an unused sales series', function (): void {
     $created = $this->withHeaders($this->headers)
         ->postJson('/api/v1/document-series', [
+            'fiscal_issuer_id' => $this->issuer->id,
             'document_type' => 'receipt',
             'series_code' => 'b010',
             'current_number' => 0,
@@ -38,6 +42,7 @@ it('creates and updates an unused sales series', function (): void {
 
     $this->withHeaders($this->headers)
         ->putJson("/api/v1/document-series/{$created['id']}", [
+            'fiscal_issuer_id' => $this->issuer->id,
             'document_type' => 'receipt',
             'series_code' => 'B011',
             'current_number' => 0,
@@ -50,6 +55,7 @@ it('creates and updates an unused sales series', function (): void {
 
 it('does not allow editing identity or correlative after use', function (): void {
     $series = DocumentSeries::factory()->create([
+        'fiscal_issuer_id' => $this->issuer->id,
         'document_type' => 'sales_ticket',
         'series_code' => 'NV01',
         'current_number' => 25,
@@ -57,6 +63,7 @@ it('does not allow editing identity or correlative after use', function (): void
 
     $this->withHeaders($this->headers)
         ->putJson("/api/v1/document-series/{$series->id}", [
+            'fiscal_issuer_id' => $this->issuer->id,
             'document_type' => 'invoice',
             'series_code' => 'F099',
             'current_number' => 1,
@@ -69,6 +76,7 @@ it('does not allow editing identity or correlative after use', function (): void
 it('rejects purchase series through the sales series endpoint', function (): void {
     $this->withHeaders($this->headers)
         ->postJson('/api/v1/document-series', [
+            'fiscal_issuer_id' => $this->issuer->id,
             'document_type' => 'purchase',
             'series_code' => 'OC99',
             'current_number' => 0,
@@ -76,4 +84,32 @@ it('rejects purchase series through the sales series endpoint', function (): voi
         ])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('document_type');
+});
+
+it('allows the same series code for different fiscal issuers', function (): void {
+    $otherIssuer = FiscalIssuer::factory()->create();
+
+    foreach ([$this->issuer, $otherIssuer] as $issuer) {
+        $this->withHeaders($this->headers)
+            ->postJson('/api/v1/document-series', [
+                'fiscal_issuer_id' => $issuer->id,
+                'document_type' => 'invoice',
+                'series_code' => 'F001',
+                'current_number' => 0,
+                'is_active' => true,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.fiscal_issuer_id', $issuer->id);
+    }
+
+    $this->withHeaders($this->headers)
+        ->postJson('/api/v1/document-series', [
+            'fiscal_issuer_id' => $this->issuer->id,
+            'document_type' => 'invoice',
+            'series_code' => 'F001',
+            'current_number' => 0,
+            'is_active' => true,
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('series_code');
 });

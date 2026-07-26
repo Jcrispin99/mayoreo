@@ -19,6 +19,7 @@ beforeEach(function (): void {
     DocumentSeries::factory()->create(['document_type' => 'invoice', 'series_code' => 'F001']);
 
     $user = User::factory()->create();
+    grantApiPermissions($user, 'sales.view', 'sales.manage');
     $this->headers = ['Authorization' => 'Bearer '.$user->createToken('t')->plainTextToken];
     $this->pos = Warehouse::factory()->pos()->create();
     $this->product = Product::factory()->create();

@@ -15,10 +15,14 @@ final class NextSequenceNumberService
      * document series, so concurrent callers (e.g. multiple POS registers)
      * never receive a duplicate or skipped number.
      */
-    public function generate(string $documentType, string $seriesCode): int
-    {
-        return DB::transaction(function () use ($documentType, $seriesCode): int {
+    public function generate(
+        string $documentType,
+        string $seriesCode,
+        ?int $fiscalIssuerId = null,
+    ): int {
+        return DB::transaction(function () use ($documentType, $seriesCode, $fiscalIssuerId): int {
             $series = DocumentSeries::query()
+                ->where('fiscal_issuer_id', $fiscalIssuerId)
                 ->where('document_type', $documentType)
                 ->where('series_code', $seriesCode)
                 ->where('is_active', true)

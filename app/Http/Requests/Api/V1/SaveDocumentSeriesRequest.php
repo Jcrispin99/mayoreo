@@ -24,13 +24,22 @@ final class SaveDocumentSeriesRequest extends FormRequest
         $series = $this->route('document_series');
 
         return [
+            'fiscal_issuer_id' => [
+                'required',
+                'integer',
+                Rule::exists('fiscal_issuers', 'id')->where('is_active', true),
+            ],
             'document_type' => ['required', Rule::in(['sales_ticket', 'receipt', 'invoice'])],
             'series_code' => [
                 'required',
                 'string',
                 'max:20',
                 Rule::unique('document_series', 'series_code')
-                    ->where(fn (Builder $query): Builder => $query->where('document_type', $this->string('document_type')->toString()))
+                    ->where(
+                        fn (Builder $query): Builder => $query
+                            ->where('fiscal_issuer_id', $this->integer('fiscal_issuer_id'))
+                            ->where('document_type', $this->string('document_type')->toString())
+                    )
                     ->ignore($series instanceof DocumentSeries ? $series->id : null),
             ],
             'current_number' => ['required', 'integer', 'min:0'],
@@ -43,8 +52,22 @@ final class SaveDocumentSeriesRequest extends FormRequest
         $validator->after(function (Validator $validator): void {
             $series = $this->route('document_series');
 
-            if (! $series instanceof DocumentSeries || $series->current_number === 0) {
+            if (! $series instanceof DocumentSeries) {
                 return;
+            }
+
+            $identityIsLocked = $series->current_number > 0
+                || $series->cashRegisters()->exists();
+
+            if (! $identityIsLocked) {
+                return;
+            }
+
+            if ($this->integer('fiscal_issuer_id') !== $series->fiscal_issuer_id) {
+                $validator->errors()->add(
+                    'fiscal_issuer_id',
+                    'No se puede cambiar el emisor de una serie asignada o que ya está en uso.',
+                );
             }
 
             if ($this->string('document_type')->toString() !== $series->document_type) {

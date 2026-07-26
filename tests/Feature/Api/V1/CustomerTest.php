@@ -10,6 +10,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $user = User::factory()->create();
+    grantApiPermissions($user, 'customers.view', 'customers.manage');
     $this->headers = ['Authorization' => 'Bearer '.$user->createToken('test-token')->plainTextToken];
 });
 

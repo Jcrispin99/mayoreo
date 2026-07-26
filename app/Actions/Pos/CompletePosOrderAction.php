@@ -21,6 +21,7 @@ use App\Models\Productable;
 use App\Models\Sale;
 use App\Models\SalePayment;
 use App\Models\Warehouse;
+use App\Services\FiscalDocumentIdentityService;
 use App\Services\MoneyService;
 use App\Services\NextSequenceNumberService;
 use App\Services\StockLedgerService;
@@ -31,12 +32,13 @@ use Illuminate\Support\Facades\DB;
 
 final readonly class CompletePosOrderAction
 {
-    private const TRANSACTION_ATTEMPTS = 5;
+    private const int TRANSACTION_ATTEMPTS = 5;
 
     public function __construct(
         private ResolvePriceTierAction $resolvePriceTierAction,
         private StockLedgerService $stockLedgerService,
         private NextSequenceNumberService $nextSequenceNumberService,
+        private FiscalDocumentIdentityService $fiscalDocumentIdentityService,
         private MoneyService $moneyService,
     ) {}
 
@@ -196,6 +198,10 @@ final readonly class CompletePosOrderAction
             );
 
             $series = $this->lockSalesTicketSeries($cashRegister);
+            $fiscalIdentity = $this->fiscalDocumentIdentityService->snapshot(
+                $warehouse,
+                $series,
+            );
             $completedAt = now();
 
             $sale = Sale::query()->create([
@@ -258,10 +264,12 @@ final readonly class CompletePosOrderAction
             $number = $this->nextSequenceNumberService->generate(
                 'sales_ticket',
                 $series->series_code,
+                $series->fiscal_issuer_id,
             );
 
             $fiscalDocument = FiscalDocument::query()->create([
                 'sale_id' => $sale->id,
+                ...$fiscalIdentity,
                 'document_type' => 'sales_ticket',
                 'series_code' => $series->series_code,
                 'number' => $number,

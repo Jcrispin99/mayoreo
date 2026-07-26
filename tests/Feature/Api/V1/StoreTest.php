@@ -12,6 +12,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $user = User::factory()->create();
+    grantApiPermissions($user, 'stores.view', 'stores.manage');
     $this->headers = ['Authorization' => 'Bearer '.$user->createToken('test-token')->plainTextToken];
 });
 

@@ -43,7 +43,16 @@ expect()->extend('toBeOne', fn () => $this->toBe(1));
 |
 */
 
-function something(): void
+/**
+ * Grant API permissions to a test user, creating them on the fly.
+ */
+function grantApiPermissions(App\Models\User $user, string ...$permissions): void
 {
-    // ..
+    foreach ($permissions as $permission) {
+        $user->givePermissionTo(
+            Spatie\Permission\Models\Permission::findOrCreate($permission, 'web')
+        );
+    }
+
+    app(Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
 }

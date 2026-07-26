@@ -11,7 +11,28 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $actor = User::factory()->create();
+
+    foreach (['users.view', 'users.manage', 'roles.view', 'roles.manage'] as $permission) {
+        $actor->givePermissionTo(Permission::findOrCreate($permission, 'web'));
+    }
+
     $this->headers = ['Authorization' => 'Bearer '.$actor->createToken('test-token')->plainTextToken];
+});
+
+it('prevents an ordinary user from assigning itself an elevated role', function (): void {
+    $ordinaryUser = User::factory()->create();
+    $headers = [
+        'Authorization' => 'Bearer '.$ordinaryUser->createToken('ordinary-token')->plainTextToken,
+    ];
+    Role::findOrCreate('admin', 'web');
+
+    $this->withHeaders($headers)
+        ->putJson("/api/v1/users/{$ordinaryUser->id}/roles", [
+            'roles' => ['admin'],
+        ])
+        ->assertForbidden();
+
+    expect($ordinaryUser->fresh()?->hasRole('admin'))->toBeFalse();
 });
 
 it('creates, updates and lists a user', function (): void {
@@ -58,7 +79,8 @@ it('lists permissions and updates a role selection', function (): void {
     $role = Role::findOrCreate('inventory-manager', 'web');
 
     $this->withHeaders($this->headers)->getJson('/api/v1/permissions')
-        ->assertOk()->assertJsonCount(1, 'data');
+        ->assertOk()
+        ->assertJsonFragment(['name' => 'inventory.manage']);
 
     $this->withHeaders($this->headers)->putJson("/api/v1/roles/{$role->id}", [
         'permissions' => [$permission->name],

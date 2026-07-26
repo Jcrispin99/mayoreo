@@ -185,6 +185,7 @@ function expectPosCheckoutSnapshot(
 
 beforeEach(function (): void {
     $this->user = User::factory()->create();
+    grantApiPermissions($this->user, 'cash-sessions.view', 'cash-sessions.manage');
     $this->headers = [
         'Authorization' => 'Bearer '.$this->user->createToken('pos-checkout-test')->plainTextToken,
     ];

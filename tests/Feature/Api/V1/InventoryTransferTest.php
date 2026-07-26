@@ -12,6 +12,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $user = User::factory()->create();
+    grantApiPermissions($user, 'inventory-transfers.view', 'inventory-transfers.manage');
     $this->headers = ['Authorization' => 'Bearer '.$user->createToken('t')->plainTextToken];
     $this->main = Warehouse::factory()->main()->create();
     $this->retail = Warehouse::factory()->retail()->create();

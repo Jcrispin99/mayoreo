@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Actions\Sales;
 
 use App\Exceptions\FiscalDocumentAlreadyExchangedException;
+use App\Exceptions\FiscalIdentityConfigurationException;
 use App\Models\FiscalDocument;
+use App\Models\FiscalIssuer;
 use App\Models\Sale;
 use App\Services\NextSequenceNumberService;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +24,7 @@ final readonly class IssueFiscalDocumentPlaceholderAction
     /**
      * @var array<string, string>
      */
-    private const SERIES_BY_DOCUMENT_TYPE = [
+    private const array SERIES_BY_DOCUMENT_TYPE = [
         'receipt' => 'B001',
         'invoice' => 'F001',
     ];
@@ -44,11 +46,30 @@ final readonly class IssueFiscalDocumentPlaceholderAction
                 throw FiscalDocumentAlreadyExchangedException::forSale($sale->id);
             }
 
+            if ($ticket->fiscal_issuer_id !== null) {
+                $issuerIsActive = FiscalIssuer::query()
+                    ->whereKey($ticket->fiscal_issuer_id)
+                    ->where('is_active', true)
+                    ->lockForUpdate()
+                    ->exists();
+
+                if (! $issuerIsActive) {
+                    throw FiscalIdentityConfigurationException::inactiveIssuer(
+                        $ticket->fiscal_issuer_id,
+                    );
+                }
+            }
+
             $seriesCode = self::SERIES_BY_DOCUMENT_TYPE[$documentType];
-            $number = $this->nextSequenceNumberService->generate($documentType, $seriesCode);
+            $number = $this->nextSequenceNumberService->generate(
+                $documentType,
+                $seriesCode,
+                $ticket->fiscal_issuer_id,
+            );
 
             $exchanged = FiscalDocument::query()->create([
                 'sale_id' => $sale->id,
+                ...$ticket->fiscalIdentitySnapshot(),
                 'document_type' => $documentType,
                 'series_code' => $seriesCode,
                 'number' => $number,

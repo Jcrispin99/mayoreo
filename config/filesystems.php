@@ -40,6 +40,22 @@ return [
             'report' => false,
         ],
 
+        'fiscal-certificates' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/fiscal-certificates'),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => true,
+        ],
+
+        'fiscal-documents' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/fiscal-documents'),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => true,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

@@ -7,11 +7,13 @@ namespace App\Models;
 use Database\Factories\DocumentSeriesFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
+ * @property int|null $fiscal_issuer_id
  * @property string $document_type
  * @property string $series_code
  * @property int $current_number
@@ -30,6 +32,7 @@ final class DocumentSeries extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'fiscal_issuer_id',
         'document_type',
         'series_code',
         'current_number',
@@ -40,6 +43,14 @@ final class DocumentSeries extends Model
     public function cashRegisters(): BelongsToMany
     {
         return $this->belongsToMany(CashRegister::class, 'cash_register_document_series')->withTimestamps();
+    }
+
+    /**
+     * @return BelongsTo<FiscalIssuer, $this>
+     */
+    public function fiscalIssuer(): BelongsTo
+    {
+        return $this->belongsTo(FiscalIssuer::class);
     }
 
     /**

@@ -61,7 +61,20 @@ final class StoreController extends ApiController
 
     public function update(UpdateStoreRequest $request, Store $store): JsonResponse
     {
-        $store->update($request->validated());
+        $attributes = $request->validated();
+
+        if (array_key_exists('fiscal_issuer_id', $attributes)
+            && $attributes['fiscal_issuer_id'] === null) {
+            $attributes['sunat_establishment_code'] = null;
+            $attributes['sunat_address'] = null;
+            $attributes['sunat_ubigeo'] = null;
+            $attributes['sunat_urbanization'] = null;
+            $attributes['sunat_department'] = null;
+            $attributes['sunat_province'] = null;
+            $attributes['sunat_district'] = null;
+        }
+
+        $store->update($attributes);
         $store->load('warehouses');
 
         return $this->success(new StoreResource($store), 'Tienda actualizada');
