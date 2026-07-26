@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "Mayoreo",
     "slug": "frontend",
     "scheme": "mayoreo",
     "version": "1.0.0",
@@ -18,7 +18,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.frontend"
+      "package": "com.mayoreo.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -26,6 +26,14 @@
     "plugins": [
       "expo-router",
       "expo-status-bar",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
       [
         "expo-image-picker",
         {
