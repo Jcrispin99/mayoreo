@@ -17,6 +17,8 @@ export type MenuItem = {
   route?: string;
   enabled?: boolean;
   badge?: string;
+  /** Permiso del backend requerido para ver este ítem (ej. 'products.view'). */
+  permission?: string;
 };
 
 export type MenuModule = {
@@ -47,6 +49,7 @@ export const MENU_MODULES: MenuModule[] = [
         description: 'Catálogo de productos',
         icon: 'package-variant-closed',
         group: 'Catálogo',
+        permission: 'products.view',
       },
       {
         id: 'stores',
@@ -54,6 +57,7 @@ export const MENU_MODULES: MenuModule[] = [
         description: 'Locales y sus almacenes',
         icon: 'storefront-outline',
         group: 'Ubicaciones',
+        permission: 'stores.view',
       },
       {
         id: 'warehouses',
@@ -61,6 +65,7 @@ export const MENU_MODULES: MenuModule[] = [
         description: 'Existencias por ubicación',
         icon: 'warehouse',
         group: 'Ubicaciones',
+        permission: 'warehouses.view',
       },
       {
         id: 'units',
@@ -68,6 +73,7 @@ export const MENU_MODULES: MenuModule[] = [
         description: 'Unidades disponibles para productos',
         icon: 'scale-balance',
         group: 'Catálogo',
+        permission: 'products.view',
       },
       {
         id: 'movements',
@@ -75,6 +81,15 @@ export const MENU_MODULES: MenuModule[] = [
         description: 'Entradas y salidas de inventario',
         icon: 'swap-vertical',
         group: 'Operaciones',
+        permission: 'stock.view',
+      },
+      {
+        id: 'pos-supply-requests',
+        title: 'Comandas POS',
+        description: 'Pedidos de stock desde las cajas',
+        icon: 'clipboard-list-outline',
+        group: 'Operaciones',
+        permission: 'inventory-transfers.manage',
       },
     ],
   },
@@ -93,6 +108,7 @@ export const MENU_MODULES: MenuModule[] = [
         description: 'Compras guardadas como borrador',
         icon: 'file-document-edit-outline',
         group: 'Operaciones',
+        permission: 'purchase-orders.view',
       },
       {
         id: 'suppliers',
@@ -100,6 +116,7 @@ export const MENU_MODULES: MenuModule[] = [
         description: 'Catálogo de proveedores',
         icon: 'truck-delivery-outline',
         group: 'Catálogo',
+        permission: 'suppliers.view',
       },
     ],
   },
@@ -118,6 +135,7 @@ export const MENU_MODULES: MenuModule[] = [
         description: 'Almacén, series y correlativos',
         icon: 'cash-register',
         group: 'Configuración',
+        permission: 'pos-config.view',
       },
       {
         id: 'document-series',
@@ -125,6 +143,7 @@ export const MENU_MODULES: MenuModule[] = [
         description: 'Catálogo de series de venta',
         icon: 'file-document-outline',
         group: 'Configuración',
+        permission: 'pos-config.view',
       },
       {
         id: 'payment-methods',
@@ -132,6 +151,7 @@ export const MENU_MODULES: MenuModule[] = [
         description: 'Formas de pago admitidas en caja',
         icon: 'credit-card-multiple-outline',
         group: 'Configuración',
+        permission: 'cash-sessions.view',
       },
     ],
   },
@@ -150,6 +170,7 @@ export const MENU_MODULES: MenuModule[] = [
         description: 'Directorio de clientes',
         icon: 'account-multiple-outline',
         group: 'Directorio',
+        permission: 'customers.view',
       },
     ],
   },
@@ -168,6 +189,7 @@ export const MENU_MODULES: MenuModule[] = [
         description: 'Ventas POS y mayoristas',
         icon: 'receipt-text-check-outline',
         group: 'Operaciones',
+        permission: 'sales.view',
       },
     ],
   },
@@ -186,6 +208,7 @@ export const MENU_MODULES: MenuModule[] = [
         description: 'Cuentas y accesos al sistema',
         icon: 'account-multiple-outline',
         group: 'Accesos',
+        permission: 'users.view',
       },
       {
         id: 'roles',
@@ -193,16 +216,46 @@ export const MENU_MODULES: MenuModule[] = [
         description: 'Roles y permisos asignados',
         icon: 'shield-account-outline',
         group: 'Accesos',
+        permission: 'roles.view',
+      },
+    ],
+  },
+  {
+    id: 'settings',
+    title: 'Configuraciones',
+    subtitle: 'SUNAT e integraciones del sistema',
+    icon: 'cog-outline',
+    color: MODULE_COLORS.settings.color,
+    softColor: MODULE_COLORS.settings.softColor,
+    order: 70,
+    items: [
+      {
+        id: 'sunat',
+        title: 'SUNAT',
+        description: 'Emisores, certificados y establecimientos',
+        icon: 'file-certificate-outline',
+        group: 'Facturación electrónica',
+        permission: 'fiscal-settings.view',
       },
     ],
   },
 ];
 
-export function getVisibleMenu(): MenuModule[] {
+/**
+ * Menú visible para el usuario. Si se pasan sus permisos (del endpoint /me),
+ * oculta los ítems cuyo permiso no tenga y los módulos que queden vacíos.
+ * Sin permisos conocidos (sesiones antiguas) muestra todo: el backend
+ * igualmente rechaza con 403 lo no autorizado.
+ */
+export function getVisibleMenu(permissions?: string[]): MenuModule[] {
+  const canView = (item: MenuItem) =>
+    !item.permission || !permissions || permissions.includes(item.permission);
+
   return MENU_MODULES.filter((module) => module.enabled !== false)
     .map((module) => ({
       ...module,
-      items: module.items.filter((item) => item.enabled !== false),
+      items: module.items.filter((item) => item.enabled !== false && canView(item)),
     }))
+    .filter((module) => module.items.length > 0)
     .sort((a, b) => a.order - b.order);
 }

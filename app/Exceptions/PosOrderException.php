@@ -25,4 +25,14 @@ final class PosOrderException extends DomainException
     {
         return new self("El producto [{$productId}] no está disponible para la tienda de esta caja.");
     }
+
+    public static function nothingMissing(int $orderId): self
+    {
+        return new self("Ya se solicitó al almacén todo lo que la orden [{$orderId}] necesita.");
+    }
+
+    public static function noSupplyWarehouse(int $storeId): self
+    {
+        return new self("La tienda [{$storeId}] no tiene un almacén principal para abastecer al POS.");
+    }
 }

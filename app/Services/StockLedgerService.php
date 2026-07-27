@@ -90,15 +90,20 @@ final class StockLedgerService
         ?Model $reference = null,
         ?string $notes = null,
         ?int $createdBy = null,
+        bool $allowNegative = false,
     ): InventoryMovement {
-        return DB::transaction(function () use ($product, $warehouse, $quantity, $type, $reference, $notes, $createdBy): InventoryMovement {
+        return DB::transaction(function () use ($product, $warehouse, $quantity, $type, $reference, $notes, $createdBy, $allowNegative): InventoryMovement {
             $stock = $this->lockStock($product, $warehouse);
             /** @var numeric-string $normalizedQuantity */
             $normalizedQuantity = $quantity;
             /** @var numeric-string $stockQuantity */
             $stockQuantity = (string) $stock->quantity;
 
-            if ($type !== 'sale' && bccomp($normalizedQuantity, $stockQuantity, self::QUANTITY_SCALE) > 0) {
+            if (
+                $type !== 'sale'
+                && ! $allowNegative
+                && bccomp($normalizedQuantity, $stockQuantity, self::QUANTITY_SCALE) > 0
+            ) {
                 throw InsufficientStockException::forProductInWarehouse(
                     $product->id,
                     $warehouse->id,

@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
@@ -64,6 +65,17 @@ final class PosOrder extends Model
     public function sale(): HasOne
     {
         return $this->hasOne(Sale::class);
+    }
+
+    /**
+     * Comandas hacia el almacén de medio: traslados que reponen stock
+     * faltante de esta orden en el almacén de la caja.
+     *
+     * @return HasMany<InventoryTransfer, $this>
+     */
+    public function supplyRequests(): HasMany
+    {
+        return $this->hasMany(InventoryTransfer::class);
     }
 
     /** @return array<string, string> */

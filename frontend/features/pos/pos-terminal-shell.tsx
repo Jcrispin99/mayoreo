@@ -128,6 +128,28 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
     return () => controller.abort();
   }, [session]);
 
+  // Mientras una orden tenga una comanda pendiente (esperando al almacén),
+  // se hace polling periódico de esa orden hasta que quede resuelta.
+  const pendingSupplyOrderIds = useMemo(
+    () => orders
+      .filter((order) => order.supply_requests?.some((request) => request.status !== 'received'))
+      .map((order) => order.id)
+      .join(','),
+    [orders],
+  );
+
+  useEffect(() => {
+    if (!session || pendingSupplyOrderIds === '') return;
+
+    const orderIds = pendingSupplyOrderIds.split(',').map(Number);
+    const interval = setInterval(() => {
+      orderIds.forEach((orderId) => { void reloadOrder(orderId); });
+    }, 4000);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSupplyOrderIds, session]);
+
   const activeOrder = useMemo(
     () => orders.find((order) => order.id === activeOrderId) ?? orders.at(-1) ?? null,
     [activeOrderId, orders],
@@ -222,6 +244,35 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
     }
   }
 
+  async function reloadOrder(orderId: number): Promise<PosOrder | null> {
+    if (!session) return null;
+
+    try {
+      const response = await api.get(`/cash-register-sessions/${session.id}/orders/${orderId}`);
+      const order = response.data.data as PosOrder;
+      replaceOrder(order);
+      return order;
+    } catch {
+      return null;
+    }
+  }
+
+  async function requestSupply(order: PosOrder) {
+    if (!session) return;
+
+    const updatedOrder = await runOrderMutation(async () => {
+      await api.post(`/cash-register-sessions/${session.id}/orders/${order.id}/supply-requests`);
+      return reloadOrder(order.id);
+    });
+
+    if (updatedOrder) {
+      setOrderNotice({
+        message: `Comanda enviada al almacén para la orden ${order.number}.`,
+        error: false,
+      });
+    }
+  }
+
   async function requestNewOrder(): Promise<PosOrder> {
     if (!session) throw new Error('No hay una apertura de caja disponible.');
 
@@ -237,6 +288,14 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
     if (!order) return;
     setOrderOverlay({ kind: 'orders' });
     setOrderNotice({ message: `Orden ${order.number} creada.`, error: false });
+  }
+
+  // Fija la orden destino de forma explícita antes de volver al catálogo, para que
+  // los productos tocados no caigan en la orden que quedó activa por accidente.
+  function startAddingProducts(order: PosOrder) {
+    setActiveOrderId(order.id);
+    setOrderNotice({ message: `Agregando productos a la orden ${order.number}.`, error: false });
+    setOrderOverlay({ kind: 'closed' });
   }
 
   async function addProduct(product: PosCatalogProduct) {
@@ -609,6 +668,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
           busy={orderBusy || ordersLoading}
           loading={ordersLoading}
           notice={orderNotice}
+          onAddProducts={startAddingProducts}
           onCancelOrder={(order) => void cancelOrder(order)}
           onCheckout={openCheckout}
           onClose={() => setOrderOverlay({ kind: 'closed' })}
@@ -616,6 +676,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
           onDismissNotice={() => setOrderNotice(null)}
           onEditMeasuredItem={editMeasuredOrderItem}
           onRemoveItem={(order, item) => void removeOrderItem(order, item)}
+          onRequestSupply={(order) => void requestSupply(order)}
           onSelectOrder={setActiveOrderId}
           onUpdateQuantity={(order, item, quantity) => void updateOrderQuantity(order, item, quantity)}
           orders={orders}

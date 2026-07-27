@@ -1,9 +1,10 @@
-import type { Store, UnitOfMeasure, Warehouse } from '../inventory/inventory-types';
+import type { InventoryTransfer, Store, UnitOfMeasure, Warehouse } from '../inventory/inventory-types';
 
 export type PosDocumentType = 'sales_ticket' | 'receipt' | 'invoice';
 
 export type DocumentSeries = {
   id: number;
+  fiscal_issuer_id: number | null;
   document_type: PosDocumentType;
   series_code: string;
   current_number: number;
@@ -119,6 +120,7 @@ export type PosOrder = {
   total: string;
   item_count: number;
   items: PosOrderItem[];
+  supply_requests: InventoryTransfer[];
   created_by: number | null;
   created_at: string;
   updated_at: string;

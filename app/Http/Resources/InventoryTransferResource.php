@@ -22,6 +22,7 @@ final class InventoryTransferResource extends JsonResource
             'id' => $this->id,
             'from_warehouse_id' => $this->from_warehouse_id,
             'to_warehouse_id' => $this->to_warehouse_id,
+            'pos_order_id' => $this->pos_order_id,
             'status' => $this->status,
             'dispatched_at' => $this->dispatched_at?->toIso8601String(),
             'received_at' => $this->received_at?->toIso8601String(),

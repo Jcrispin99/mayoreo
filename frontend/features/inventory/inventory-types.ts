@@ -11,10 +11,18 @@ export type Warehouse = {
 
 export type Store = {
   id: number;
+  fiscal_issuer_id: number | null;
   code: string;
   name: string;
   address: string | null;
   phone: string | null;
+  sunat_establishment_code: string | null;
+  sunat_address: string | null;
+  sunat_ubigeo: string | null;
+  sunat_urbanization: string | null;
+  sunat_department: string | null;
+  sunat_province: string | null;
+  sunat_district: string | null;
   is_active: boolean;
   warehouses: Warehouse[];
 };
@@ -28,6 +36,34 @@ export type UnitOfMeasure = {
 
 export type InventoryResourceKind = 'stores' | 'warehouses' | 'units';
 export type InventoryItem = Store | Warehouse | UnitOfMeasure;
+
+export type InventoryTransferStatus = 'draft' | 'in_transit' | 'received';
+
+export type InventoryTransferItem = {
+  id: number;
+  product_id: number;
+  product?: { id: number; sku: string; name: string; base_unit: UnitOfMeasure | null } | null;
+  quantity: string;
+  unit_cost: string | null;
+};
+
+/**
+ * Cuando pos_order_id no es null, este traslado es una "comanda": una
+ * solicitud de reposición generada desde una orden del POS que no tenía
+ * stock suficiente en el almacén de su caja.
+ */
+export type InventoryTransfer = {
+  id: number;
+  from_warehouse_id: number;
+  to_warehouse_id: number;
+  pos_order_id: number | null;
+  status: InventoryTransferStatus;
+  dispatched_at: string | null;
+  received_at: string | null;
+  notes: string | null;
+  items: InventoryTransferItem[];
+  created_at: string;
+};
 
 export type InventoryMovementFlow = 'all' | 'in' | 'out';
 

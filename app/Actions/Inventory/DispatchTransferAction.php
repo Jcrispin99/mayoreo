@@ -15,13 +15,16 @@ final readonly class DispatchTransferAction
         private StockLedgerService $stockLedgerService,
     ) {}
 
-    public function execute(InventoryTransfer $inventoryTransfer, ?int $dispatchedBy = null): InventoryTransfer
-    {
+    public function execute(
+        InventoryTransfer $inventoryTransfer,
+        ?int $dispatchedBy = null,
+        bool $allowNegative = false,
+    ): InventoryTransfer {
         if ($inventoryTransfer->status !== 'draft') {
             throw InvalidTransferRouteException::forStatus('draft', $inventoryTransfer->status);
         }
 
-        return DB::transaction(function () use ($inventoryTransfer, $dispatchedBy): InventoryTransfer {
+        return DB::transaction(function () use ($inventoryTransfer, $dispatchedBy, $allowNegative): InventoryTransfer {
             $inventoryTransfer->load(['items.product', 'fromWarehouse']);
 
             foreach ($inventoryTransfer->items as $item) {
@@ -32,6 +35,7 @@ final readonly class DispatchTransferAction
                     'transfer_out',
                     $inventoryTransfer,
                     createdBy: $dispatchedBy,
+                    allowNegative: $allowNegative,
                 );
 
                 $item->update(['unit_cost' => $movement->unit_cost]);

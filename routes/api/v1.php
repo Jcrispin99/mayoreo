@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\V1\PosCatalogController;
 use App\Http\Controllers\Api\V1\PosCheckoutController;
 use App\Http\Controllers\Api\V1\PosOrderController;
 use App\Http\Controllers\Api\V1\PosOrderItemController;
+use App\Http\Controllers\Api\V1\PosOrderSupplyRequestController;
 use App\Http\Controllers\Api\V1\PosPaymentMethodController;
 use App\Http\Controllers\Api\V1\PriceTierController;
 use App\Http\Controllers\Api\V1\ProductController;
@@ -150,6 +151,9 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     Route::delete('cash-register-sessions/{cash_register_session}/orders/{pos_order}/items/{item}', [PosOrderItemController::class, 'destroy'])
         ->middleware('can:cash-sessions.manage')
         ->name('api.v1.cash-register-sessions.orders.items.destroy');
+    Route::post('cash-register-sessions/{cash_register_session}/orders/{pos_order}/supply-requests', [PosOrderSupplyRequestController::class, 'store'])
+        ->middleware('can:cash-sessions.manage')
+        ->name('api.v1.cash-register-sessions.orders.supply-requests.store');
     Route::post('cash-register-sessions/{cash_register_session}/movements', [CashRegisterMovementController::class, 'store'])
         ->middleware('can:cash-sessions.manage')
         ->name('api.v1.cash-register-movements.store');
@@ -240,6 +244,9 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     Route::post('inventory-transfers/{inventory_transfer}/receive', [InventoryTransferController::class, 'receive'])
         ->middleware('can:inventory-transfers.manage')
         ->name('api.v1.inventory-transfers.receive');
+    Route::post('inventory-transfers/{inventory_transfer}/resolve', [InventoryTransferController::class, 'resolve'])
+        ->middleware('can:inventory-transfers.manage')
+        ->name('api.v1.inventory-transfers.resolve');
 
     // Ventas / POS
     Route::get('sales/summary', [SaleController::class, 'summary'])

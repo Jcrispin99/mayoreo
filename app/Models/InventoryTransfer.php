@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $from_warehouse_id
  * @property int $to_warehouse_id
+ * @property int|null $pos_order_id
  * @property string $status
  * @property Carbon|null $dispatched_at
  * @property Carbon|null $received_at
@@ -36,6 +37,7 @@ final class InventoryTransfer extends Model
     protected $fillable = [
         'from_warehouse_id',
         'to_warehouse_id',
+        'pos_order_id',
         'status',
         'dispatched_at',
         'received_at',
@@ -65,6 +67,14 @@ final class InventoryTransfer extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * @return BelongsTo<PosOrder, $this>
+     */
+    public function posOrder(): BelongsTo
+    {
+        return $this->belongsTo(PosOrder::class);
     }
 
     /**

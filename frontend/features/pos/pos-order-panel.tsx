@@ -28,6 +28,7 @@ type PosOrderPanelProps = {
   busy: boolean;
   loading: boolean;
   notice: { message: string; error: boolean } | null;
+  onAddProducts: (order: PosOrder) => void;
   onCancelOrder: (order: PosOrder) => void;
   onClose: () => void;
   onCreateOrder: () => void;
@@ -35,6 +36,7 @@ type PosOrderPanelProps = {
   onDismissNotice: () => void;
   onEditMeasuredItem: (item: PosOrderItem) => void;
   onRemoveItem: (order: PosOrder, item: PosOrderItem) => void;
+  onRequestSupply: (order: PosOrder) => void;
   onSelectOrder: (orderId: number) => void;
   onUpdateQuantity: (order: PosOrder, item: PosOrderItem, quantity: number) => void;
   orders: PosOrder[];
@@ -187,6 +189,7 @@ export function PosOrderPanel({
   busy,
   loading,
   notice,
+  onAddProducts,
   onCancelOrder,
   onClose,
   onCreateOrder,
@@ -194,6 +197,7 @@ export function PosOrderPanel({
   onDismissNotice,
   onEditMeasuredItem,
   onRemoveItem,
+  onRequestSupply,
   onSelectOrder,
   onUpdateQuantity,
   orders,
@@ -202,6 +206,7 @@ export function PosOrderPanel({
 }: PosOrderPanelProps) {
   const [cancelVisible, setCancelVisible] = useState(false);
   const activeOrder = orders.find((order) => order.id === activeOrderId) ?? orders[0] ?? null;
+  const pendingSupplyRequest = activeOrder?.supply_requests?.find((request) => request.status !== 'received') ?? null;
 
   useEffect(() => {
     if (!visible) setCancelVisible(false);
@@ -320,12 +325,23 @@ export function PosOrderPanel({
           ) : (
             <>
               <View style={styles.orderSummary}>
-                <View>
+                <View style={styles.orderSummaryInfo}>
                   <Text style={styles.orderLabel}>Orden {activeOrder.number}</Text>
                   <Text style={styles.orderDetail}>
                     {activeOrder.items.length} {activeOrder.items.length === 1 ? 'producto' : 'productos'}
                   </Text>
                 </View>
+                <Button
+                  buttonColor="#D9F8F3"
+                  compact
+                  disabled={busy || !sessionOpen}
+                  icon="plus"
+                  mode="contained"
+                  onPress={() => onAddProducts(activeOrder)}
+                  textColor="#0F766E"
+                >
+                  Agregar
+                </Button>
                 <Text style={styles.orderTotal}>{formatMoney(activeOrder.total)}</Text>
               </View>
 
@@ -354,13 +370,25 @@ export function PosOrderPanel({
               />
 
               <View style={styles.footer}>
+                {pendingSupplyRequest ? (
+                  <View style={styles.supplyBanner}>
+                    <ActivityIndicator color="#8A5A32" size={16} />
+                    <Text style={styles.supplyBannerText}>
+                      {pendingSupplyRequest.status === 'draft'
+                        ? 'Comanda enviada al almacén, esperando que la preparen...'
+                        : 'El almacén está trayendo el stock que falta...'}
+                    </Text>
+                  </View>
+                ) : null}
                 <View style={styles.footerHeading}>
                   <View>
                     <Text style={styles.footerLabel}>Total de la orden</Text>
                     <Text style={styles.footerHint}>
                       {activeOrder.items.length === 0
                         ? 'Agrega al menos un producto para cobrar.'
-                        : 'Revisa el pago antes de confirmar la venta.'}
+                        : pendingSupplyRequest
+                          ? 'No se puede cobrar hasta que llegue el stock pedido.'
+                          : 'Revisa el pago antes de confirmar la venta.'}
                     </Text>
                   </View>
                   <Text style={styles.footerTotal}>{formatMoney(activeOrder.total)}</Text>
@@ -368,7 +396,13 @@ export function PosOrderPanel({
                 <Button
                   buttonColor="#FF4D4D"
                   contentStyle={styles.checkoutButtonContent}
-                  disabled={busy || cancelVisible || !sessionOpen || activeOrder.items.length === 0}
+                  disabled={
+                    busy
+                    || cancelVisible
+                    || !sessionOpen
+                    || activeOrder.items.length === 0
+                    || Boolean(pendingSupplyRequest)
+                  }
                   icon="cash-register"
                   mode="contained"
                   onPress={() => onCheckout(activeOrder)}
@@ -402,16 +436,30 @@ export function PosOrderPanel({
                     </View>
                   </View>
                 ) : (
-                  <Button
-                    compact
-                    disabled={busy}
-                    icon="close-circle-outline"
-                    mode="text"
-                    onPress={() => setCancelVisible(true)}
-                    textColor="#8F1D2C"
-                  >
-                    Cancelar orden
-                  </Button>
+                  <View style={styles.footerActions}>
+                    <Button
+                      compact
+                      disabled={busy}
+                      icon="close-circle-outline"
+                      mode="text"
+                      onPress={() => setCancelVisible(true)}
+                      textColor="#8F1D2C"
+                    >
+                      Cancelar orden
+                    </Button>
+                    {!pendingSupplyRequest && activeOrder.items.length > 0 ? (
+                      <Button
+                        compact
+                        disabled={busy}
+                        icon="truck-delivery-outline"
+                        mode="text"
+                        onPress={() => onRequestSupply(activeOrder)}
+                        textColor="#1F6174"
+                      >
+                        Pedir al almacén
+                      </Button>
+                    ) : null}
+                  </View>
                 )}
               </View>
             </>
@@ -478,7 +526,8 @@ const styles = StyleSheet.create({
   errorNoticeText: { color: '#8F1D2C' },
   successNoticeText: { color: '#247451' },
   noticeClose: { width: 32, height: 32, margin: 0 },
-  orderSummary: { paddingHorizontal: 16, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#D7E0DE', backgroundColor: '#F9FBFB' },
+  orderSummary: { paddingHorizontal: 16, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, borderBottomWidth: 1, borderBottomColor: '#D7E0DE', backgroundColor: '#F9FBFB' },
+  orderSummaryInfo: { flex: 1, minWidth: 0 },
   orderLabel: { color: '#172423', fontSize: 13, fontWeight: '900' },
   orderDetail: { marginTop: 2, color: '#60706E', fontSize: 9 },
   orderTotal: { color: '#B4232D', fontSize: 18, fontWeight: '900' },
@@ -510,6 +559,9 @@ const styles = StyleSheet.create({
   emptyTitle: { color: '#172423', fontSize: 15, fontWeight: '900', textAlign: 'center' },
   emptyText: { maxWidth: 330, color: '#60706E', fontSize: 10, lineHeight: 16, textAlign: 'center' },
   footer: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#D7E0DE', backgroundColor: '#FFFFFF' },
+  supplyBanner: { marginBottom: 10, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#D9B98A', borderRadius: 9, backgroundColor: '#FBF1E1' },
+  supplyBannerText: { flex: 1, color: '#8A5A32', fontSize: 10, fontWeight: '700' },
+  footerActions: { marginTop: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   footerHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   footerLabel: { color: '#60706E', fontSize: 9, fontWeight: '800' },
   footerHint: { marginTop: 2, color: '#60706E', fontSize: 8 },

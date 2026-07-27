@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Inventory\DispatchTransferAction;
 use App\Actions\Inventory\ReceiveTransferAction;
+use App\Actions\Inventory\ResolveInventoryTransferAction;
 use App\Exceptions\InvalidTransferRouteException;
 use App\Exceptions\LocationOperationException;
 use App\Http\Controllers\Api\ApiController;
@@ -22,13 +23,26 @@ final class InventoryTransferController extends ApiController
     public function __construct(
         private readonly DispatchTransferAction $dispatchTransferAction,
         private readonly ReceiveTransferAction $receiveTransferAction,
+        private readonly ResolveInventoryTransferAction $resolveTransferAction,
     ) {}
 
     public function index(Request $request): JsonResponse
     {
         $transfers = InventoryTransfer::query()
-            ->with('items')
+            ->with('items.product.baseUnit')
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
+            ->when(
+                $request->filled('from_warehouse_id'),
+                fn ($query) => $query->where('from_warehouse_id', $request->integer('from_warehouse_id')),
+            )
+            ->when(
+                $request->filled('to_warehouse_id'),
+                fn ($query) => $query->where('to_warehouse_id', $request->integer('to_warehouse_id')),
+            )
+            ->when(
+                $request->filled('pos_order_id'),
+                fn ($query) => $query->where('pos_order_id', $request->integer('pos_order_id')),
+            )
             ->orderByDesc('id')
             ->get();
 
@@ -67,14 +81,14 @@ final class InventoryTransferController extends ApiController
             return $transfer;
         });
 
-        $transfer->load('items');
+        $transfer->load('items.product.baseUnit');
 
         return $this->created(new InventoryTransferResource($transfer));
     }
 
     public function show(InventoryTransfer $inventoryTransfer): JsonResponse
     {
-        $inventoryTransfer->load('items');
+        $inventoryTransfer->load('items.product.baseUnit');
 
         return $this->success(new InventoryTransferResource($inventoryTransfer));
     }
@@ -91,5 +105,12 @@ final class InventoryTransferController extends ApiController
         $transfer = $this->receiveTransferAction->execute($inventoryTransfer, $request->user()?->id);
 
         return $this->success(new InventoryTransferResource($transfer), 'Transfer received successfully');
+    }
+
+    public function resolve(Request $request, InventoryTransfer $inventoryTransfer): JsonResponse
+    {
+        $transfer = $this->resolveTransferAction->execute($inventoryTransfer, $request->user()?->id);
+
+        return $this->success(new InventoryTransferResource($transfer), 'Comanda lista, stock repuesto');
     }
 }
