@@ -14,6 +14,7 @@ use App\Models\Productable;
 use App\Services\UnitConversionService;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 final readonly class SavePosOrderItemAction
 {
@@ -33,6 +34,7 @@ final readonly class SavePosOrderItemAction
         return DB::transaction(function () use ($session, $order, $product, $quantity, $unitCode): PosOrder {
             [$lockedSession, $lockedOrder] = $this->lockContext($session, $order);
             $availableProduct = $this->availableProduct($lockedSession, $product);
+            $this->validateQuantityMode($availableProduct, $quantity);
             $quantityInBaseUnit = $this->unitConversionService->toBaseUnitFromCode(
                 $availableProduct,
                 $quantity,
@@ -74,6 +76,7 @@ final readonly class SavePosOrderItemAction
 
             $product = Product::query()->findOrFail($lockedItem->product_id);
             $availableProduct = $this->availableProduct($lockedSession, $product);
+            $this->validateQuantityMode($availableProduct, $quantity);
             $quantityInBaseUnit = $this->unitConversionService->toBaseUnitFromCode(
                 $availableProduct,
                 $quantity,
@@ -135,8 +138,17 @@ final readonly class SavePosOrderItemAction
         $availableProduct = Product::query()
             ->whereKey($product->id)
             ->where('is_active', true)
-            ->whereHas('stocks.warehouse', function ($query) use ($storeId): void {
-                $query->where('store_id', $storeId);
+            ->where(function ($availability) use ($storeId): void {
+                $availability
+                    ->whereHas('stocks.warehouse', function ($query) use ($storeId): void {
+                        $query->where('store_id', $storeId);
+                    })
+                    ->orWhereHas(
+                        'template.principalVariant.stocks.warehouse',
+                        function ($query) use ($storeId): void {
+                            $query->where('store_id', $storeId);
+                        },
+                    );
             })
             ->lockForUpdate()
             ->first();
@@ -146,6 +158,20 @@ final readonly class SavePosOrderItemAction
         }
 
         return $availableProduct;
+    }
+
+    /** @param numeric-string $quantity */
+    private function validateQuantityMode(Product $product, string $quantity): void
+    {
+        if ($product->sale_mode !== 'unit') {
+            return;
+        }
+
+        if (preg_match('/^\d+(?:\.0+)?$/', $quantity) !== 1) {
+            throw ValidationException::withMessages([
+                'quantity' => 'Las variantes empacadas se venden en unidades enteras. Usa la variante Granel para escribir un peso libre.',
+            ]);
+        }
     }
 
     /** @param numeric-string $quantity */
@@ -195,6 +221,8 @@ final readonly class SavePosOrderItemAction
 
         return $order->fresh([
             'items.product.baseUnit',
+            'items.product.contentUnit',
+            'items.product.template',
             'items.product.priceTiers' => function (Relation $relation): void {
                 $relation->getQuery()->where('is_active', true)->orderBy('min_quantity');
             },

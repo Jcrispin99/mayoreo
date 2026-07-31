@@ -39,6 +39,8 @@ final readonly class CancelPosOrderAction
 
             return $lockedOrder->fresh([
                 'items.product.baseUnit',
+                'items.product.contentUnit',
+                'items.product.template',
                 'items.product.priceTiers' => function (Relation $relation): void {
                     $relation->getQuery()->where('is_active', true)->orderBy('min_quantity');
                 },

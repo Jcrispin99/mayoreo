@@ -2,9 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Actions\Purchasing\RegisterPurchaseAction;
+use App\Exceptions\PurchaseOrderStateException;
 use App\Models\DocumentSeries;
+use App\Models\InventoryMovement;
 use App\Models\Product;
 use App\Models\ProductPurchaseUnit;
+use App\Models\PurchaseOrder;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Models\Warehouse;
@@ -53,7 +57,7 @@ it('creates a purchase order in draft status', function (): void {
         'total' => '300.0000',
     ]);
     $this->assertDatabaseHas('productables', [
-        'productable_type' => App\Models\PurchaseOrder::class,
+        'productable_type' => PurchaseOrder::class,
         'productable_id' => $response->json('data.id'),
         'product_id' => $this->product->id,
         'quantity' => '0.000000',
@@ -213,7 +217,7 @@ it('confirming a purchase order registers stock in the target warehouse', functi
 
     $this->assertDatabaseHas('inventory_movements', [
         'type' => 'purchase',
-        'reference_type' => App\Models\PurchaseOrder::class,
+        'reference_type' => PurchaseOrder::class,
         'reference_id' => $order['id'],
     ]);
 });
@@ -262,4 +266,32 @@ it('fails to confirm an already confirmed order', function (): void {
 
     $this->withHeaders($this->headers)->postJson("/api/v1/purchase-orders/{$order['id']}/confirm")
         ->assertUnprocessable();
+});
+
+it('rechecks the locked purchase state when the action receives a stale draft instance', function (): void {
+    $orderData = $this->withHeaders($this->headers)->postJson('/api/v1/purchase-orders', [
+        'supplier_id' => $this->supplier->id,
+        'warehouse_id' => $this->warehouse->id,
+        'ordered_at' => now()->toDateString(),
+        'items' => [
+            ['product_id' => $this->product->id, 'quantity_purchased' => 100, 'unit_cost' => 3],
+        ],
+    ])->assertCreated()->json('data');
+    $staleDraft = PurchaseOrder::query()->findOrFail($orderData['id']);
+    $action = app(RegisterPurchaseAction::class);
+
+    $action->execute($staleDraft);
+
+    expect(fn () => $action->execute($staleDraft))
+        ->toThrow(PurchaseOrderStateException::class);
+
+    expect(InventoryMovement::query()
+        ->where('reference_type', PurchaseOrder::class)
+        ->where('reference_id', $staleDraft->id)
+        ->count())->toBe(1);
+    $this->assertDatabaseHas('stocks', [
+        'warehouse_id' => $this->warehouse->id,
+        'product_id' => $this->product->id,
+        'quantity' => '100.000000',
+    ]);
 });

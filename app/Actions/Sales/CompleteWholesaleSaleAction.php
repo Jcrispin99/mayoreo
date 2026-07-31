@@ -29,6 +29,7 @@ use App\Services\UnitConversionService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 final readonly class CompleteWholesaleSaleAction
 {
@@ -41,6 +42,7 @@ final readonly class CompleteWholesaleSaleAction
         private FiscalDocumentIdentityService $fiscalDocumentIdentityService,
         private MoneyService $moneyService,
         private UnitConversionService $unitConversionService,
+        private ResolveSaleStockConsumptionAction $resolveSaleStockConsumptionAction,
     ) {}
 
     /**
@@ -154,7 +156,9 @@ final readonly class CompleteWholesaleSaleAction
             foreach ($recalculatedItems as $item) {
                 $sale->items()->create([
                     'product_id' => $item['product']->id,
+                    'stock_product_id' => $item['stock_product']->id,
                     'quantity' => $item['quantity'],
+                    'stock_quantity' => $item['stock_quantity'],
                     'input_quantity' => $item['input_quantity'],
                     'input_unit_id' => $item['input_unit']->id,
                     'price_tier_id' => $item['price_tier']->id,
@@ -163,9 +167,9 @@ final readonly class CompleteWholesaleSaleAction
                 ]);
 
                 $this->stockLedgerService->registerOut(
-                    $item['product'],
+                    $item['stock_product'],
                     $warehouse,
-                    $item['quantity'],
+                    $item['stock_quantity'],
                     'sale',
                     $sale,
                     createdBy: $createdBy,
@@ -310,6 +314,8 @@ final readonly class CompleteWholesaleSaleAction
      *     input_unit: UnitOfMeasure,
      *     input_quantity: numeric-string,
      *     quantity: numeric-string,
+     *     stock_product: Product,
+     *     stock_quantity: numeric-string,
      *     unit_price: numeric-string,
      *     line_total: numeric-string
      * }>
@@ -339,6 +345,15 @@ final readonly class CompleteWholesaleSaleAction
             $inputQuantity = $this->normalizeQuantity($item['quantity']);
             $unitCode = $item['unit_code'] ?? null;
             $unitId = $item['unit_id'] ?? null;
+
+            if (
+                $product->sale_mode === 'unit'
+                && preg_match('/^\d+(?:\.0+)?$/', $inputQuantity) !== 1
+            ) {
+                throw ValidationException::withMessages([
+                    'items' => 'Las variantes empacadas se venden en unidades enteras. Usa la variante Granel para registrar un peso libre.',
+                ]);
+            }
 
             if ($unitCode !== null) {
                 $inputUnit = $unitsByCode->get(mb_strtolower($unitCode));
@@ -376,6 +391,10 @@ final readonly class CompleteWholesaleSaleAction
             }
 
             $priceTier = $this->resolvePriceTierAction->execute($product, $quantity, true);
+            $stockConsumption = $this->resolveSaleStockConsumptionAction->execute(
+                $product,
+                $quantity,
+            );
             /** @var numeric-string $unitPrice */
             $unitPrice = (string) $priceTier->unit_price;
             /** @var numeric-string $lineTotal */
@@ -387,6 +406,8 @@ final readonly class CompleteWholesaleSaleAction
                 'input_unit' => $inputUnit,
                 'input_quantity' => $inputQuantity,
                 'quantity' => $quantity,
+                'stock_product' => $stockConsumption->product,
+                'stock_quantity' => $stockConsumption->quantity,
                 'unit_price' => $unitPrice,
                 'line_total' => $lineTotal,
             ];
@@ -430,7 +451,7 @@ final readonly class CompleteWholesaleSaleAction
             ->values();
 
         return UnitOfMeasure::query()
-            ->whereIn('code', $codes)
+            ->whereIn(DB::raw('LOWER(code)'), $codes)
             ->get()
             ->keyBy(static fn (UnitOfMeasure $unit): string => mb_strtolower($unit->code));
     }
@@ -521,6 +542,9 @@ final readonly class CompleteWholesaleSaleAction
     {
         return [
             'items.product.baseUnit',
+            'items.stockProduct.baseUnit',
+            'items.product.contentUnit',
+            'items.product.template',
             'items.inputUnit',
             'items.priceTier',
             'payments',

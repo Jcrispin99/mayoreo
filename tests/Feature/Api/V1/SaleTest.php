@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Models\DocumentSeries;
 use App\Models\PriceTier;
 use App\Models\Product;
+use App\Models\ProductTemplate;
+use App\Models\UnitOfMeasure;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\StockLedgerService;
@@ -108,4 +110,98 @@ it('rejects a sale for a quantity with no matching price tier', function (): voi
             ['product_id' => $otherProduct->id, 'quantity' => 10],
         ],
     ])->assertUnprocessable();
+});
+
+it('sells mixed packaged variants and discounts their proportional quantity from granel', function (): void {
+    $grams = UnitOfMeasure::query()->where('code', 'g')->firstOrFail();
+    $units = UnitOfMeasure::factory()->units()->create(['code' => 'NIU']);
+    $template = ProductTemplate::query()->create([
+        'name' => 'Arroz Extra',
+        'is_active' => true,
+        'is_pos_visible' => true,
+    ]);
+    $principal = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'name' => 'Arroz Extra - Granel',
+        'variant_name' => 'Granel',
+        'sku' => 'ARROZ-MIX-GRANEL',
+        'base_unit_id' => $grams->id,
+        'sale_mode' => 'measured',
+        'is_principal' => true,
+    ]);
+    $bag250 = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'name' => 'Arroz Extra - Bolsa 250 g',
+        'variant_name' => 'Bolsa 250 g',
+        'sku' => 'ARROZ-MIX-250',
+        'base_unit_id' => $units->id,
+        'sale_mode' => 'unit',
+        'content_quantity' => 250,
+        'content_unit_id' => $grams->id,
+        'is_principal' => false,
+    ]);
+    $bag1000 = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'name' => 'Arroz Extra - Bolsa 1 kg',
+        'variant_name' => 'Bolsa 1 kg',
+        'sku' => 'ARROZ-MIX-1000',
+        'base_unit_id' => $units->id,
+        'sale_mode' => 'unit',
+        'content_quantity' => 1000,
+        'content_unit_id' => $grams->id,
+        'is_principal' => false,
+    ]);
+    PriceTier::factory()->for($bag250)->create([
+        'min_quantity' => 1,
+        'max_quantity' => null,
+        'unit_price' => '3.0000',
+    ]);
+    PriceTier::factory()->for($bag1000)->create([
+        'min_quantity' => 1,
+        'max_quantity' => null,
+        'unit_price' => '10.0000',
+    ]);
+    app(StockLedgerService::class)->registerIn(
+        $principal,
+        $this->pos,
+        '10000',
+        '0.0040',
+    );
+
+    $response = $this->withHeaders($this->headers)->postJson('/api/v1/sales', [
+        'warehouse_id' => $this->pos->id,
+        'expected_total' => '32.00',
+        'items' => [
+            ['product_id' => $bag250->id, 'quantity' => 4, 'unit_code' => 'NIU'],
+            ['product_id' => $bag1000->id, 'quantity' => 2, 'unit_code' => 'NIU'],
+        ],
+    ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('data.payable_total', '32.00')
+        ->assertJsonPath('data.items.0.stock_product_id', $principal->id)
+        ->assertJsonPath('data.items.0.stock_quantity', '1000.000000')
+        ->assertJsonPath('data.items.1.stock_product_id', $principal->id)
+        ->assertJsonPath('data.items.1.stock_quantity', '2000.000000');
+
+    $this->assertDatabaseHas('stocks', [
+        'warehouse_id' => $this->pos->id,
+        'product_id' => $principal->id,
+        'quantity' => '7000.000000',
+    ]);
+    $this->assertDatabaseMissing('stocks', ['product_id' => $bag250->id]);
+    $this->assertDatabaseMissing('stocks', ['product_id' => $bag1000->id]);
+    $saleId = $response->json('data.id');
+    $this->assertDatabaseHas('inventory_movements', [
+        'reference_type' => App\Models\Sale::class,
+        'reference_id' => $saleId,
+        'product_id' => $principal->id,
+        'quantity' => '1000.000000',
+    ]);
+    $this->assertDatabaseHas('inventory_movements', [
+        'reference_type' => App\Models\Sale::class,
+        'reference_id' => $saleId,
+        'product_id' => $principal->id,
+        'quantity' => '2000.000000',
+    ]);
 });

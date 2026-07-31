@@ -9,6 +9,7 @@ use App\Models\PosOrder;
 use App\Models\PriceTier;
 use App\Models\Product;
 use App\Models\Productable;
+use App\Models\ProductTemplate;
 use App\Models\Sale;
 use App\Models\Stock;
 use App\Models\Store;
@@ -506,6 +507,86 @@ it('keeps a measured product in its base quantity through sale and stock movemen
         'warehouse_id' => $this->warehouse->id,
         'product_id' => $measuredProduct->id,
         'quantity' => '500.000000',
+    ]);
+});
+
+it('sells a packaged variant in pos and consumes its content from the principal granel stock', function (): void {
+    $grams = UnitOfMeasure::query()->where('code', 'g')->firstOrFail();
+    $units = UnitOfMeasure::factory()->units()->create();
+    $template = ProductTemplate::query()->create([
+        'name' => 'Arroz POS',
+        'is_active' => true,
+        'is_pos_visible' => true,
+    ]);
+    $principal = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'name' => 'Arroz POS - Granel',
+        'variant_name' => 'Granel',
+        'sku' => 'ARROZ-POS-GRANEL',
+        'base_unit_id' => $grams->id,
+        'sale_mode' => 'measured',
+        'is_principal' => true,
+    ]);
+    $bag250 = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'name' => 'Arroz POS - Bolsa 250 g',
+        'variant_name' => 'Bolsa 250 g',
+        'sku' => 'ARROZ-POS-250',
+        'base_unit_id' => $units->id,
+        'sale_mode' => 'unit',
+        'content_quantity' => 250,
+        'content_unit_id' => $grams->id,
+        'is_principal' => false,
+    ]);
+    Stock::factory()
+        ->for($principal)
+        ->for($this->warehouse)
+        ->create([
+            'quantity' => '5000.000000',
+            'average_cost' => '0.0040',
+            'total_cost' => '20.0000',
+        ]);
+    PriceTier::factory()->for($bag250)->create([
+        'min_quantity' => 1,
+        'max_quantity' => null,
+        'unit_price' => '2.0000',
+        'is_active' => true,
+    ]);
+    $order = posCheckoutCreateOrder($this->session, $this->user);
+
+    $this->withHeaders($this->headers)
+        ->postJson(
+            "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$order->id}/items",
+            ['product_id' => $bag250->id, 'quantity' => 4, 'unit_code' => 'unit'],
+        )
+        ->assertCreated()
+        ->assertJsonPath('data.total', '8.0000');
+
+    $response = $this->withHeaders($this->headers)
+        ->postJson(
+            posCheckoutUrl($this->session, $order),
+            posCheckoutPayload('8.00', 'cash', '8.00'),
+        )
+        ->assertCreated()
+        ->assertJsonPath('data.sale.items.0.product_id', $bag250->id)
+        ->assertJsonPath('data.sale.items.0.stock_product_id', $principal->id)
+        ->assertJsonPath('data.sale.items.0.stock_quantity', '1000.000000');
+
+    $saleId = $response->json('data.sale.id');
+    $this->assertDatabaseHas('inventory_movements', [
+        'reference_type' => Sale::class,
+        'reference_id' => $saleId,
+        'product_id' => $principal->id,
+        'quantity' => '1000.000000',
+    ]);
+    $this->assertDatabaseHas('stocks', [
+        'warehouse_id' => $this->warehouse->id,
+        'product_id' => $principal->id,
+        'quantity' => '4000.000000',
+    ]);
+    $this->assertDatabaseMissing('stocks', [
+        'warehouse_id' => $this->warehouse->id,
+        'product_id' => $bag250->id,
     ]);
 });
 

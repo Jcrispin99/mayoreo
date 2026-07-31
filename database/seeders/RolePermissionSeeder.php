@@ -80,6 +80,7 @@ final class RolePermissionSeeder extends Seeder
         ]);
 
         $users = [
+            ['name' => 'Administrador', 'email' => 'admin@gmail.com', 'role' => $admin],
             ['name' => 'Admin User', 'email' => 'admin@mayoreo.test', 'role' => $admin],
             ['name' => 'Manager User', 'email' => 'manager@mayoreo.test', 'role' => $manager],
             ['name' => 'Cashier User', 'email' => 'cashier@mayoreo.test', 'role' => $cashier],

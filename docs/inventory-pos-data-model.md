@@ -23,7 +23,8 @@ flowchart LR
 ```
 
 Reglas clave del flujo:
-- El stock siempre se mueve en la **Unidad de Medida Base (UMB)** del producto (gramos, mililitros o unidades), nunca en la presentación de compra.
+- `product_templates` agrupa la familia comercial; cada fila de `products` es una variante vendible con SKU, precio y stock propios.
+- El stock siempre se mueve en la **Unidad de Medida Base (UMB) de la variante** (gramos, mililitros o unidades), nunca en la presentación de compra.
 - El stock "en tránsito" entre almacenes no pertenece a ninguno mientras la transferencia está `in_transit` (se descuenta del origen al despachar, se suma al destino al recibir).
 - Toda venta descuenta stock **una sola vez**. El canje de Ticket → Boleta/Factura no vuelve a tocar inventario.
 
@@ -31,7 +32,12 @@ Reglas clave del flujo:
 
 ```mermaid
 erDiagram
+    PRODUCT_TEMPLATES ||--|{ PRODUCTS : agrupa
+    PRODUCT_ATTRIBUTES ||--|{ PRODUCT_ATTRIBUTE_VALUES : contiene
+    PRODUCT_TEMPLATES }o--o{ PRODUCT_ATTRIBUTE_VALUES : configura
+    PRODUCTS }o--o{ PRODUCT_ATTRIBUTE_VALUES : combinación
     UNITS_OF_MEASURE ||--o{ PRODUCTS : "base_unit_id"
+    UNITS_OF_MEASURE ||--o{ PRODUCTS : "content_unit_id"
     PRODUCTS ||--o{ PRODUCT_PURCHASE_UNITS : tiene
     PRODUCTS ||--o{ PRICE_TIERS : tiene
     PRODUCTS ||--o{ STOCKS : tiene
@@ -65,6 +71,17 @@ erDiagram
 
 ### 3.1 Catálogo
 
+**`product_templates`** — producto padre, no almacenable ni vendible por sí solo
+| columna | tipo | notas |
+|---|---|---|
+| id | bigint PK | |
+| name | string | nombre común, por ejemplo "Arroz Extra" |
+| description | text nullable | descripción compartida |
+| default_price | decimal(12,4) nullable | referencia del precio de la variante principal |
+| is_active | boolean default true | activa/desactiva toda la familia |
+| is_pos_visible | boolean default true | permite mostrar sus variantes en POS |
+| deleted_at | soft delete | |
+
 **`units_of_measure`** — unidades base para conversión (solo se convierte dentro del mismo `type`)
 | columna | tipo | notas |
 |---|---|---|
@@ -73,18 +90,53 @@ erDiagram
 | name | string | Gramos, Mililitros, Unidad |
 | type | enum(weight, volume, count) | familia de conversión |
 
-**`products`**
+**`products`** — variantes concretas; es el SKU que se compra, almacena, fija precio y vende
 | columna | tipo | notas |
 |---|---|---|
 | id | bigint PK | |
+| product_template_id | FK → product_templates (restrict) | familia comercial |
 | sku | string unique | |
-| name | string | |
+| name | string | nombre materializado para compatibilidad e histórico |
+| variant_name | string nullable | "Granel", "Bolsa 100 g", "Bolsa 250 g" |
 | description | text nullable | |
 | base_unit_id | FK → units_of_measure (restrict) | UMB del producto |
+| sale_mode | enum(unit, measured) | `unit`: empaque entero; `measured`: cantidad libre |
+| content_quantity | decimal(18,6) nullable | contenido informativo de una unidad, por ejemplo 100 |
+| content_unit_id | FK → units_of_measure nullable | unidad del contenido, por ejemplo g |
+| is_principal | boolean default false | variante destacada de la familia |
 | is_active | boolean default true | |
 | deleted_at | soft delete | no romper histórico de movimientos |
 
-**`product_purchase_units`** — presentaciones de compra (saco, caja, etc.)
+La diferencia entre empaque y granel es intencional:
+
+| Elección en POS | Cantidad ingresada | Stock descontado | Resultado |
+|---|---:|---:|---|
+| Bolsa 100 g (`unit`) | 3 | 3 unidades | 3 bolsas = 300 g de contenido |
+| Granel (`measured`, UMB g) | 300 g | 300 g | una venta libre de 300 g |
+| Bolsa 100 g (`unit`) | 0.5 | rechazado | una variante empacada no admite fracciones |
+
+Aunque ambos primeros casos representan 300 g físicos, no son el mismo SKU ni comparten stock automáticamente.
+
+**Atributos y combinaciones**
+
+- `product_attributes`: definición reutilizable, por ejemplo `Peso` o `Color`.
+- `product_attribute_values`: valores pertenecientes a un atributo, por ejemplo `250 g`, `1 kg`, `Rojo`.
+- `product_template_attribute_value`: valores habilitados para un producto padre.
+- `product_attribute_value_product`: valores exactos que identifican cada variante/SKU.
+
+Las variantes se generan con el producto cartesiano. Si `Peso` contiene `250 g` y `1 kg`,
+y `Color` contiene `Rojo` y `Azul`, se generan cuatro productos:
+
+1. 250 g / Rojo
+2. 250 g / Azul
+3. 1 kg / Rojo
+4. 1 kg / Azul
+
+Cada combinación administra su propio SKU, código de barras, stock y rangos de precio. La
+información general se edita en el producto padre; los precios se administran desde una acción
+independiente del listado de Inventario.
+
+**`product_purchase_units`** — presentaciones de compra de una variante (saco, caja, etc.); no son variantes vendibles
 | columna | tipo | notas |
 |---|---|---|
 | id | bigint PK | |
@@ -95,7 +147,12 @@ erDiagram
 | is_default_purchase | boolean default false | |
 | — | unique(product_id, name) | |
 
-**`price_tiers`** — tramos de precio configurables por producto
+Ejemplo: en la variante **Granel** con UMB `g`, una presentación de compra "Saco 50 kg" usa
+`conversion_factor = 50000`. Comprar 1 saco ingresa 50 000 g a esa variante. En cambio, si
+"Saco 50 kg" también se venderá cerrado con precio y código propios, debe ser otra variante
+`unit` con contenido 50 000 g.
+
+**`price_tiers`** — tramos de precio configurables por variante
 | columna | tipo | notas |
 |---|---|---|
 | id | bigint PK | |
@@ -107,6 +164,28 @@ erDiagram
 | is_active | boolean default true | |
 
 No solapamiento de rangos por producto → validado en `ValidatePriceTierRangeAction`, no en constraint de BD.
+
+Para variantes `unit`, `unit_price` es el precio de una unidad empacada y los rangos usan
+cantidades enteras de bolsas/cajas. Para variantes `measured`, `unit_price` se guarda por UMB;
+la interfaz puede presentarlo de forma amigable por kg o litro y normalizarlo al guardar.
+
+### 3.1.1 Fraccionamiento y reenvasado
+
+Registrar variantes no convierte inventario. El fraccionamiento requiere una operación de
+producción/reempaque que, en una sola transacción:
+
+1. descuente de la variante insumo (por ejemplo, 10 000 g de Granel);
+2. agregue las variantes terminadas (por ejemplo, 100 bolsas de 100 g);
+3. registre merma y costo de empaque cuando corresponda;
+4. conserve trazabilidad entre la salida del insumo y las entradas terminadas.
+
+Hasta que ese caso de uso exista, hay dos flujos válidos y no deben mezclarse:
+
+- **Llenado al momento:** comprar el saco como presentación de compra de Granel y vender
+  cantidades libres, incluida una venta de 300 g.
+- **Preempacado:** manejar Bolsa 100 g/Bolsa 250 g como variantes unitarias, pero cargar su
+  stock mediante ajuste inicial o una futura operación de reempaque. Una venta de tres bolsas
+  selecciona la variante 100 g e ingresa cantidad 3.
 
 ### 3.2 Almacenes y stock
 

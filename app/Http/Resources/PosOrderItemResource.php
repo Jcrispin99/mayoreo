@@ -21,11 +21,16 @@ final class PosOrderItemResource extends JsonResource
         if ($this->relationLoaded('product') && $product instanceof Product) {
             $productData = [
                 'id' => $product->id,
+                'product_template_id' => $product->product_template_id,
                 'sku' => $product->sku,
                 'barcode' => $product->barcode,
-                'name' => $product->name,
+                'name' => $product->display_name,
+                'variant_name' => $product->variant_name,
                 'image_url' => $product->image_url,
                 'base_unit' => new UnitOfMeasureResource($product->baseUnit),
+                'sale_mode' => $product->sale_mode,
+                'content_quantity' => $product->content_quantity,
+                'content_unit' => new UnitOfMeasureResource($product->contentUnit),
                 'price_tiers' => PriceTierResource::collection(
                     $product->relationLoaded('priceTiers') ? $product->priceTiers : collect(),
                 ),

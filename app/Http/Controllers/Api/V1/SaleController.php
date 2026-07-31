@@ -279,6 +279,7 @@ final class SaleController extends ApiController
     {
         return [
             'items.product.baseUnit',
+            'items.stockProduct.baseUnit',
             'items.inputUnit',
             'items.priceTier',
             'payments.creator',

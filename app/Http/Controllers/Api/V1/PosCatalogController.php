@@ -4,18 +4,27 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Sales\ResolveSaleStockConsumptionAction;
+use App\Actions\Sales\SaleStockConsumption;
 use App\Exceptions\CashRegisterSessionException;
+use App\Exceptions\IncompatibleUnitException;
+use App\Exceptions\ProductStockConversionException;
 use App\Http\Controllers\Api\ApiController;
 use App\Http\Requests\Api\V1\ListPosCatalogRequest;
 use App\Http\Resources\PosCatalogProductResource;
 use App\Models\CashRegisterSession;
 use App\Models\Product;
+use App\Models\Stock;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\JsonResponse;
 
 final class PosCatalogController extends ApiController
 {
+    public function __construct(
+        private readonly ResolveSaleStockConsumptionAction $resolveSaleStockConsumptionAction,
+    ) {}
+
     public function __invoke(
         ListPosCatalogRequest $request,
         CashRegisterSession $cashRegisterSession
@@ -44,11 +53,28 @@ final class PosCatalogController extends ApiController
 
         $products = Product::query()
             ->where('is_active', true)
-            ->whereHas('stocks.warehouse', function ($query) use ($storeId): void {
-                $query->where('store_id', $storeId);
+            ->where(function (Builder $query): void {
+                $query->whereNull('product_template_id')
+                    ->orWhereHas('template', fn (Builder $template): Builder => $template
+                        ->where('is_active', true)
+                        ->where('is_pos_visible', true));
+            })
+            ->where(function (Builder $availability) use ($storeId): void {
+                $availability
+                    ->whereHas('stocks.warehouse', function ($query) use ($storeId): void {
+                        $query->where('store_id', $storeId);
+                    })
+                    ->orWhereHas(
+                        'template.principalVariant.stocks.warehouse',
+                        function ($query) use ($storeId): void {
+                            $query->where('store_id', $storeId);
+                        },
+                    );
             })
             ->with([
                 'baseUnit',
+                'contentUnit',
+                'template',
                 'stocks' => function (Relation $relation) use ($warehouseId): void {
                     $relation->getQuery()->where('warehouse_id', $warehouseId);
                 },
@@ -61,7 +87,9 @@ final class PosCatalogController extends ApiController
                     $searchQuery
                         ->where('name', 'like', "%{$search}%")
                         ->orWhere('sku', 'like', "%{$search}%")
-                        ->orWhere('barcode', 'like', "%{$search}%");
+                        ->orWhere('barcode', 'like', "%{$search}%")
+                        ->orWhere('variant_name', 'like', "%{$search}%")
+                        ->orWhereHas('template', fn (Builder $templateQuery): Builder => $templateQuery->where('name', 'like', "%{$search}%"));
                 });
             })
             ->when(in_array('favorite', $filters, true), fn (Builder $query): Builder => $query->where('is_favorite', true))
@@ -111,6 +139,49 @@ final class PosCatalogController extends ApiController
             ->orderBy('name')
             ->orderBy('id')
             ->cursorPaginate($request->perPage());
+
+        /** @var array<int, SaleStockConsumption> $stockProducts */
+        $stockProducts = [];
+
+        foreach ($products->getCollection() as $product) {
+            try {
+                $consumption = $this->resolveSaleStockConsumptionAction->execute(
+                    $product,
+                    '1',
+                    false,
+                );
+                $stockProducts[$product->id] = $consumption;
+            } catch (IncompatibleUnitException|ProductStockConversionException $exception) {
+                $product->setAttribute('resolved_stock_available', '0.000000');
+                $product->setAttribute('stock_configuration_error', $exception->getMessage());
+            }
+        }
+
+        /** @var array<int, numeric-string> $stocksByProduct */
+        $stocksByProduct = Stock::query()
+            ->where('warehouse_id', $warehouseId)
+            ->whereIn(
+                'product_id',
+                array_values(array_unique(array_map(
+                    static fn (SaleStockConsumption $consumption): int => $consumption->product->id,
+                    $stockProducts,
+                ))),
+            )
+            ->pluck('quantity', 'product_id')
+            ->all();
+
+        foreach ($products->getCollection() as $product) {
+            $consumption = $stockProducts[$product->id] ?? null;
+            if (! $consumption instanceof SaleStockConsumption) {
+                continue;
+            }
+
+            $sourceStock = $stocksByProduct[$consumption->product->id] ?? '0';
+            $product->setAttribute(
+                'resolved_stock_available',
+                bcdiv($sourceStock, $consumption->quantity, 6),
+            );
+        }
 
         return $this->success([
             'items' => PosCatalogProductResource::collection($products->getCollection())->resolve($request),

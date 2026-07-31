@@ -29,6 +29,7 @@ final class ProductFactory extends Factory
                 ['code' => 'g'],
                 ['name' => 'Gramos', 'type' => 'weight'],
             )->id,
+            'sale_mode' => 'measured',
             'is_active' => true,
             'is_favorite' => false,
         ];

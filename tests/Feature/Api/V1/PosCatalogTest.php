@@ -7,6 +7,7 @@ use App\Models\CashRegisterSession;
 use App\Models\DocumentSeries;
 use App\Models\PriceTier;
 use App\Models\Product;
+use App\Models\ProductTemplate;
 use App\Models\Stock;
 use App\Models\Store;
 use App\Models\UnitOfMeasure;
@@ -104,6 +105,47 @@ it('reports zero or negative stock independently for the session warehouse', fun
         ->getJson("/api/v1/cash-register-sessions/{$this->session->id}/catalog")
         ->assertOk()
         ->assertJsonPath('data.items.0.stock_available', '-7.250000');
+});
+
+it('reports packaged variant availability derived from principal granel stock', function (): void {
+    $grams = UnitOfMeasure::factory()->grams()->create();
+    $units = UnitOfMeasure::factory()->units()->create();
+    $template = ProductTemplate::query()->create([
+        'name' => 'Azúcar',
+        'is_active' => true,
+        'is_pos_visible' => true,
+    ]);
+    $principal = Product::factory()->for($grams, 'baseUnit')->create([
+        'product_template_id' => $template->id,
+        'name' => 'Azúcar - Granel',
+        'variant_name' => 'Granel',
+        'sale_mode' => 'measured',
+        'is_principal' => true,
+    ]);
+    $bag250 = Product::factory()->for($units, 'baseUnit')->create([
+        'product_template_id' => $template->id,
+        'name' => 'Azúcar - Bolsa 250 g',
+        'variant_name' => 'Bolsa 250 g',
+        'sale_mode' => 'unit',
+        'content_quantity' => '250',
+        'content_unit_id' => $grams->id,
+        'is_principal' => false,
+    ]);
+    Stock::factory()->for($principal)->for($this->warehouse)->create([
+        'quantity' => '10000.000000',
+    ]);
+    PriceTier::factory()->for($bag250)->create([
+        'min_quantity' => 1,
+        'unit_price' => '2.5000',
+        'is_active' => true,
+    ]);
+
+    $this->withHeaders($this->headers)
+        ->getJson("/api/v1/cash-register-sessions/{$this->session->id}/catalog?search=Bolsa")
+        ->assertOk()
+        ->assertJsonCount(1, 'data.items')
+        ->assertJsonPath('data.items.0.id', $bag250->id)
+        ->assertJsonPath('data.items.0.stock_available', '40.000000');
 });
 
 it('loads the POS catalog incrementally with an opaque cursor', function (): void {

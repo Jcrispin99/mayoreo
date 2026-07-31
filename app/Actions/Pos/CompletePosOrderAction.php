@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Pos;
 
 use App\Actions\Pricing\ResolvePriceTierAction;
+use App\Actions\Sales\ResolveSaleStockConsumptionAction;
 use App\Enums\PosPaymentMethod;
 use App\Exceptions\CashRegisterSessionException;
 use App\Exceptions\PosCheckoutException;
@@ -40,6 +41,7 @@ final readonly class CompletePosOrderAction
         private NextSequenceNumberService $nextSequenceNumberService,
         private FiscalDocumentIdentityService $fiscalDocumentIdentityService,
         private MoneyService $moneyService,
+        private ResolveSaleStockConsumptionAction $resolveSaleStockConsumptionAction,
     ) {}
 
     /**
@@ -121,8 +123,17 @@ final readonly class CompletePosOrderAction
             $products = Product::query()
                 ->whereIn('id', $productIds)
                 ->where('is_active', true)
-                ->whereHas('stocks.warehouse', function (Builder $query) use ($cashRegister): void {
-                    $query->where('store_id', $cashRegister->store_id);
+                ->where(function (Builder $availability) use ($cashRegister): void {
+                    $availability
+                        ->whereHas('stocks.warehouse', function (Builder $query) use ($cashRegister): void {
+                            $query->where('store_id', $cashRegister->store_id);
+                        })
+                        ->orWhereHas(
+                            'template.principalVariant.stocks.warehouse',
+                            function (Builder $query) use ($cashRegister): void {
+                                $query->where('store_id', $cashRegister->store_id);
+                            },
+                        );
                 })
                 ->orderBy('id')
                 ->lockForUpdate()
@@ -141,6 +152,8 @@ final readonly class CompletePosOrderAction
              *     item: Productable,
              *     product: Product,
              *     priceTier: PriceTier,
+             *     stockProduct: Product,
+             *     stockQuantity: numeric-string,
              *     unitPrice: numeric-string,
              *     lineTotal: numeric-string
              * }> $recalculatedItems
@@ -158,6 +171,10 @@ final readonly class CompletePosOrderAction
                 /** @var numeric-string $quantity */
                 $quantity = (string) $item->quantity;
                 $priceTier = $this->resolvePriceTierAction->execute($product, $quantity, true);
+                $stockConsumption = $this->resolveSaleStockConsumptionAction->execute(
+                    $product,
+                    $quantity,
+                );
                 /** @var numeric-string $unitPrice */
                 $unitPrice = (string) $priceTier->unit_price;
                 /** @var numeric-string $lineTotal */
@@ -174,6 +191,8 @@ final readonly class CompletePosOrderAction
                     'item' => $item,
                     'product' => $product,
                     'priceTier' => $priceTier,
+                    'stockProduct' => $stockConsumption->product,
+                    'stockQuantity' => $stockConsumption->quantity,
                     'unitPrice' => $unitPrice,
                     'lineTotal' => $lineTotal,
                 ];
@@ -228,7 +247,9 @@ final readonly class CompletePosOrderAction
 
                 $sale->items()->create([
                     'product_id' => $product->id,
+                    'stock_product_id' => $recalculatedItem['stockProduct']->id,
                     'quantity' => $item->quantity,
+                    'stock_quantity' => $recalculatedItem['stockQuantity'],
                     'input_quantity' => $item->input_quantity,
                     'input_unit_id' => $item->input_unit_id,
                     'price_tier_id' => $recalculatedItem['priceTier']->id,
@@ -236,12 +257,10 @@ final readonly class CompletePosOrderAction
                     'line_total' => $recalculatedItem['lineTotal'],
                 ]);
 
-                /** @var numeric-string $quantity */
-                $quantity = (string) $item->quantity;
                 $this->stockLedgerService->registerOut(
-                    $product,
+                    $recalculatedItem['stockProduct'],
                     $warehouse,
-                    $quantity,
+                    $recalculatedItem['stockQuantity'],
                     'sale',
                     $sale,
                     createdBy: $completedBy,
@@ -286,7 +305,14 @@ final readonly class CompletePosOrderAction
             ]);
 
             $freshOrder = $lockedOrder->fresh($this->orderRelations()) ?? $lockedOrder;
-            $freshSale = $sale->fresh(['items', 'payments', 'fiscalDocuments']) ?? $sale;
+            $freshSale = $sale->fresh([
+                'items.product.baseUnit',
+                'items.stockProduct.baseUnit',
+                'items.inputUnit',
+                'items.priceTier',
+                'payments',
+                'fiscalDocuments',
+            ]) ?? $sale;
 
             return new CompletePosOrderResult(
                 $freshOrder,
@@ -385,6 +411,8 @@ final readonly class CompletePosOrderAction
     {
         return [
             'items.product.baseUnit',
+            'items.product.contentUnit',
+            'items.product.template',
             'items.product.priceTiers' => function (Relation $relation): void {
                 $relation->getQuery()->where('is_active', true)->orderBy('min_quantity');
             },

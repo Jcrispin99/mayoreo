@@ -16,12 +16,18 @@ final class PosCatalogProductResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'product_template_id' => $this->product_template_id,
             'sku' => $this->sku,
             'barcode' => $this->barcode,
-            'name' => $this->name,
+            'name' => $this->display_name,
+            'variant_name' => $this->variant_name,
             'image_url' => $this->image_url,
             'base_unit' => new UnitOfMeasureResource($this->whenLoaded('baseUnit')),
+            'sale_mode' => $this->sale_mode,
+            'content_quantity' => $this->content_quantity,
+            'content_unit' => new UnitOfMeasureResource($this->whenLoaded('contentUnit')),
             'stock_available' => $this->availableStock(),
+            'stock_configuration_error' => $this->getAttribute('stock_configuration_error'),
             'price_tiers' => PriceTierResource::collection($this->whenLoaded('priceTiers')),
             'is_favorite' => $this->is_favorite,
         ];
@@ -29,6 +35,11 @@ final class PosCatalogProductResource extends JsonResource
 
     private function availableStock(): string
     {
+        $resolvedStock = $this->getAttribute('resolved_stock_available');
+        if (is_string($resolvedStock)) {
+            return $resolvedStock;
+        }
+
         $stock = $this->stocks->first();
 
         return $stock === null ? '0.000000' : $stock->quantity;

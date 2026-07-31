@@ -82,6 +82,8 @@ final class PosOrderController extends ApiController
     {
         return [
             'items.product.baseUnit',
+            'items.product.contentUnit',
+            'items.product.template',
             'items.product.priceTiers' => function (Relation $relation): void {
                 $relation->getQuery()->where('is_active', true)->orderBy('min_quantity');
             },

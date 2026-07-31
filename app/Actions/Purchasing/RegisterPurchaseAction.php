@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Actions\Purchasing;
 
 use App\Actions\Catalog\ConvertToBaseUnitAction;
+use App\Exceptions\PurchaseOrderStateException;
+use App\Models\Product;
 use App\Models\ProductPurchaseUnit;
 use App\Models\PurchaseOrder;
+use App\Models\Warehouse;
 use App\Services\StockLedgerService;
 use Illuminate\Support\Facades\DB;
+use LogicException;
 
 final readonly class RegisterPurchaseAction
 {
@@ -20,40 +24,68 @@ final readonly class RegisterPurchaseAction
     public function execute(PurchaseOrder $purchaseOrder, ?int $confirmedBy = null): PurchaseOrder
     {
         return DB::transaction(function () use ($purchaseOrder, $confirmedBy): PurchaseOrder {
-            $purchaseOrder->load(['items.product', 'items.productPurchaseUnit', 'warehouse']);
+            $lockedPurchaseOrder = PurchaseOrder::query()
+                ->lockForUpdate()
+                ->findOrFail($purchaseOrder->id);
 
-            foreach ($purchaseOrder->items as $item) {
+            if ($lockedPurchaseOrder->status !== 'draft') {
+                throw PurchaseOrderStateException::notDraft($lockedPurchaseOrder->id);
+            }
+
+            $lockedPurchaseOrder->setRelation(
+                'items',
+                $lockedPurchaseOrder->items()
+                    ->with(['product', 'productPurchaseUnit'])
+                    ->lockForUpdate()
+                    ->get(),
+            );
+            $lockedPurchaseOrder->load('warehouse');
+            $warehouse = $lockedPurchaseOrder->warehouse;
+
+            if (! $warehouse instanceof Warehouse) {
+                throw new LogicException('La orden de compra no tiene un almacén válido.');
+            }
+
+            foreach ($lockedPurchaseOrder->items as $item) {
+                $product = $item->product;
+                if (! $product instanceof Product) {
+                    throw new LogicException('La línea de compra no tiene un producto válido.');
+                }
+
                 $purchaseUnit = $item->productPurchaseUnit instanceof ProductPurchaseUnit
                     ? $item->productPurchaseUnit
                     : null;
 
                 $quantityBase = $this->convertToBaseUnitAction->execute(
-                    $item->product,
+                    $product,
                     (string) $item->quantity_purchased,
                     $purchaseUnit,
                 );
 
-                $unitCostBase = bcdiv((string) $item->unit_cost, $purchaseUnit?->conversion_factor ?? '1', 4);
+                $conversionFactor = $purchaseUnit instanceof ProductPurchaseUnit
+                    ? (string) $purchaseUnit->conversion_factor
+                    : '1';
+                $unitCostBase = bcdiv((string) $item->unit_cost, $conversionFactor, 4);
 
                 $item->update(['quantity' => $quantityBase]);
 
                 $this->stockLedgerService->registerIn(
-                    $item->product,
-                    $purchaseOrder->warehouse,
+                    $product,
+                    $warehouse,
                     $quantityBase,
                     $unitCostBase,
                     'purchase',
-                    $purchaseOrder,
+                    $lockedPurchaseOrder,
                     createdBy: $confirmedBy,
                 );
             }
 
-            $purchaseOrder->update([
+            $lockedPurchaseOrder->update([
                 'status' => 'confirmed',
                 'received_at' => now(),
             ]);
 
-            return $purchaseOrder;
+            return $lockedPurchaseOrder;
         });
     }
 }

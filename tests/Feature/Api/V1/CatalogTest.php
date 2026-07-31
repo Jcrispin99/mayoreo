@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Models\InventoryMovement;
 use App\Models\PriceTier;
 use App\Models\Product;
 use App\Models\ProductPurchaseUnit;
+use App\Models\ProductTemplate;
 use App\Models\UnitOfMeasure;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -136,6 +138,45 @@ describe('Products', function (): void {
             ->assertJsonPath('data.is_favorite', false);
     });
 
+    it('does not allow bypassing the historical unit protection through the product endpoint', function (): void {
+        $grams = UnitOfMeasure::factory()->grams()->create();
+        $units = UnitOfMeasure::factory()->create([
+            'code' => 'NIU',
+            'name' => 'Unidad',
+            'type' => 'count',
+        ]);
+        $product = Product::factory()->create([
+            'base_unit_id' => $grams->id,
+            'sale_mode' => 'measured',
+        ]);
+        InventoryMovement::factory()->create(['product_id' => $product->id]);
+
+        $this->withHeaders($this->headers)
+            ->patchJson("/api/v1/products/{$product->id}", [
+                'base_unit_id' => $units->id,
+                'sale_mode' => 'unit',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('base_unit_id');
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'base_unit_id' => $grams->id,
+            'sale_mode' => 'measured',
+        ]);
+    });
+
+    it('does not allow deleting the principal variant', function (): void {
+        $product = Product::factory()->create(['is_principal' => true]);
+
+        $this->withHeaders($this->headers)
+            ->deleteJson("/api/v1/products/{$product->id}")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('product');
+
+        $this->assertNotSoftDeleted($product);
+    });
+
     it('fails with a duplicate sku', function (): void {
         $grams = UnitOfMeasure::factory()->grams()->create();
         Product::factory()->create(['sku' => 'DUP-001', 'base_unit_id' => $grams->id]);
@@ -170,7 +211,15 @@ describe('Products', function (): void {
     it('uploads an image for a product', function (): void {
         Storage::fake('public');
 
-        $product = Product::factory()->create();
+        $template = ProductTemplate::query()->create([
+            'name' => 'Producto con imagen',
+            'is_active' => true,
+            'is_pos_visible' => true,
+        ]);
+        $product = Product::factory()->create([
+            'product_template_id' => $template->id,
+            'is_principal' => true,
+        ]);
 
         $response = $this->withHeaders($this->headers)
             ->postJson("/api/v1/products/{$product->id}/image", [
@@ -181,6 +230,7 @@ describe('Products', function (): void {
 
         $product->refresh();
         Storage::disk('public')->assertExists($product->image_path);
+        expect($template->refresh()->image_path)->toBe($product->image_path);
     });
 });
 

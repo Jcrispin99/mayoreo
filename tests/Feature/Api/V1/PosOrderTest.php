@@ -112,6 +112,63 @@ it('adds products and recalculates quantity tier without changing stock', functi
     $this->assertDatabaseCount('inventory_movements', 0);
 });
 
+it('sells packaged variants as whole units and exposes their total content', function (): void {
+    $units = UnitOfMeasure::factory()->create([
+        'code' => 'NIU',
+        'name' => 'Unidad',
+        'type' => 'count',
+    ]);
+    $grams = UnitOfMeasure::query()->where('code', 'g')->firstOrFail();
+    $packaged = Product::factory()->create([
+        'name' => 'Arroz Extra - Bolsa 100 g',
+        'variant_name' => 'Bolsa 100 g',
+        'sku' => 'ARROZ-100G',
+        'base_unit_id' => $units->id,
+        'sale_mode' => 'unit',
+        'content_quantity' => 100,
+        'content_unit_id' => $grams->id,
+    ]);
+    Stock::factory()->for($packaged)->for($this->warehouse)->create(['quantity' => '20.000000']);
+    PriceTier::factory()->for($packaged)->create([
+        'min_quantity' => 1,
+        'max_quantity' => null,
+        'unit_price' => '2.0000',
+        'is_active' => true,
+    ]);
+    $orderId = $this->withHeaders($this->headers)
+        ->postJson("/api/v1/cash-register-sessions/{$this->session->id}/orders")
+        ->json('data.id');
+    $itemsUrl = "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$orderId}/items";
+
+    $this->withHeaders($this->headers)
+        ->postJson($itemsUrl, ['product_id' => $packaged->id, 'quantity' => 3])
+        ->assertCreated()
+        ->assertJsonPath('data.items.0.quantity', '3.000000')
+        ->assertJsonPath('data.items.0.line_total', '6.0000')
+        ->assertJsonPath('data.items.0.product.content_quantity', '100.000000')
+        ->assertJsonPath('data.items.0.product.content_unit.code', 'g');
+
+    $this->withHeaders($this->headers)
+        ->postJson($itemsUrl, ['product_id' => $packaged->id, 'quantity' => '0.5'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('quantity');
+});
+
+it('keeps free weight entry on the measured variant', function (): void {
+    $orderId = $this->withHeaders($this->headers)
+        ->postJson("/api/v1/cash-register-sessions/{$this->session->id}/orders")
+        ->json('data.id');
+
+    $this->withHeaders($this->headers)
+        ->postJson(
+            "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$orderId}/items",
+            ['product_id' => $this->product->id, 'quantity' => 300, 'unit_code' => 'g'],
+        )
+        ->assertCreated()
+        ->assertJsonPath('data.items.0.quantity', '300.000000')
+        ->assertJsonPath('data.items.0.product.sale_mode', 'measured');
+});
+
 it('converts kilograms to the weight base unit before resolving the price tier', function (): void {
     PriceTier::factory()->for($this->product)->create([
         'min_quantity' => 0,

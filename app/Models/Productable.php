@@ -16,9 +16,11 @@ use Illuminate\Support\Carbon;
  *
  * @property int $id
  * @property int $product_id
+ * @property int|null $stock_product_id
  * @property string $productable_type
  * @property int $productable_id
  * @property string $quantity
+ * @property string|null $stock_quantity
  * @property int|null $product_purchase_unit_id
  * @property string|null $quantity_purchased
  * @property string|null $input_quantity
@@ -42,9 +44,11 @@ final class Productable extends Model
      */
     protected $fillable = [
         'product_id',
+        'stock_product_id',
         'productable_type',
         'productable_id',
         'quantity',
+        'stock_quantity',
         'product_purchase_unit_id',
         'quantity_purchased',
         'input_quantity',
@@ -61,6 +65,14 @@ final class Productable extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * @return BelongsTo<Product, $this>
+     */
+    public function stockProduct(): BelongsTo
+    {
+        return $this->belongsTo(Product::class, 'stock_product_id');
     }
 
     /**
@@ -104,6 +116,7 @@ final class Productable extends Model
     {
         return [
             'quantity' => 'decimal:6',
+            'stock_quantity' => 'decimal:6',
             'quantity_purchased' => 'decimal:6',
             'input_quantity' => 'decimal:6',
             'unit_price' => 'decimal:4',

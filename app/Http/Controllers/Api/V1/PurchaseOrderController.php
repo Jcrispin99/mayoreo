@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Purchasing\RegisterPurchaseAction;
+use App\Exceptions\PurchaseOrderStateException;
 use App\Http\Controllers\Api\ApiController;
 use App\Http\Requests\Api\V1\StorePurchaseOrderRequest;
 use App\Http\Requests\Api\V1\UpdatePurchaseOrderRequest;
@@ -41,14 +42,22 @@ final class PurchaseOrderController extends ApiController
         $order = DB::transaction(function () use ($request): PurchaseOrder {
             $number = $this->nextSequenceNumberService->generate('purchase', self::DEFAULT_PURCHASE_SERIES);
             $total = '0';
+            /** @var list<array{product_id: int, product_purchase_unit_id?: int|null, quantity_purchased: int|float|string, unit_cost: int|float|string}> $items */
+            $items = $request->array('items');
 
-            foreach ($request->array('items') as $item) {
-                $lineTotal = bcmul((string) $item['quantity_purchased'], (string) $item['unit_cost'], 4);
+            foreach ($items as $item) {
+                /** @var numeric-string $quantity */
+                $quantity = (string) $item['quantity_purchased'];
+                /** @var numeric-string $unitCost */
+                $unitCost = (string) $item['unit_cost'];
+                $lineTotal = bcmul($quantity, $unitCost, 4);
                 $total = bcadd($total, $lineTotal, 4);
             }
 
+            /** @var array<string, mixed> $orderValues */
+            $orderValues = $request->safe()->except('items');
             $order = PurchaseOrder::query()->create([
-                ...$request->safe()->except('items'),
+                ...$orderValues,
                 'series_code' => self::DEFAULT_PURCHASE_SERIES,
                 'number' => $number,
                 'total' => $total,
@@ -56,7 +65,7 @@ final class PurchaseOrderController extends ApiController
                 'created_by' => $request->user()?->id,
             ]);
 
-            foreach ($request->array('items') as $item) {
+            foreach ($items as $item) {
                 $order->items()->create([
                     'product_id' => $item['product_id'],
                     'product_purchase_unit_id' => $item['product_purchase_unit_id'] ?? null,
@@ -83,25 +92,37 @@ final class PurchaseOrderController extends ApiController
 
     public function update(UpdatePurchaseOrderRequest $request, PurchaseOrder $purchaseOrder): JsonResponse
     {
-        if ($purchaseOrder->status !== 'draft') {
-            return $this->error('Only draft purchase orders can be updated', 422);
-        }
-
         $purchaseOrder = DB::transaction(function () use ($request, $purchaseOrder): PurchaseOrder {
+            $lockedPurchaseOrder = PurchaseOrder::query()
+                ->lockForUpdate()
+                ->findOrFail($purchaseOrder->id);
+
+            if ($lockedPurchaseOrder->status !== 'draft') {
+                throw PurchaseOrderStateException::notDraft($lockedPurchaseOrder->id);
+            }
+
             $total = '0';
-            foreach ($request->array('items') as $item) {
-                $lineTotal = bcmul((string) $item['quantity_purchased'], (string) $item['unit_cost'], 4);
+            /** @var list<array{product_id: int, product_purchase_unit_id?: int|null, quantity_purchased: int|float|string, unit_cost: int|float|string}> $items */
+            $items = $request->array('items');
+            foreach ($items as $item) {
+                /** @var numeric-string $quantity */
+                $quantity = (string) $item['quantity_purchased'];
+                /** @var numeric-string $unitCost */
+                $unitCost = (string) $item['unit_cost'];
+                $lineTotal = bcmul($quantity, $unitCost, 4);
                 $total = bcadd($total, $lineTotal, 4);
             }
 
-            $purchaseOrder->update([
-                ...$request->safe()->except('items'),
+            /** @var array<string, mixed> $orderValues */
+            $orderValues = $request->safe()->except('items');
+            $lockedPurchaseOrder->update([
+                ...$orderValues,
                 'total' => $total,
             ]);
-            $purchaseOrder->items()->delete();
+            $lockedPurchaseOrder->items()->delete();
 
-            foreach ($request->array('items') as $item) {
-                $purchaseOrder->items()->create([
+            foreach ($items as $item) {
+                $lockedPurchaseOrder->items()->create([
                     'product_id' => $item['product_id'],
                     'product_purchase_unit_id' => $item['product_purchase_unit_id'] ?? null,
                     'quantity_purchased' => $item['quantity_purchased'],
@@ -110,7 +131,7 @@ final class PurchaseOrderController extends ApiController
                 ]);
             }
 
-            return $purchaseOrder->load('items');
+            return $lockedPurchaseOrder->load('items');
         });
 
         return $this->success(new PurchaseOrderResource($purchaseOrder), 'Purchase order updated successfully');
@@ -118,10 +139,6 @@ final class PurchaseOrderController extends ApiController
 
     public function confirm(Request $request, PurchaseOrder $purchaseOrder): JsonResponse
     {
-        if ($purchaseOrder->status !== 'draft') {
-            return $this->error('Only draft purchase orders can be confirmed', 422);
-        }
-
         $purchaseOrder = $this->registerPurchaseAction->execute($purchaseOrder, $request->user()?->id);
 
         return $this->success(new PurchaseOrderResource($purchaseOrder), 'Purchase order confirmed successfully');

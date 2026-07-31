@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\V1\PosPaymentMethodController;
 use App\Http\Controllers\Api\V1\PriceTierController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProductPurchaseUnitController;
+use App\Http\Controllers\Api\V1\ProductTemplateController;
 use App\Http\Controllers\Api\V1\PurchaseOrderController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SaleController;
@@ -193,6 +194,11 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
         ->middlewareFor(['index', 'show'], 'can:products.view')
         ->middlewareFor(['store', 'update', 'destroy'], 'can:products.manage')
         ->names('api.v1.products');
+    Route::apiResource('product-templates', ProductTemplateController::class)
+        ->only(['index', 'store', 'show', 'update'])
+        ->middlewareFor(['index', 'show'], 'can:products.view')
+        ->middlewareFor(['store', 'update'], 'can:products.manage')
+        ->names('api.v1.product-templates');
     Route::post('products/{product}/image', [ProductController::class, 'uploadImage'])
         ->middleware('can:products.manage')
         ->name('api.v1.products.image');
