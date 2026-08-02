@@ -19,7 +19,6 @@
 /storage/*.key
 /storage/pail
 /vendor
-/frontend/
 /artifacts/*.apk
 Homestead.json
 Homestead.yaml

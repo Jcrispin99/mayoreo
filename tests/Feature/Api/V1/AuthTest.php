@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use App\Services\DeviceSessionService;
+use Database\Seeders\MultipleDevicePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 
 uses(RefreshDatabase::class);
 
@@ -14,6 +17,8 @@ describe('Registration', function (): void {
             'email' => 'test@example.com',
             'password' => 'password123',
             'password_confirmation' => 'password123',
+            'device_id' => 'device-registration-1',
+            'device_name' => 'iPhone de prueba',
         ]);
 
         $response->assertStatus(201)
@@ -52,6 +57,8 @@ describe('Registration', function (): void {
             'name' => 'Test User',
             'email' => 'existing@example.com',
             'password' => 'password123',
+            'device_id' => 'device-login-1',
+            'device_name' => 'Android de prueba',
             'password_confirmation' => 'password123',
         ]);
 
@@ -68,6 +75,8 @@ describe('Login', function (): void {
         $response = $this->postJson('/api/v1/login', [
             'email' => $user->email,
             'password' => 'password123',
+            'device_id' => 'device-login-1',
+            'device_name' => 'Android de prueba',
         ]);
 
         $response->assertStatus(200)
@@ -93,6 +102,8 @@ describe('Login', function (): void {
         $response = $this->postJson('/api/v1/login', [
             'email' => $user->email,
             'password' => 'wrongpassword',
+            'device_id' => 'device-login-1',
+            'device_name' => 'Android de prueba',
         ]);
 
         $response->assertStatus(401)
@@ -106,9 +117,82 @@ describe('Login', function (): void {
         $response = $this->postJson('/api/v1/login', [
             'email' => 'nonexistent@example.com',
             'password' => 'password123',
+            'device_id' => 'device-login-1',
+            'device_name' => 'Android de prueba',
         ]);
 
         $response->assertStatus(401);
+    });
+
+    it('renews the session on the same device for an ordinary user', function (): void {
+        $user = User::factory()->create(['password' => bcrypt('password123')]);
+        $payload = [
+            'email' => $user->email,
+            'password' => 'password123',
+            'device_id' => 'cashier-phone-1',
+            'device_name' => 'Teléfono de caja',
+        ];
+
+        $firstToken = $this->postJson('/api/v1/login', $payload)->assertOk()->json('data.token');
+        $secondToken = $this->postJson('/api/v1/login', $payload)->assertOk()->json('data.token');
+
+        expect($secondToken)->not->toBe($firstToken)
+            ->and($user->tokens()->count())->toBe(1)
+            ->and($user->tokens()->value('device_id'))->toBe('cashier-phone-1');
+    });
+
+    it('rejects a second device for an ordinary user', function (): void {
+        $user = User::factory()->create(['password' => bcrypt('password123')]);
+
+        $this->postJson('/api/v1/login', [
+            'email' => $user->email,
+            'password' => 'password123',
+            'device_id' => 'cashier-phone-1',
+            'device_name' => 'Primer teléfono',
+        ])->assertOk();
+
+        $this->postJson('/api/v1/login', [
+            'email' => $user->email,
+            'password' => 'password123',
+            'device_id' => 'cashier-phone-2',
+            'device_name' => 'Segundo teléfono',
+        ])->assertStatus(409)
+            ->assertJson([
+                'success' => false,
+                'message' => 'La cuenta ya tiene otro dispositivo vinculado.',
+            ]);
+
+        expect($user->tokens()->count())->toBe(1)
+            ->and($user->tokens()->value('device_id'))->toBe('cashier-phone-1');
+    });
+
+    it('allows multiple devices when the user has permission', function (): void {
+        $user = User::factory()->create(['password' => bcrypt('password123')]);
+        grantApiPermissions($user, DeviceSessionService::MULTIPLE_DEVICES_PERMISSION);
+
+        foreach (['admin-phone-1', 'admin-tablet-1'] as $deviceId) {
+            $this->postJson('/api/v1/login', [
+                'email' => $user->email,
+                'password' => 'password123',
+                'device_id' => $deviceId,
+                'device_name' => $deviceId,
+            ])->assertOk();
+        }
+
+        expect($user->tokens()->pluck('device_id')->sort()->values()->all())->toBe([
+            'admin-phone-1',
+            'admin-tablet-1',
+        ]);
+    });
+
+    it('grants the multiple-device permission to the admin role through its seeder', function (): void {
+        Role::findOrCreate('admin', 'web');
+
+        $this->seed(MultipleDevicePermissionSeeder::class);
+
+        expect(Role::findByName('admin', 'web')->hasPermissionTo(
+            DeviceSessionService::MULTIPLE_DEVICES_PERMISSION,
+        ))->toBeTrue();
     });
 });
 

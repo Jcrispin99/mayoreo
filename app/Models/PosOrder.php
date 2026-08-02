@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $cash_register_session_id
+ * @property int|null $customer_id
  * @property int $number
  * @property string $status
  * @property string $subtotal
@@ -28,6 +29,7 @@ final class PosOrder extends Model
 {
     protected $fillable = [
         'cash_register_session_id',
+        'customer_id',
         'number',
         'status',
         'subtotal',
@@ -41,6 +43,12 @@ final class PosOrder extends Model
     public function cashRegisterSession(): BelongsTo
     {
         return $this->belongsTo(CashRegisterSession::class);
+    }
+
+    /** @return BelongsTo<Customer, $this> */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     /** @return BelongsTo<User, $this> */

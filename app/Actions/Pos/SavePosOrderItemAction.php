@@ -129,6 +129,10 @@ final readonly class SavePosOrderItemAction
             throw PosOrderException::notOpen($lockedOrder->id);
         }
 
+        if ($lockedOrder->supplyRequests()->whereIn('status', ['draft', 'in_transit'])->exists()) {
+            throw PosOrderException::supplyPending($lockedOrder->id);
+        }
+
         return [$lockedSession, $lockedOrder];
     }
 
@@ -220,6 +224,7 @@ final readonly class SavePosOrderItemAction
         $order->update(['subtotal' => $subtotal, 'total' => $subtotal]);
 
         return $order->fresh([
+            'customer',
             'items.product.baseUnit',
             'items.product.contentUnit',
             'items.product.template',

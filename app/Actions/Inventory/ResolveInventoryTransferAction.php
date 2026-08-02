@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Inventory;
 
+use App\Exceptions\PosOrderException;
 use App\Models\InventoryTransfer;
+use App\Models\PosOrder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -28,7 +30,18 @@ final readonly class ResolveInventoryTransferAction
     public function execute(InventoryTransfer $inventoryTransfer, ?int $resolvedBy): InventoryTransfer
     {
         return DB::transaction(function () use ($inventoryTransfer, $resolvedBy): InventoryTransfer {
-            $dispatched = $this->dispatchTransferAction->execute($inventoryTransfer, $resolvedBy, allowNegative: true);
+            $order = PosOrder::query()->lockForUpdate()->find($inventoryTransfer->pos_order_id);
+
+            if (! $order instanceof PosOrder || $order->status !== 'open') {
+                throw PosOrderException::notOpen((int) $inventoryTransfer->pos_order_id);
+            }
+
+            $lockedTransfer = InventoryTransfer::query()
+                ->where('assigned_to', $resolvedBy)
+                ->lockForUpdate()
+                ->findOrFail($inventoryTransfer->id);
+
+            $dispatched = $this->dispatchTransferAction->execute($lockedTransfer, $resolvedBy, allowNegative: true);
 
             return $this->receiveTransferAction->execute($dispatched, $resolvedBy);
         });

@@ -36,6 +36,10 @@ final class RolePermissionSeeder extends Seeder
             'roles.view', 'roles.manage',
             'fiscal-settings.view', 'fiscal-settings.manage',
             'fiscal-credentials.manage',
+            'auth.multiple-devices',
+            'pos-supply-requests.assign',
+            'pos-supply-requests.view-assigned',
+            'pos-supply-requests.resolve-assigned',
         ];
 
         foreach ($permissions as $permission) {
@@ -58,6 +62,7 @@ final class RolePermissionSeeder extends Seeder
             'pos-config.view', 'pos-config.manage',
             'cash-sessions.view', 'cash-sessions.manage',
             'fiscal-settings.view',
+            'pos-supply-requests.assign',
         ]);
 
         $cashier = Role::query()->firstOrCreate(['name' => 'cashier', 'guard_name' => 'web']);
@@ -67,6 +72,13 @@ final class RolePermissionSeeder extends Seeder
             'sales.view', 'sales.manage',
             'customers.view', 'customers.manage',
             'cash-sessions.view', 'cash-sessions.manage',
+            'pos-supply-requests.assign',
+        ]);
+
+        $warehouse = Role::query()->firstOrCreate(['name' => 'warehouse', 'guard_name' => 'web']);
+        $warehouse->syncPermissions([
+            'pos-supply-requests.view-assigned',
+            'pos-supply-requests.resolve-assigned',
         ]);
 
         $viewer = Role::query()->firstOrCreate(['name' => 'viewer', 'guard_name' => 'web']);
@@ -85,6 +97,7 @@ final class RolePermissionSeeder extends Seeder
             ['name' => 'Manager User', 'email' => 'manager@mayoreo.test', 'role' => $manager],
             ['name' => 'Cashier User', 'email' => 'cashier@mayoreo.test', 'role' => $cashier],
             ['name' => 'Viewer User', 'email' => 'viewer@mayoreo.test', 'role' => $viewer],
+            ['name' => 'Warehouse User', 'email' => 'warehouse@mayoreo.test', 'role' => $warehouse],
         ];
 
         foreach ($users as $data) {

@@ -16,6 +16,9 @@ use Illuminate\Support\Carbon;
  * @property int $from_warehouse_id
  * @property int $to_warehouse_id
  * @property int|null $pos_order_id
+ * @property int|null $assigned_to
+ * @property int|null $assigned_by
+ * @property Carbon|null $assigned_at
  * @property string $status
  * @property Carbon|null $dispatched_at
  * @property Carbon|null $received_at
@@ -38,6 +41,9 @@ final class InventoryTransfer extends Model
         'from_warehouse_id',
         'to_warehouse_id',
         'pos_order_id',
+        'assigned_to',
+        'assigned_by',
+        'assigned_at',
         'status',
         'dispatched_at',
         'received_at',
@@ -77,6 +83,18 @@ final class InventoryTransfer extends Model
         return $this->belongsTo(PosOrder::class);
     }
 
+    /** @return BelongsTo<User, $this> */
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function assigner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_by');
+    }
+
     /**
      * @return MorphMany<Productable, $this>
      */
@@ -95,6 +113,7 @@ final class InventoryTransfer extends Model
         return [
             'dispatched_at' => 'datetime',
             'received_at' => 'datetime',
+            'assigned_at' => 'datetime',
         ];
     }
 }

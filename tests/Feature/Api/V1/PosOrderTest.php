@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\CashRegister;
 use App\Models\CashRegisterSession;
+use App\Models\Customer;
 use App\Models\DocumentSeries;
 use App\Models\PriceTier;
 use App\Models\Product;
@@ -80,6 +81,40 @@ it('creates and lists consecutive open orders for the cash session', function ()
         ->assertJsonCount(2, 'data')
         ->assertJsonPath('data.0.id', $first->json('data.id'))
         ->assertJsonPath('data.1.id', $second->json('data.id'));
+});
+
+it('assigns, replaces and removes an active customer from an open order', function (): void {
+    $orderId = $this->withHeaders($this->headers)
+        ->postJson("/api/v1/cash-register-sessions/{$this->session->id}/orders")
+        ->json('data.id');
+    $customer = Customer::factory()->create([
+        'name' => 'Cliente del POS',
+        'document_number' => '44556677',
+    ]);
+    $inactiveCustomer = Customer::factory()->create(['is_active' => false]);
+    $url = "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$orderId}/customer";
+
+    $this->withHeaders($this->headers)
+        ->patchJson($url, ['customer_id' => $customer->id])
+        ->assertOk()
+        ->assertJsonPath('data.customer_id', $customer->id)
+        ->assertJsonPath('data.customer.id', $customer->id)
+        ->assertJsonPath('data.customer.name', 'Cliente del POS');
+
+    $this->withHeaders($this->headers)
+        ->patchJson($url, ['customer_id' => $inactiveCustomer->id])
+        ->assertUnprocessable();
+
+    $this->assertDatabaseHas('pos_orders', [
+        'id' => $orderId,
+        'customer_id' => $customer->id,
+    ]);
+
+    $this->withHeaders($this->headers)
+        ->patchJson($url, ['customer_id' => null])
+        ->assertOk()
+        ->assertJsonPath('data.customer_id', null)
+        ->assertJsonPath('data.customer', null);
 });
 
 it('adds products and recalculates quantity tier without changing stock', function (): void {

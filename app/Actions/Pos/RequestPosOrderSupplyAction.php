@@ -11,8 +11,10 @@ use App\Models\CashRegisterSession;
 use App\Models\InventoryTransfer;
 use App\Models\PosOrder;
 use App\Models\Product;
+use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * "Comanda": genera un traslado en borrador desde el almacén principal de
@@ -25,9 +27,13 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class RequestPosOrderSupplyAction
 {
-    public function execute(CashRegisterSession $session, PosOrder $order, ?int $requestedBy): InventoryTransfer
-    {
-        return DB::transaction(function () use ($session, $order, $requestedBy): InventoryTransfer {
+    public function execute(
+        CashRegisterSession $session,
+        PosOrder $order,
+        int $assignedTo,
+        ?int $requestedBy,
+    ): InventoryTransfer {
+        return DB::transaction(function () use ($session, $order, $assignedTo, $requestedBy): InventoryTransfer {
             $lockedSession = CashRegisterSession::query()->lockForUpdate()->findOrFail($session->id);
 
             if ($lockedSession->status !== 'open') {
@@ -45,6 +51,14 @@ final readonly class RequestPosOrderSupplyAction
 
             if ($lockedOrder->status !== 'open') {
                 throw PosOrderException::notOpen($lockedOrder->id);
+            }
+
+            $assignee = User::query()->lockForUpdate()->find($assignedTo);
+
+            if (! $assignee instanceof User || ! $assignee->hasRole('warehouse')) {
+                throw ValidationException::withMessages([
+                    'assigned_to' => 'Selecciona un usuario con el rol warehouse.',
+                ]);
             }
 
             $cashRegister = CashRegister::query()->findOrFail($lockedSession->cash_register_id);
@@ -68,6 +82,7 @@ final readonly class RequestPosOrderSupplyAction
 
             $existingTransfers = InventoryTransfer::query()
                 ->where('pos_order_id', $lockedOrder->id)
+                ->where('status', '!=', 'cancelled')
                 ->with('items')
                 ->lockForUpdate()
                 ->get();
@@ -118,6 +133,9 @@ final readonly class RequestPosOrderSupplyAction
                 'from_warehouse_id' => $fromWarehouse->id,
                 'to_warehouse_id' => $toWarehouse->id,
                 'pos_order_id' => $lockedOrder->id,
+                'assigned_to' => $assignee->id,
+                'assigned_by' => $requestedBy,
+                'assigned_at' => now(),
                 'status' => 'draft',
                 'notes' => "Solicitado desde POS, orden #{$lockedOrder->number}.",
                 'created_by' => $requestedBy,

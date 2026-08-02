@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Exceptions\DeviceAlreadyLinkedException;
 use App\Exceptions\DomainException;
 use App\Exceptions\PosCheckoutTotalChangedException;
 use App\Exceptions\WholesaleSaleTotalChangedException;
@@ -56,6 +57,13 @@ return Application::configure(basePath: dirname(__DIR__))
                     'order' => (new PosOrderResource($e->order()))->resolve($request),
                     'payable_total' => $e->payableTotal(),
                 ],
+            ], 409);
+        });
+
+        $exceptions->render(function (DeviceAlreadyLinkedException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
             ], 409);
         });
 

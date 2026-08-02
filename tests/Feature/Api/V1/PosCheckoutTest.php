@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\CashRegister;
 use App\Models\CashRegisterSession;
+use App\Models\Customer;
 use App\Models\DocumentSeries;
 use App\Models\PosOrder;
 use App\Models\PriceTier;
@@ -304,6 +305,35 @@ it('checks out a cash order and persists received amount, change and expected ca
         ->assertOk()
         ->assertJsonPath('data.cash_sales_total', '10.00')
         ->assertJsonPath('data.expected_amount', '110.00');
+});
+
+it('copies the selected order customer and identity snapshot to the POS sale', function (): void {
+    $customer = Customer::factory()->create([
+        'name' => 'Bodega La Esquina',
+        'document_number' => '20601234567',
+    ]);
+    $this->order->update(['customer_id' => $customer->id]);
+
+    $response = $this->withHeaders($this->headers)
+        ->postJson(
+            posCheckoutUrl($this->session, $this->order),
+            posCheckoutPayload('10.00', 'cash', '10.00'),
+        );
+
+    $response->assertCreated()
+        ->assertJsonPath('data.order.customer_id', $customer->id)
+        ->assertJsonPath('data.order.customer.name', 'Bodega La Esquina')
+        ->assertJsonPath('data.sale.customer_id', $customer->id)
+        ->assertJsonPath('data.sale.customer_name', 'Bodega La Esquina')
+        ->assertJsonPath('data.sale.customer_document', '20601234567')
+        ->assertJsonPath('data.sale.customer.id', $customer->id);
+
+    $this->assertDatabaseHas('sales', [
+        'pos_order_id' => $this->order->id,
+        'customer_id' => $customer->id,
+        'customer_name' => 'Bodega La Esquina',
+        'customer_document' => '20601234567',
+    ]);
 });
 
 it('rejects cash when the received amount is insufficient without side effects', function (): void {

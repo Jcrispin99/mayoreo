@@ -17,6 +17,8 @@ final class PosOrderResource extends JsonResource
         return [
             'id' => $this->id,
             'cash_register_session_id' => $this->cash_register_session_id,
+            'customer_id' => $this->customer_id,
+            'customer' => new CustomerResource($this->whenLoaded('customer')),
             'number' => $this->number,
             'status' => $this->status,
             'subtotal' => $this->subtotal,

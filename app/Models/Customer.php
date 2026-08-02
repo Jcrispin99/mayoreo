@@ -42,6 +42,12 @@ final class Customer extends Model
         return $this->hasMany(Sale::class);
     }
 
+    /** @return HasMany<PosOrder, $this> */
+    public function posOrders(): HasMany
+    {
+        return $this->hasMany(PosOrder::class);
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {

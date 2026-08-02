@@ -127,9 +127,15 @@ curl -X POST http://localhost:8080/api/v1/login \
   -H "Accept: application/json" \
   -d '{
     "email": "john@example.com",
-    "password": "password123"
+    "password": "password123",
+    "device_id": "persistent-app-generated-id",
+    "device_name": "John’s iPhone"
   }'
 ```
+
+`device_id` must be generated once by the mobile app and kept in secure local storage. By default,
+an account can only use one device. Users with the `auth.multiple-devices` permission may keep
+sessions on more than one device.
 
 ### Using the Token
 

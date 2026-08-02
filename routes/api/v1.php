@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\V1\AssignedPosSupplyRequestController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CashRegisterController;
 use App\Http\Controllers\Api\V1\CashRegisterMovementController;
@@ -140,6 +141,9 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     Route::patch('cash-register-sessions/{cash_register_session}/orders/{pos_order}/cancel', [PosOrderController::class, 'cancel'])
         ->middleware('can:cash-sessions.manage')
         ->name('api.v1.cash-register-sessions.orders.cancel');
+    Route::patch('cash-register-sessions/{cash_register_session}/orders/{pos_order}/customer', [PosOrderController::class, 'updateCustomer'])
+        ->middleware('can:cash-sessions.manage')
+        ->name('api.v1.cash-register-sessions.orders.customer.update');
     Route::post('cash-register-sessions/{cash_register_session}/orders/{pos_order}/checkout', PosCheckoutController::class)
         ->middleware('can:cash-sessions.manage')
         ->name('api.v1.cash-register-sessions.orders.checkout');
@@ -153,8 +157,11 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
         ->middleware('can:cash-sessions.manage')
         ->name('api.v1.cash-register-sessions.orders.items.destroy');
     Route::post('cash-register-sessions/{cash_register_session}/orders/{pos_order}/supply-requests', [PosOrderSupplyRequestController::class, 'store'])
-        ->middleware('can:cash-sessions.manage')
+        ->middleware('can:pos-supply-requests.assign')
         ->name('api.v1.cash-register-sessions.orders.supply-requests.store');
+    Route::get('pos/supply-assignees', [PosOrderSupplyRequestController::class, 'assignees'])
+        ->middleware('can:pos-supply-requests.assign')
+        ->name('api.v1.pos.supply-assignees.index');
     Route::post('cash-register-sessions/{cash_register_session}/movements', [CashRegisterMovementController::class, 'store'])
         ->middleware('can:cash-sessions.manage')
         ->name('api.v1.cash-register-movements.store');
@@ -253,6 +260,12 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     Route::post('inventory-transfers/{inventory_transfer}/resolve', [InventoryTransferController::class, 'resolve'])
         ->middleware('can:inventory-transfers.manage')
         ->name('api.v1.inventory-transfers.resolve');
+    Route::get('warehouse/supply-requests', [AssignedPosSupplyRequestController::class, 'index'])
+        ->middleware('can:pos-supply-requests.view-assigned')
+        ->name('api.v1.warehouse.supply-requests.index');
+    Route::post('warehouse/supply-requests/{inventory_transfer}/resolve', [AssignedPosSupplyRequestController::class, 'resolve'])
+        ->middleware('can:pos-supply-requests.resolve-assigned')
+        ->name('api.v1.warehouse.supply-requests.resolve');
 
     // Ventas / POS
     Route::get('sales/summary', [SaleController::class, 'summary'])

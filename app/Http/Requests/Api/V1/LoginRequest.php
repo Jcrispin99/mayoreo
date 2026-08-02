@@ -10,6 +10,8 @@ use Illuminate\Foundation\Http\FormRequest;
 /**
  * @property string $email
  * @property string $password
+ * @property string $device_id
+ * @property string $device_name
  */
 final class LoginRequest extends FormRequest
 {
@@ -26,6 +28,8 @@ final class LoginRequest extends FormRequest
         return [
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
+            'device_id' => ['required', 'string', 'max:128'],
+            'device_name' => ['required', 'string', 'max:255'],
         ];
     }
 }

@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Inventory\DispatchTransferAction;
 use App\Actions\Inventory\ReceiveTransferAction;
-use App\Actions\Inventory\ResolveInventoryTransferAction;
 use App\Exceptions\InvalidTransferRouteException;
 use App\Exceptions\LocationOperationException;
 use App\Http\Controllers\Api\ApiController;
@@ -23,12 +22,12 @@ final class InventoryTransferController extends ApiController
     public function __construct(
         private readonly DispatchTransferAction $dispatchTransferAction,
         private readonly ReceiveTransferAction $receiveTransferAction,
-        private readonly ResolveInventoryTransferAction $resolveTransferAction,
     ) {}
 
     public function index(Request $request): JsonResponse
     {
         $transfers = InventoryTransfer::query()
+            ->whereNull('pos_order_id')
             ->with('items.product.baseUnit')
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when(
@@ -72,6 +71,7 @@ final class InventoryTransferController extends ApiController
             ]);
 
             foreach ($request->array('items') as $item) {
+                /** @var array{product_id: int, quantity: numeric-string} $item */
                 $transfer->items()->create([
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
@@ -88,6 +88,7 @@ final class InventoryTransferController extends ApiController
 
     public function show(InventoryTransfer $inventoryTransfer): JsonResponse
     {
+        abort_if($inventoryTransfer->pos_order_id !== null, 404);
         $inventoryTransfer->load('items.product.baseUnit');
 
         return $this->success(new InventoryTransferResource($inventoryTransfer));
@@ -95,6 +96,7 @@ final class InventoryTransferController extends ApiController
 
     public function dispatch(Request $request, InventoryTransfer $inventoryTransfer): JsonResponse
     {
+        abort_if($inventoryTransfer->pos_order_id !== null, 404);
         $transfer = $this->dispatchTransferAction->execute($inventoryTransfer, $request->user()?->id);
 
         return $this->success(new InventoryTransferResource($transfer), 'Transfer dispatched successfully');
@@ -102,6 +104,7 @@ final class InventoryTransferController extends ApiController
 
     public function receive(Request $request, InventoryTransfer $inventoryTransfer): JsonResponse
     {
+        abort_if($inventoryTransfer->pos_order_id !== null, 404);
         $transfer = $this->receiveTransferAction->execute($inventoryTransfer, $request->user()?->id);
 
         return $this->success(new InventoryTransferResource($transfer), 'Transfer received successfully');
@@ -109,8 +112,8 @@ final class InventoryTransferController extends ApiController
 
     public function resolve(Request $request, InventoryTransfer $inventoryTransfer): JsonResponse
     {
-        $transfer = $this->resolveTransferAction->execute($inventoryTransfer, $request->user()?->id);
+        abort_if($inventoryTransfer->pos_order_id !== null, 404);
 
-        return $this->success(new InventoryTransferResource($transfer), 'Comanda lista, stock repuesto');
+        return $this->error('Los traslados manuales deben despacharse y recibirse por separado.', 422);
     }
 }

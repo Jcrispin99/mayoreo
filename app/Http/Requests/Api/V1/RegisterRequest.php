@@ -11,6 +11,8 @@ use Illuminate\Foundation\Http\FormRequest;
  * @property string $name
  * @property string $email
  * @property string $password
+ * @property string $device_id
+ * @property string $device_name
  */
 final class RegisterRequest extends FormRequest
 {
@@ -28,6 +30,8 @@ final class RegisterRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'device_id' => ['required', 'string', 'max:128'],
+            'device_name' => ['required', 'string', 'max:255'],
         ];
     }
 }

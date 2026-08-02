@@ -13,6 +13,7 @@ use App\Http\Requests\Api\V1\ResetPasswordRequest;
 use App\Http\Requests\Api\V1\VerifyEmailRequest;
 use App\Http\Resources\AuthenticatedUserResource;
 use App\Models\User;
+use App\Services\DeviceSessionService;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\JsonResponse;
@@ -22,6 +23,8 @@ use Illuminate\Support\Facades\Password;
 
 final class AuthController extends ApiController
 {
+    public function __construct(private readonly DeviceSessionService $deviceSessionService) {}
+
     public function register(RegisterRequest $request): JsonResponse
     {
         $user = User::query()->create([
@@ -32,7 +35,7 @@ final class AuthController extends ApiController
 
         $user->sendEmailVerificationNotification();
 
-        $token = $user->createToken('auth-token')->plainTextToken;
+        $token = $this->deviceSessionService->issueToken($user, $request->device_id, $request->device_name);
 
         return $this->created([
             'user' => new AuthenticatedUserResource($user),
@@ -48,7 +51,7 @@ final class AuthController extends ApiController
             return $this->unauthorized('Invalid credentials');
         }
 
-        $token = $user->createToken('auth-token')->plainTextToken;
+        $token = $this->deviceSessionService->issueToken($user, $request->device_id, $request->device_name);
 
         return $this->success([
             'user' => new AuthenticatedUserResource($user),

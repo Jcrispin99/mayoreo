@@ -8,11 +8,13 @@ use App\Actions\Pricing\ResolvePriceTierAction;
 use App\Actions\Sales\ResolveSaleStockConsumptionAction;
 use App\Enums\PosPaymentMethod;
 use App\Exceptions\CashRegisterSessionException;
+use App\Exceptions\CustomerOperationException;
 use App\Exceptions\PosCheckoutException;
 use App\Exceptions\PosCheckoutTotalChangedException;
 use App\Exceptions\PosOrderException;
 use App\Models\CashRegister;
 use App\Models\CashRegisterSession;
+use App\Models\Customer;
 use App\Models\DocumentSeries;
 use App\Models\FiscalDocument;
 use App\Models\PosOrder;
@@ -95,6 +97,20 @@ final readonly class CompletePosOrderAction
             if ($lockedOrder->status !== 'open') {
                 throw PosOrderException::notOpen($lockedOrder->id);
             }
+
+            if ($lockedOrder->supplyRequests()->whereIn('status', ['draft', 'in_transit'])->exists()) {
+                throw PosOrderException::supplyPending($lockedOrder->id);
+            }
+
+            $customer = null;
+            if ($lockedOrder->customer_id !== null) {
+                $customer = Customer::query()->lockForUpdate()->find($lockedOrder->customer_id);
+
+                if (! $customer instanceof Customer || ! $customer->is_active) {
+                    throw CustomerOperationException::inactive($lockedOrder->customer_id);
+                }
+            }
+            $lockedOrder->setRelation('customer', $customer);
 
             $items = $lockedOrder->items()
                 ->orderBy('product_id')
@@ -227,10 +243,10 @@ final readonly class CompletePosOrderAction
                 'warehouse_id' => $warehouse->id,
                 'cash_register_session_id' => $lockedSession->id,
                 'pos_order_id' => $lockedOrder->id,
-                'customer_id' => null,
+                'customer_id' => $customer?->id,
                 'source' => 'pos',
-                'customer_name' => null,
-                'customer_document' => null,
+                'customer_name' => $customer?->name,
+                'customer_document' => $customer?->document_number,
                 'notes' => null,
                 'status' => 'completed',
                 'subtotal' => $subtotal,
@@ -306,6 +322,7 @@ final readonly class CompletePosOrderAction
 
             $freshOrder = $lockedOrder->fresh($this->orderRelations()) ?? $lockedOrder;
             $freshSale = $sale->fresh([
+                'customer',
                 'items.product.baseUnit',
                 'items.stockProduct.baseUnit',
                 'items.inputUnit',
@@ -410,6 +427,7 @@ final readonly class CompletePosOrderAction
     private function orderRelations(): array
     {
         return [
+            'customer',
             'items.product.baseUnit',
             'items.product.contentUnit',
             'items.product.template',

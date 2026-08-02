@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Pos\AssignPosOrderCustomerAction;
 use App\Actions\Pos\CancelPosOrderAction;
 use App\Actions\Pos\CreatePosOrderAction;
 use App\Exceptions\CashRegisterSessionException;
 use App\Exceptions\PosOrderException;
 use App\Http\Controllers\Api\ApiController;
+use App\Http\Requests\Api\V1\AssignPosOrderCustomerRequest;
 use App\Http\Resources\PosOrderResource;
 use App\Models\CashRegisterSession;
 use App\Models\PosOrder;
@@ -21,6 +23,7 @@ final class PosOrderController extends ApiController
     public function __construct(
         private readonly CreatePosOrderAction $createAction,
         private readonly CancelPosOrderAction $cancelAction,
+        private readonly AssignPosOrderCustomerAction $assignCustomerAction,
     ) {}
 
     public function index(CashRegisterSession $cashRegisterSession): JsonResponse
@@ -58,6 +61,20 @@ final class PosOrderController extends ApiController
         return $this->success(new PosOrderResource($order), 'Orden cancelada');
     }
 
+    public function updateCustomer(
+        AssignPosOrderCustomerRequest $request,
+        CashRegisterSession $cashRegisterSession,
+        PosOrder $posOrder,
+    ): JsonResponse {
+        $order = $this->assignCustomerAction->execute(
+            $cashRegisterSession,
+            $posOrder,
+            $request->customerId(),
+        );
+
+        return $this->success(new PosOrderResource($this->loadOrder($order)), 'Cliente de la orden actualizado');
+    }
+
     private function ensureOpenSession(CashRegisterSession $session): void
     {
         if ($session->status !== 'open') {
@@ -81,6 +98,7 @@ final class PosOrderController extends ApiController
     private function orderRelations(): array
     {
         return [
+            'customer',
             'items.product.baseUnit',
             'items.product.contentUnit',
             'items.product.template',

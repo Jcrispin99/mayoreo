@@ -35,4 +35,9 @@ final class PosOrderException extends DomainException
     {
         return new self("La tienda [{$storeId}] no tiene un almacén principal para abastecer al POS.");
     }
+
+    public static function supplyPending(int $orderId): self
+    {
+        return new self("La orden [{$orderId}] está siendo preparada por almacén.");
+    }
 }
