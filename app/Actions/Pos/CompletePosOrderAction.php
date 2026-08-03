@@ -98,7 +98,7 @@ final readonly class CompletePosOrderAction
                 throw PosOrderException::notOpen($lockedOrder->id);
             }
 
-            if ($lockedOrder->supplyRequests()->whereIn('status', ['draft', 'in_transit'])->exists()) {
+            if ($lockedOrder->supplyRequests()->whereNotIn('status', ['delivered', 'cancelled'])->exists()) {
                 throw PosOrderException::supplyPending($lockedOrder->id);
             }
 
@@ -434,7 +434,10 @@ final readonly class CompletePosOrderAction
             'items.product.priceTiers' => function (Relation $relation): void {
                 $relation->getQuery()->where('is_active', true)->orderBy('min_quantity');
             },
-            'supplyRequests.items',
+            'supplyRequests.items.product.baseUnit',
+            'supplyRequests.assignee',
+            'supplyRequests.fromWarehouse.store',
+            'supplyRequests.toWarehouse.store',
         ];
     }
 }

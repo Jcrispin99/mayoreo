@@ -27,6 +27,13 @@
       "expo-router",
       "expo-status-bar",
       [
+        "expo-notifications",
+        {
+          "color": "#B4232D",
+            "defaultChannel": "price-changes-v2"
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {

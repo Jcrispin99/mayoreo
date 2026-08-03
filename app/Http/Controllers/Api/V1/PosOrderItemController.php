@@ -33,6 +33,9 @@ final class PosOrderItemController extends ApiController
             $product,
             $request->quantity(),
             $request->unitCode(),
+            $request->user()?->id,
+            $request->warehouseNotes(),
+            $request->warehouseNotesProvided(),
         );
 
         return $this->created(new PosOrderResource($order), 'Producto agregado');
@@ -50,6 +53,9 @@ final class PosOrderItemController extends ApiController
             $item,
             $request->quantity(),
             $request->unitCode(),
+            $request->user()?->id,
+            $request->warehouseNotes(),
+            $request->warehouseNotesProvided(),
         );
 
         return $this->success(new PosOrderResource($order), 'Cantidad actualizada');
@@ -60,7 +66,7 @@ final class PosOrderItemController extends ApiController
         PosOrder $posOrder,
         Productable $item,
     ): JsonResponse {
-        $order = $this->saveAction->remove($cashRegisterSession, $posOrder, $item);
+        $order = $this->saveAction->remove($cashRegisterSession, $posOrder, $item, request()->user()?->id);
 
         return $this->success(new PosOrderResource($order), 'Producto retirado');
     }

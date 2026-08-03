@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Exceptions\DeviceAlreadyLinkedException;
 use App\Exceptions\DomainException;
 use App\Exceptions\PosCheckoutTotalChangedException;
+use App\Exceptions\StalePosSupplyRequestException;
 use App\Exceptions\WholesaleSaleTotalChangedException;
 use App\Http\Middleware\EnsureEmailVerified;
 use App\Http\Middleware\ForceJsonResponse;
@@ -61,6 +62,13 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (DeviceAlreadyLinkedException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 409);
+        });
+
+        $exceptions->render(function (StalePosSupplyRequestException $e) {
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),

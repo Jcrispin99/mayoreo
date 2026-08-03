@@ -42,6 +42,7 @@ final class PosOrderItemResource extends JsonResource
             'product_id' => $this->product_id,
             'product' => $this->when($productData !== null, $productData),
             'quantity' => $this->quantity,
+            'warehouse_notes' => $this->warehouse_notes,
             'input_quantity' => $this->input_quantity,
             'input_unit_id' => $this->input_unit_id,
             'price_tier_id' => $this->price_tier_id,

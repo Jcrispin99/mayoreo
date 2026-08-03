@@ -20,7 +20,7 @@ import type {
   PosOrderItem,
 } from './pos-types';
 import type { Customer } from '../customers/customer-types';
-import type { WarehouseAssignee } from '../inventory/inventory-types';
+import type { PosSupplyRequest, PosSupplyRequestStatus, WarehouseAssignee } from '../inventory/inventory-types';
 
 type OrderNotice = {
   message: string;
@@ -47,6 +47,13 @@ function requestErrorMessage(requestError: any, fallback: string) {
     ? firstValidationError
     : requestError?.response?.data?.message ?? fallback;
 }
+
+const ACTIVE_SUPPLY_STATUSES: PosSupplyRequestStatus[] = [
+  'assigned',
+  'preparing',
+  'changes_pending',
+  'ready',
+];
 
 export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
   const [session, setSession] = useState<CashRegisterSession | null>(null);
@@ -143,7 +150,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
   // se hace polling periódico de esa orden hasta que quede resuelta.
   const pendingSupplyOrderIds = useMemo(
     () => orders
-      .filter((order) => order.supply_requests?.some((request) => request.status !== 'received'))
+      .filter((order) => order.supply_requests?.some((request) => ACTIVE_SUPPLY_STATUSES.includes(request.status)))
       .map((order) => order.id)
       .join(','),
     [orders],
@@ -165,9 +172,6 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
     () => orders.find((order) => order.id === activeOrderId) ?? orders.at(-1) ?? null,
     [activeOrderId, orders],
   );
-  const activeOrderPendingSupply = activeOrder?.supply_requests?.some(
-    (request) => request.status === 'draft' || request.status === 'in_transit',
-  ) ?? false;
   const checkoutOrder = useMemo(
     () => orderOverlay.kind === 'checkout'
       ? orders.find((order) => order.id === orderOverlay.orderId) ?? null
@@ -175,12 +179,10 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
     [orderOverlay, orders],
   );
   const activeOrderQuantities = useMemo(
-    () => activeOrderPendingSupply
-      ? {}
-      : Object.fromEntries(
-        (activeOrder?.items ?? []).map((item) => [item.product_id, Number(item.quantity) || 0]),
-      ),
-    [activeOrder, activeOrderPendingSupply],
+    () => Object.fromEntries(
+      (activeOrder?.items ?? []).map((item) => [item.product_id, Number(item.quantity) || 0]),
+    ),
+    [activeOrder],
   );
 
   function leavePos() {
@@ -291,6 +293,25 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
     }
   }
 
+  async function receiveSupply(order: PosOrder, request: PosSupplyRequest) {
+    if (!session) return;
+
+    const updatedOrder = await runOrderMutation(async () => {
+      await api.post(
+        `/cash-register-sessions/${session.id}/orders/${order.id}/supply-requests/${request.id}/receive`,
+        { expected_version: request.version },
+      );
+      return reloadOrder(order.id);
+    });
+
+    if (updatedOrder) {
+      setOrderNotice({
+        message: `Pedido de la orden ${order.number} recibido. Ya puedes cobrar.`,
+        error: false,
+      });
+    }
+  }
+
   async function requestNewOrder(): Promise<PosOrder> {
     if (!session) throw new Error('No hay una apertura de caja disponible.');
 
@@ -342,9 +363,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
 
     setAddingProductId(product.id);
     const updatedOrder = await runOrderMutation(async () => {
-      const order = activeOrder && !activeOrderPendingSupply
-        ? activeOrder
-        : await requestNewOrder();
+      const order = activeOrder ?? await requestNewOrder();
       const response = await api.post(
         `/cash-register-sessions/${session.id}/orders/${order.id}/items`,
         { product_id: product.id, quantity: addQuantity },
@@ -375,15 +394,11 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
     if (!session || !quantityProduct || orderMutation.current) return false;
 
     const product = quantityProduct;
-    const existingItem = activeOrderPendingSupply
-      ? null
-      : activeOrder?.items.find((item) => item.product_id === product.id) ?? null;
+    const existingItem = activeOrder?.items.find((item) => item.product_id === product.id) ?? null;
     setAddingProductId(product.id);
 
     const updatedOrder = await runOrderMutation(async () => {
-      const order = activeOrder && !activeOrderPendingSupply
-        ? activeOrder
-        : await requestNewOrder();
+      const order = activeOrder ?? await requestNewOrder();
       const payload = { quantity: inputQuantity, unit_code: unitCode };
       const response = existingItem
         ? await api.patch(
@@ -449,6 +464,47 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
 
     replaceOrder(updatedOrder);
     setOrderNotice(null);
+    return true;
+  }
+
+  async function updateOrderWarehouseNotes(order: PosOrder, warehouseNotes: string): Promise<boolean> {
+    if (!session) return false;
+
+    const updatedOrder = await runOrderMutation(async () => {
+      const response = await api.patch(
+        `/cash-register-sessions/${session.id}/orders/${order.id}/warehouse-notes`,
+        { warehouse_notes: warehouseNotes.trim() || null },
+      );
+      return response.data.data as PosOrder;
+    });
+
+    if (!updatedOrder) return false;
+    replaceOrder(updatedOrder);
+    setOrderNotice({ message: 'Indicaciones generales actualizadas.', error: false });
+    return true;
+  }
+
+  async function updateItemWarehouseNotes(
+    order: PosOrder,
+    item: PosOrderItem,
+    warehouseNotes: string,
+  ): Promise<boolean> {
+    if (!session) return false;
+
+    const updatedOrder = await runOrderMutation(async () => {
+      const response = await api.patch(
+        `/cash-register-sessions/${session.id}/orders/${order.id}/items/${item.id}`,
+        {
+          quantity: item.quantity,
+          warehouse_notes: warehouseNotes.trim() || null,
+        },
+      );
+      return response.data.data as PosOrder;
+    });
+
+    if (!updatedOrder) return false;
+    replaceOrder(updatedOrder);
+    setOrderNotice({ message: `Indicación de ${item.product.name} actualizada.`, error: false });
     return true;
   }
 
@@ -719,11 +775,14 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
           onDismissNotice={() => setOrderNotice(null)}
           onEditMeasuredItem={editMeasuredOrderItem}
           onRemoveItem={(order, item) => void removeOrderItem(order, item)}
+          onReceiveSupply={(order, request) => void receiveSupply(order, request)}
           onRequestSupply={(order, assignedTo) => void requestSupply(order, assignedTo)}
           onSelectOrder={setActiveOrderId}
           onUpdateQuantity={(order, item, quantity) => void updateOrderQuantity(order, item, quantity)}
           onUpdateCustomer={updateOrderCustomer}
+          onUpdateItemWarehouseNotes={updateItemWarehouseNotes}
           orders={orders}
+          onUpdateWarehouseNotes={updateOrderWarehouseNotes}
           sessionOpen={session?.status === 'open'}
           visible
           warehouseAssignees={warehouseAssignees}

@@ -36,10 +36,6 @@ final readonly class AssignPosOrderCustomerAction
                 throw PosOrderException::notOpen($lockedOrder->id);
             }
 
-            if ($lockedOrder->supplyRequests()->whereIn('status', ['draft', 'in_transit'])->exists()) {
-                throw PosOrderException::supplyPending($lockedOrder->id);
-            }
-
             if ($customerId !== null) {
                 $customer = Customer::query()->lockForUpdate()->find($customerId);
 

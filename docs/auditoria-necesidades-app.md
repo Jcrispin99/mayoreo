@@ -1,6 +1,6 @@
 # Auditoría de necesidades de la app
 
-Fecha de revisión: 28 de julio de 2026.
+Fecha de revisión: 1 de agosto de 2026.
 
 ## Alcance
 
@@ -19,12 +19,12 @@ Es una auditoría estática del código disponible en el repositorio. Confirma q
 
 | Resultado | Cantidad |
 |---|---:|
-| ✅ Cumplido | 4 |
-| 🟡 Parcial | 7 |
+| ✅ Cumplido | 6 |
+| 🟡 Parcial | 5 |
 | ❌ Falta / ⚪ no verificable | 2 |
 | **Total de necesidades revisadas** | **13** |
 
-La app ya tiene una buena base para inventario, compras, ventas, POS, búsqueda, usuarios, roles y documentos fiscales. Lo más importante que falta no es el registro básico de ventas, sino cerrar los flujos operativos: ajuste directo de stock desde una pantalla, roles exactos, observaciones por pedido, sincronización en tiempo real, alertas de precios, emisión fiscal visible desde la app y acceso restringido por VPN.
+La app ya tiene una buena base para inventario, compras, ventas, POS, búsqueda, usuarios, roles y documentos fiscales. La coordinación POS-almacén ya permite preparación por ítem, cambios versionados y aviso visual mediante actualización periódica. Las brechas principales restantes son el ajuste directo de stock desde una pantalla, observaciones por pedido, alertas de precios, emisión fiscal visible desde la app y acceso restringido por VPN.
 
 ## Matriz de cumplimiento
 
@@ -38,9 +38,9 @@ La app ya tiene una buena base para inventario, compras, ventas, POS, búsqueda,
 | 6 | Privacidad de ingreso mediante VPN | ⚪ | La app de producción apunta a una URL HTTPS y la API exige autenticación Sanctum en sus rutas protegidas. | No hay configuración de WireGuard/OpenVPN/Tailscale, restricción por red o IP, ni evidencia de que el servidor solo sea accesible desde una VPN. El Nginx incluido escucha en HTTP/80 y CORS permite cualquier origen. HTTPS y token ayudan, pero **no equivalen a exigir VPN**. Esto debe resolverse y probarse en la infraestructura de despliegue. |
 | 7 | Opciones de descuento, identificadas por color, para productos seleccionados | 🟡 | Existen precios por rango de cantidad, etiquetas de precio, variantes y atributos como color. Un valor de atributo puede modificar el precio de una variante. | No existe un concepto explícito de descuento manual o promoción, porcentaje/monto descontado, autorización de descuento, motivo, vigencia ni botones/colores de descuento en el POS. Tampoco se conserva el precio original frente al descuento aplicado. Se necesita precisar qué representa cada color. |
 | 8 | Emitir boleta, nota de venta o factura desde la app | 🟡 | La app genera notas de venta con serie y correlativo tanto en POS como en venta mayorista. El backend soporta `sales_ticket`, `receipt` y `invoice`, conversión de una nota a boleta/factura, configuración SUNAT, certificado, envío y respuesta CDR. | El POS y la pantalla de nueva venta seleccionan únicamente serie de nota de venta. No se encontró en la app un botón para convertir/emitir boleta o factura, enviarla a SUNAT, ver su estado fiscal, descargar/compartir PDF o imprimir. La capacidad existe principalmente en backend. |
-| 9 | Tres tipos de usuario: administrador, vendedor y almacén | 🟡 | El sistema permite crear roles personalizados y asignar permisos. Actualmente se crean los roles `admin`, `manager`, `cashier` y `viewer`. | No están definidos exactamente los tres perfiles solicitados. Falta crear `vendedor` y `almacén`, acordar sus permisos, limitar sus menús y probar cada recorrido. El rol `cashier` se aproxima a vendedor, pero no es una equivalencia formal; tampoco existe un rol de almacén preconfigurado. |
-| 10 | Descripción u observaciones en cada lista/pedido para almacén o delivery | 🟡 | Hay descripción de productos y observaciones en compras, ventas, transferencias, ajustes/Kardex y movimientos de caja. | Las órdenes POS y sus líneas no tienen un campo de observación editable. La comanda de almacén usa una nota generada automáticamente y su pantalla no muestra una instrucción personalizada. No existe un flujo o entidad de delivery con observaciones de reparto. No se cumple todavía “en cada lista”. |
-| 11 | Modificar una lista en tiempo real y avisar al almacenero | 🟡 | Una orden POS abierta puede cambiar cantidades o eliminar productos mediante API. La pantalla de comandas de almacén consulta pendientes cada 4 segundos, por lo que una comanda nueva aparece con poca demora. | No hay WebSockets/SSE, eventos de dominio, notificaciones push, sonido, vibración ni resaltado de ítems cambiados. La comanda es una copia de lo solicitado: si luego cambia la orden, la comanda ya creada no se actualiza ni marca diferencias; disminuir o quitar productos tampoco revierte automáticamente lo pedido al almacén. |
+| 9 | Tres tipos de usuario: administrador, vendedor y almacén | 🟡 | Existen los roles preconfigurados `admin`, `cashier` y `warehouse`, además de `manager` y `viewer`. Almacén solo consulta y prepara los pedidos que le fueron asignados; el vendedor puede asignarlos. | Los nombres `cashier` y `warehouse` aún no coinciden literalmente con `vendedor` y `almacén`, y conviene terminar una prueba de aceptación de menús por perfil. |
+| 10 | Descripción u observaciones en cada lista/pedido para almacén o delivery | ✅ | La orden POS tiene indicaciones generales y cada producto admite su propia indicación para almacén. Ambas se copian al pedido, se muestran en la cola asignada y cualquier edición posterior genera una versión nueva resaltada sin perder los checks preparados. | El alcance implementado es POS–almacén. Si posteriormente se crea un módulo independiente de reparto, deberá reutilizar o copiar estas indicaciones para delivery. |
+| 11 | Modificar una lista en tiempo real y avisar al almacenero | ✅ | La orden POS permanece editable mientras almacén prepara. Cada alta, aumento, disminución o retiro actualiza el mismo pedido con una versión nueva; almacén consulta cada 4 segundos, ve tarjeta e ítems resaltados, confirma la revisión y marca cada línea alistada. Una versión antigua recibe conflicto `409`. El POS ve cuándo queda listo y confirma la recepción antes de cobrar. | WebSockets, push, sonido y vibración pueden reducir la demora y avisar con la app en segundo plano, pero no son necesarios para el flujo principal actualmente implementado. |
 | 12 | Alertar a vendedores por cambios de precio y resaltar el ítem 48/72 horas | ❌ | Los precios por rango guardan `updated_at`, y el checkout detecta si el total cambió antes de cobrar. | No hay historial/evento de cambio de precio, destinatarios, notificación, sonido, confirmación de lectura ni resaltado temporal. El botón de notificaciones de la app actualmente solo muestra “No tienes notificaciones nuevas”. Tampoco hay configuración para elegir 48 o 72 horas. |
 | 13 | Ingresar un monto libre para productos vendidos por gramos | 🟡 | El POS admite peso libre en gramos o kilogramos, valores rápidos y decimales. Calcula automáticamente el total usando el rango de precio correspondiente. | Solo se ingresa la **cantidad**. Falta el modo inverso: escribir, por ejemplo, `S/ 10.00` y que la app calcule los gramos equivalentes con una regla clara de redondeo, mostrando monto solicitado, peso calculado y monto final. |
 
@@ -71,6 +71,8 @@ La app ya tiene una buena base para inventario, compras, ventas, POS, búsqueda,
 ### Comandas, tiempo real y notificaciones
 
 - Solicitudes de preparación/reposición desde el POS: [`app/Actions/Pos/RequestPosOrderSupplyAction.php`](../app/Actions/Pos/RequestPosOrderSupplyAction.php).
+- Sincronización versionada de cambios del POS: [`app/Actions/Pos/SyncPosSupplyRequestAction.php`](../app/Actions/Pos/SyncPosSupplyRequestAction.php).
+- Checks, revisión y estado listo de almacén: [`app/Actions/Pos/ManagePosSupplyPreparationAction.php`](../app/Actions/Pos/ManagePosSupplyPreparationAction.php).
 - Cola de almacén con consulta cada 4 segundos: [`frontend/features/inventory/pos-supply-request-list.tsx`](../frontend/features/inventory/pos-supply-request-list.tsx).
 - El botón de notificaciones aún es informativo: [`frontend/components/module/module-layout.tsx`](../frontend/components/module/module-layout.tsx).
 - No se encontraron dependencias o implementaciones de WebSockets, notificaciones push o reproducción de sonidos en los paquetes actuales.
@@ -118,12 +120,10 @@ La app ya tiene una buena base para inventario, compras, ventas, POS, búsqueda,
    - Instrucciones separadas para almacén y delivery.
    - Historial de quién cambió qué y cuándo.
 
-5. **Implementar sincronización y alertas reales.**
-   - Evento al crear, aumentar, disminuir o quitar una línea.
-   - Actualización de la comanda existente, no solo creación de otra copia.
-   - Indicador visual por ítem agregado, cambiado o retirado.
-   - Sonido/vibración configurables y confirmación de lectura.
-   - Estrategia de reconexión y recuperación de eventos perdidos.
+5. **Mejorar las alertas de pedidos para segundo plano.**
+   - Mantener el versionado, confirmación de lectura y recuperación por consulta ya implementados.
+   - Agregar WebSockets o push cuando se disponga de infraestructura y credenciales.
+   - Incorporar sonido/vibración configurables sin duplicar avisos.
 
 6. **Implementar aviso de cambios de precio.**
    - Registrar precio anterior, nuevo, producto, administrador y fecha.

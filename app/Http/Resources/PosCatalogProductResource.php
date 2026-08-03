@@ -30,6 +30,8 @@ final class PosCatalogProductResource extends JsonResource
             'stock_configuration_error' => $this->getAttribute('stock_configuration_error'),
             'price_tiers' => PriceTierResource::collection($this->whenLoaded('priceTiers')),
             'is_favorite' => $this->is_favorite,
+            'price_changed_at' => $this->price_changed_at?->toIso8601String(),
+            'price_highlight_until' => $this->price_highlight_until?->toIso8601String(),
         ];
     }
 

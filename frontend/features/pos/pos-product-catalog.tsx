@@ -12,6 +12,7 @@ import {
 import { ActivityIndicator, Button, Icon, Text } from 'react-native-paper';
 import { ListSearch, type ListFilterOption } from '../../components/data/list-search';
 import { api } from '../../lib/api';
+import { usePriceNotifications } from '../../lib/price-notifications-context';
 import { catalogPriceSummary } from './pos-measurement';
 import type { PosCatalogProduct } from './pos-types';
 
@@ -55,6 +56,10 @@ function ProductCard({
 }) {
   const price = catalogPriceSummary(product);
   const stockUnit = product.base_unit?.code ?? product.base_unit?.name ?? 'unidades';
+  const priceRecentlyChanged = Boolean(
+    product.price_highlight_until
+    && new Date(product.price_highlight_until).getTime() > Date.now(),
+  );
 
   return (
     <Pressable
@@ -64,6 +69,7 @@ function ProductCard({
       onPress={onPress}
       style={({ pressed }) => [
         styles.productCard,
+        priceRecentlyChanged && styles.productCardPriceChanged,
         pressed && styles.productCardPressed,
         adding && styles.productCardAdding,
       ]}
@@ -94,6 +100,12 @@ function ProductCard({
             >
               {formatNumber(orderQuantity)}
             </Text>
+          </View>
+        ) : null}
+        {priceRecentlyChanged ? (
+          <View pointerEvents="none" style={styles.priceChangedBadge}>
+            <Icon color="#7A4300" size={14} source="tag-outline" />
+            <Text style={styles.priceChangedBadgeText}>PRECIO NUEVO</Text>
           </View>
         ) : null}
       </View>
@@ -163,6 +175,7 @@ export function PosProductCatalog({
   query,
   searchExpanded,
 }: PosProductCatalogProps) {
+  const { catalogVersion } = usePriceNotifications();
   const { width } = useWindowDimensions();
   const [catalogWidth, setCatalogWidth] = useState(width);
   const [products, setProducts] = useState<PosCatalogProduct[]>([]);
@@ -225,7 +238,7 @@ export function PosProductCatalog({
       controller.abort();
       loadMoreController.current?.abort();
     };
-  }, [activeFilterIds, cashSessionId, debouncedQuery, reloadKey]);
+  }, [activeFilterIds, cashSessionId, catalogVersion, debouncedQuery, reloadKey]);
 
   const loadMoreProducts = useCallback(async () => {
     if (loading || loadingMoreRef.current || !hasMore || !nextCursor) return;
@@ -382,6 +395,7 @@ const styles = StyleSheet.create({
   catalogHeading: { paddingTop: 12, paddingBottom: 8 },
   productRow: { width: '100%', gap: 8, marginBottom: 8 },
   productCard: { overflow: 'hidden', borderWidth: 1, borderColor: '#DFE5E7', borderRadius: 10, backgroundColor: '#FFFFFF' },
+  productCardPriceChanged: { borderWidth: 2, borderColor: '#E7A83D', backgroundColor: '#FFF9EC' },
   productCardPressed: { borderColor: '#75A9B7', transform: [{ scale: 0.985 }] },
   productCardAdding: { opacity: 0.72 },
   imageFrame: { position: 'relative', width: '100%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EAEFEE' },
@@ -389,6 +403,8 @@ const styles = StyleSheet.create({
   favoriteBadge: { position: 'absolute', top: 7, left: 7, width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', borderRadius: 15, backgroundColor: '#FF4D4D' },
   orderQuantityBadge: { position: 'absolute', top: 7, right: 7, width: 31, height: 31, paddingHorizontal: 3, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', borderRadius: 16, backgroundColor: '#B4232D' },
   orderQuantityText: { width: '100%', color: '#FFFFFF', fontSize: 10, fontWeight: '900', textAlign: 'center' },
+  priceChangedBadge: { position: 'absolute', left: 7, right: 7, bottom: 7, minHeight: 27, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 8, backgroundColor: '#FFE1A8' },
+  priceChangedBadgeText: { color: '#7A4300', fontSize: 9, fontWeight: '900' },
   cardBody: { padding: 8 },
   productName: { minHeight: 35, color: '#172423', fontSize: 13, lineHeight: 17, fontWeight: '900' },
   productSku: { marginTop: 2, color: '#60706E', fontSize: 9, fontWeight: '700' },

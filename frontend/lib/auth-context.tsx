@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api, setAuthToken } from './api';
+import { getDeviceName, getPersistentDeviceId } from './device-session';
 
 const TOKEN_STORAGE_KEY = 'mayoreo.auth.token';
 
@@ -46,7 +47,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       isLoading,
       async login(email: string, password: string) {
-        const response = await api.post('/login', { email, password });
+        const deviceId = await getPersistentDeviceId();
+        const deviceName = getDeviceName();
+        const response = await api.post('/login', {
+          email,
+          password,
+          device_id: deviceId,
+          device_name: deviceName,
+        });
         const { token, user: loggedInUser } = response.data.data;
         await AsyncStorage.setItem(TOKEN_STORAGE_KEY, token);
         setAuthToken(token);

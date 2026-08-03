@@ -21,6 +21,7 @@ final readonly class SavePosOrderItemAction
     public function __construct(
         private ResolvePriceTierAction $resolvePriceTierAction,
         private UnitConversionService $unitConversionService,
+        private SyncPosSupplyRequestAction $syncSupplyRequestAction,
     ) {}
 
     /** @param numeric-string $quantity */
@@ -30,8 +31,11 @@ final readonly class SavePosOrderItemAction
         Product $product,
         string $quantity,
         ?string $unitCode = null,
+        ?int $actorId = null,
+        ?string $warehouseNotes = null,
+        bool $warehouseNotesProvided = false,
     ): PosOrder {
-        return DB::transaction(function () use ($session, $order, $product, $quantity, $unitCode): PosOrder {
+        return DB::transaction(function () use ($session, $order, $product, $quantity, $unitCode, $actorId, $warehouseNotes, $warehouseNotesProvided): PosOrder {
             [$lockedSession, $lockedOrder] = $this->lockContext($session, $order);
             $availableProduct = $this->availableProduct($lockedSession, $product);
             $this->validateQuantityMode($availableProduct, $quantity);
@@ -52,7 +56,8 @@ final readonly class SavePosOrderItemAction
                 $newQuantity = bcadd('0', $quantityInBaseUnit, 6);
             }
 
-            $this->saveLine($lockedOrder, $availableProduct, $item, $newQuantity);
+            $this->saveLine($lockedOrder, $availableProduct, $item, $newQuantity, $warehouseNotes, $warehouseNotesProvided);
+            $this->syncSupplyRequestAction->execute($lockedOrder, $actorId);
 
             return $this->refreshTotals($lockedOrder);
         });
@@ -65,8 +70,11 @@ final readonly class SavePosOrderItemAction
         Productable $item,
         string $quantity,
         ?string $unitCode = null,
+        ?int $actorId = null,
+        ?string $warehouseNotes = null,
+        bool $warehouseNotesProvided = false,
     ): PosOrder {
-        return DB::transaction(function () use ($session, $order, $item, $quantity, $unitCode): PosOrder {
+        return DB::transaction(function () use ($session, $order, $item, $quantity, $unitCode, $actorId, $warehouseNotes, $warehouseNotesProvided): PosOrder {
             [$lockedSession, $lockedOrder] = $this->lockContext($session, $order);
             $lockedItem = $lockedOrder->items()->lockForUpdate()->find($item->id);
 
@@ -82,7 +90,15 @@ final readonly class SavePosOrderItemAction
                 $quantity,
                 $unitCode,
             );
-            $this->saveLine($lockedOrder, $availableProduct, $lockedItem, $quantityInBaseUnit);
+            $this->saveLine(
+                $lockedOrder,
+                $availableProduct,
+                $lockedItem,
+                $quantityInBaseUnit,
+                $warehouseNotes,
+                $warehouseNotesProvided,
+            );
+            $this->syncSupplyRequestAction->execute($lockedOrder, $actorId);
 
             return $this->refreshTotals($lockedOrder);
         });
@@ -92,8 +108,9 @@ final readonly class SavePosOrderItemAction
         CashRegisterSession $session,
         PosOrder $order,
         Productable $item,
+        ?int $actorId = null,
     ): PosOrder {
-        return DB::transaction(function () use ($session, $order, $item): PosOrder {
+        return DB::transaction(function () use ($session, $order, $item, $actorId): PosOrder {
             [, $lockedOrder] = $this->lockContext($session, $order);
             $lockedItem = $lockedOrder->items()->lockForUpdate()->find($item->id);
 
@@ -102,6 +119,7 @@ final readonly class SavePosOrderItemAction
             }
 
             $lockedItem->delete();
+            $this->syncSupplyRequestAction->execute($lockedOrder, $actorId);
 
             return $this->refreshTotals($lockedOrder);
         });
@@ -127,10 +145,6 @@ final readonly class SavePosOrderItemAction
 
         if ($lockedOrder->status !== 'open') {
             throw PosOrderException::notOpen($lockedOrder->id);
-        }
-
-        if ($lockedOrder->supplyRequests()->whereIn('status', ['draft', 'in_transit'])->exists()) {
-            throw PosOrderException::supplyPending($lockedOrder->id);
         }
 
         return [$lockedSession, $lockedOrder];
@@ -184,6 +198,8 @@ final readonly class SavePosOrderItemAction
         Product $product,
         ?Productable $item,
         string $quantity,
+        ?string $warehouseNotes,
+        bool $warehouseNotesProvided,
     ): void {
         $priceTier = $this->resolvePriceTierAction->execute($product, $quantity);
         /** @var numeric-string $unitPrice */
@@ -198,6 +214,10 @@ final readonly class SavePosOrderItemAction
             'unit_price' => $priceTier->unit_price,
             'line_total' => $lineTotal,
         ];
+
+        if (! $item instanceof Productable || $warehouseNotesProvided) {
+            $values['warehouse_notes'] = $warehouseNotes;
+        }
 
         if ($item instanceof Productable) {
             $item->update($values);
@@ -231,7 +251,10 @@ final readonly class SavePosOrderItemAction
             'items.product.priceTiers' => function (Relation $relation): void {
                 $relation->getQuery()->where('is_active', true)->orderBy('min_quantity');
             },
-            'supplyRequests.items',
+            'supplyRequests.items.product.baseUnit',
+            'supplyRequests.assignee',
+            'supplyRequests.fromWarehouse.store',
+            'supplyRequests.toWarehouse.store',
         ]) ?? $order;
     }
 }

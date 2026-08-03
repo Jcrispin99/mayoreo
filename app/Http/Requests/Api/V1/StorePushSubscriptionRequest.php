@@ -1,0 +1,31 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Requests\Api\V1;
+
+use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+final class StorePushSubscriptionRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /** @return array<string, ValidationRule|array<mixed>|string> */
+    public function rules(): array
+    {
+        return [
+            'expo_push_token' => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^(ExponentPushToken|ExpoPushToken)\[[A-Za-z0-9_-]+\]$/',
+            ],
+            'platform' => ['required', Rule::in(['android', 'ios'])],
+        ];
+    }
+}

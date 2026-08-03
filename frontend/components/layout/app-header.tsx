@@ -11,6 +11,7 @@ type AppHeaderProps = {
   onApplicationsPress?: () => void;
   onMenuPress?: () => void;
   onNotificationsPress?: () => void;
+  notificationCount?: number;
   onProfilePress?: () => void;
 };
 
@@ -34,6 +35,7 @@ export function AppHeader({
   onApplicationsPress,
   onMenuPress,
   onNotificationsPress,
+  notificationCount = 0,
   onProfilePress,
 }: AppHeaderProps) {
   return (
@@ -79,7 +81,13 @@ export function AppHeader({
               style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
             >
               <Icon source="bell-outline" color={COLORS.text} size={23} />
-              <View style={styles.notificationDot} />
+              {notificationCount > 0 ? (
+                <View style={styles.notificationBadge}>
+                  <Text adjustsFontSizeToFit numberOfLines={1} style={styles.notificationBadgeText}>
+                    {notificationCount > 99 ? '99+' : notificationCount}
+                  </Text>
+                </View>
+              ) : null}
             </Pressable>
           ) : null}
           {onProfilePress ? (
@@ -147,17 +155,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 7,
   },
-  notificationDot: {
+  notificationBadge: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: COLORS.secondary,
-    borderWidth: 1.5,
+    top: 2,
+    right: 1,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 9,
+    backgroundColor: COLORS.primaryDark,
+    borderWidth: 1,
     borderColor: COLORS.surface,
   },
+  notificationBadgeText: { color: COLORS.white, fontSize: 8, fontWeight: '900', textAlign: 'center' },
   avatar: {
     width: 36,
     height: 36,

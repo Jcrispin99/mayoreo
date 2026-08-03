@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AssignedPosSupplyRequestController;
+use App\Http\Controllers\Api\V1\AppNotificationController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CashRegisterController;
 use App\Http\Controllers\Api\V1\CashRegisterMovementController;
@@ -27,6 +28,7 @@ use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProductPurchaseUnitController;
 use App\Http\Controllers\Api\V1\ProductTemplateController;
 use App\Http\Controllers\Api\V1\PurchaseOrderController;
+use App\Http\Controllers\Api\V1\PushSubscriptionController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\StockController;
@@ -57,6 +59,16 @@ Route::middleware('throttle:auth')->group(function (): void {
 Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function (): void {
     Route::post('logout', [AuthController::class, 'logout'])->name('api.v1.logout');
     Route::get('me', [AuthController::class, 'me'])->name('api.v1.me');
+    Route::get('notifications', [AppNotificationController::class, 'index'])
+        ->name('api.v1.notifications.index');
+    Route::patch('notifications/read-all', [AppNotificationController::class, 'readAll'])
+        ->name('api.v1.notifications.read-all');
+    Route::patch('notifications/{notification}/read', [AppNotificationController::class, 'read'])
+        ->name('api.v1.notifications.read');
+    Route::post('push-subscriptions', [PushSubscriptionController::class, 'store'])
+        ->name('api.v1.push-subscriptions.store');
+    Route::delete('push-subscriptions/current', [PushSubscriptionController::class, 'destroy'])
+        ->name('api.v1.push-subscriptions.destroy');
 
     // Email verification
     Route::post('email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
@@ -144,6 +156,9 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     Route::patch('cash-register-sessions/{cash_register_session}/orders/{pos_order}/customer', [PosOrderController::class, 'updateCustomer'])
         ->middleware('can:cash-sessions.manage')
         ->name('api.v1.cash-register-sessions.orders.customer.update');
+    Route::patch('cash-register-sessions/{cash_register_session}/orders/{pos_order}/warehouse-notes', [PosOrderController::class, 'updateWarehouseNotes'])
+        ->middleware('can:cash-sessions.manage')
+        ->name('api.v1.cash-register-sessions.orders.warehouse-notes.update');
     Route::post('cash-register-sessions/{cash_register_session}/orders/{pos_order}/checkout', PosCheckoutController::class)
         ->middleware('can:cash-sessions.manage')
         ->name('api.v1.cash-register-sessions.orders.checkout');
@@ -162,6 +177,9 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     Route::get('pos/supply-assignees', [PosOrderSupplyRequestController::class, 'assignees'])
         ->middleware('can:pos-supply-requests.assign')
         ->name('api.v1.pos.supply-assignees.index');
+    Route::post('cash-register-sessions/{cash_register_session}/orders/{pos_order}/supply-requests/{pos_supply_request}/receive', [PosOrderSupplyRequestController::class, 'receive'])
+        ->middleware('can:pos-supply-requests.assign')
+        ->name('api.v1.cash-register-sessions.orders.supply-requests.receive');
     Route::post('cash-register-sessions/{cash_register_session}/movements', [CashRegisterMovementController::class, 'store'])
         ->middleware('can:cash-sessions.manage')
         ->name('api.v1.cash-register-movements.store');
@@ -263,9 +281,15 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     Route::get('warehouse/supply-requests', [AssignedPosSupplyRequestController::class, 'index'])
         ->middleware('can:pos-supply-requests.view-assigned')
         ->name('api.v1.warehouse.supply-requests.index');
-    Route::post('warehouse/supply-requests/{inventory_transfer}/resolve', [AssignedPosSupplyRequestController::class, 'resolve'])
-        ->middleware('can:pos-supply-requests.resolve-assigned')
-        ->name('api.v1.warehouse.supply-requests.resolve');
+    Route::post('warehouse/supply-requests/{pos_supply_request}/acknowledge', [AssignedPosSupplyRequestController::class, 'acknowledge'])
+        ->middleware('can:pos-supply-requests.prepare-assigned')
+        ->name('api.v1.warehouse.supply-requests.acknowledge');
+    Route::patch('warehouse/supply-requests/{pos_supply_request}/items/{item}', [AssignedPosSupplyRequestController::class, 'updateItem'])
+        ->middleware('can:pos-supply-requests.prepare-assigned')
+        ->name('api.v1.warehouse.supply-requests.items.update');
+    Route::post('warehouse/supply-requests/{pos_supply_request}/ready', [AssignedPosSupplyRequestController::class, 'ready'])
+        ->middleware('can:pos-supply-requests.prepare-assigned')
+        ->name('api.v1.warehouse.supply-requests.ready');
 
     // Ventas / POS
     Route::get('sales/summary', [SaleController::class, 'summary'])

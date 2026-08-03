@@ -35,11 +35,9 @@ final readonly class CancelPosOrderAction
                 throw PosOrderException::notOpen($lockedOrder->id);
             }
 
-            if ($lockedOrder->supplyRequests()->where('status', 'in_transit')->exists()) {
-                throw PosOrderException::supplyPending($lockedOrder->id);
-            }
-
-            $lockedOrder->supplyRequests()->where('status', 'draft')->update(['status' => 'cancelled']);
+            $lockedOrder->supplyRequests()
+                ->whereNotIn('status', ['delivered', 'cancelled'])
+                ->update(['status' => 'cancelled', 'cancelled_at' => now()]);
 
             $lockedOrder->update(['status' => 'cancelled']);
 

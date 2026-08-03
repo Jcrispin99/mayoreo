@@ -1,5 +1,5 @@
 import type { Customer } from '../customers/customer-types';
-import type { InventoryTransfer, Store, UnitOfMeasure, Warehouse } from '../inventory/inventory-types';
+import type { PosSupplyRequest, Store, UnitOfMeasure, Warehouse } from '../inventory/inventory-types';
 
 export type PosDocumentType = 'sales_ticket' | 'receipt' | 'invoice';
 
@@ -91,6 +91,8 @@ export type PosCatalogProduct = {
   stock_available: string;
   price_tiers: PosCatalogPriceTier[];
   is_favorite: boolean;
+  price_changed_at: string | null;
+  price_highlight_until: string | null;
 };
 
 export type PosOrderProduct = {
@@ -113,6 +115,7 @@ export type PosOrderItem = {
   product_id: number;
   product: PosOrderProduct;
   quantity: string;
+  warehouse_notes: string | null;
   input_quantity: string;
   input_unit_id: number | null;
   price_tier_id: number | null;
@@ -129,11 +132,12 @@ export type PosOrder = {
   customer: Customer | null;
   number: number;
   status: PosOrderStatus;
+  warehouse_notes: string | null;
   subtotal: string;
   total: string;
   item_count: number;
   items: PosOrderItem[];
-  supply_requests: InventoryTransfer[];
+  supply_requests: PosSupplyRequest[];
   created_by: number | null;
   created_at: string;
   updated_at: string;

@@ -31,6 +31,8 @@ use Illuminate\Support\Facades\Storage;
  * @property bool $is_active
  * @property bool $is_favorite
  * @property bool $is_principal
+ * @property Carbon|null $price_changed_at
+ * @property Carbon|null $price_highlight_until
  * @property-read string $display_name
  * @property-read string|null $image_url
  * @property-read ProductTemplate|null $template
@@ -65,6 +67,8 @@ final class Product extends Model
         'is_active',
         'is_favorite',
         'is_principal',
+        'price_changed_at',
+        'price_highlight_until',
     ];
 
     /**
@@ -188,6 +192,8 @@ final class Product extends Model
             'is_favorite' => 'boolean',
             'is_principal' => 'boolean',
             'content_quantity' => 'decimal:6',
+            'price_changed_at' => 'datetime',
+            'price_highlight_until' => 'datetime',
         ];
     }
 }

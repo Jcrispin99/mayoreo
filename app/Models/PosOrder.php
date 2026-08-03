@@ -17,6 +17,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $customer_id
  * @property int $number
  * @property string $status
+ * @property string|null $warehouse_notes
  * @property string $subtotal
  * @property string $total
  * @property int|null $created_by
@@ -32,6 +33,7 @@ final class PosOrder extends Model
         'customer_id',
         'number',
         'status',
+        'warehouse_notes',
         'subtotal',
         'total',
         'created_by',
@@ -79,11 +81,11 @@ final class PosOrder extends Model
      * Comandas hacia el almacén de medio: traslados que reponen stock
      * faltante de esta orden en el almacén de la caja.
      *
-     * @return HasMany<InventoryTransfer, $this>
+     * @return HasMany<PosSupplyRequest, $this>
      */
     public function supplyRequests(): HasMany
     {
-        return $this->hasMany(InventoryTransfer::class);
+        return $this->hasMany(PosSupplyRequest::class);
     }
 
     /** @return array<string, string> */

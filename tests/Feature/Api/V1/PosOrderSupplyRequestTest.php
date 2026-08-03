@@ -6,6 +6,7 @@ use App\Models\CashRegister;
 use App\Models\CashRegisterSession;
 use App\Models\DocumentSeries;
 use App\Models\PosOrder;
+use App\Models\PosSupplyRequest;
 use App\Models\PriceTier;
 use App\Models\Product;
 use App\Models\Stock;
@@ -29,7 +30,7 @@ beforeEach(function (): void {
     grantApiPermissions(
         $this->warehouseOperator,
         'pos-supply-requests.view-assigned',
-        'pos-supply-requests.resolve-assigned',
+        'pos-supply-requests.prepare-assigned',
     );
     $this->operatorHeaders = ['Authorization' => 'Bearer '.$this->warehouseOperator->createToken('operator')->plainTextToken];
 
@@ -62,7 +63,6 @@ beforeEach(function (): void {
 
     $this->product = Product::factory()->create();
     app(StockLedgerService::class)->registerIn($this->product, $this->main, '100.000000', '2.0000', 'purchase');
-    // El almacén de la caja arranca sin stock del producto.
     Stock::factory()->for($this->product)->for($this->pos)->create([
         'quantity' => '0.000000',
         'average_cost' => '0.0000',
@@ -101,13 +101,7 @@ function supplyRequestUrl(CashRegisterSession $session, PosOrder $order): string
     return "/api/v1/cash-register-sessions/{$session->id}/orders/{$order->id}/supply-requests";
 }
 
-/**
- * Sanctum's guard caches the resolved user for the lifetime of the test's
- * container, so switching Bearer tokens mid-test needs a fresh guard or it
- * keeps authenticating as whoever went first.
- *
- * @param  array<string, string>  $headers
- */
+/** @param array<string, string> $headers */
 function asActor(Tests\TestCase $test, array $headers): Tests\TestCase
 {
     app('auth')->forgetGuards();
@@ -115,36 +109,70 @@ function asActor(Tests\TestCase $test, array $headers): Tests\TestCase
     return $test->withHeaders($headers);
 }
 
-it('lets the seller ask the almacén de medio for the missing stock, and the checkout unblocks once resolved', function (): void {
-    // El cajero pide la comanda: la caja no tiene los 5 que la orden necesita.
-    $transfer = asActor($this, $this->cashierHeaders)
-        ->postJson(supplyRequestUrl($this->session, $this->order), ['assigned_to' => $this->warehouseOperator->id])
+/** @return array<string, mixed> */
+function createSupplyRequest(Tests\TestCase $test): array
+{
+    return asActor($test, $test->cashierHeaders)
+        ->postJson(supplyRequestUrl($test->session, $test->order), [
+            'assigned_to' => $test->warehouseOperator->id,
+        ])
         ->assertCreated()
-        ->assertJsonPath('data.status', 'draft')
-        ->assertJsonPath('data.from_warehouse_id', $this->main->id)
-        ->assertJsonPath('data.to_warehouse_id', $this->pos->id)
-        ->assertJsonPath('data.pos_order_id', $this->order->id)
-        ->assertJsonPath('data.assigned_to', $this->warehouseOperator->id)
-        ->assertJsonPath('data.items.0.product_id', $this->product->id)
-        ->assertJsonPath('data.items.0.quantity', '5.000000')
         ->json('data');
+}
 
-    // El cajero (sin permiso de almacén) no puede resolver la comanda.
+it('runs the preparation and physical delivery cycle before allowing checkout', function (): void {
+    $request = createSupplyRequest($this);
+
+    expect($request['status'])->toBe('assigned')
+        ->and($request['version'])->toBe(1)
+        ->and($request['acknowledged_version'])->toBe(0)
+        ->and($request['items'][0]['requested_quantity'])->toBe('5.000000');
+
+    $this->assertDatabaseCount('inventory_transfers', 0);
+    $this->assertDatabaseHas('stocks', [
+        'warehouse_id' => $this->pos->id,
+        'product_id' => $this->product->id,
+        'quantity' => '0.000000',
+    ]);
+
     asActor($this, $this->cashierHeaders)
-        ->postJson("/api/v1/warehouse/supply-requests/{$transfer['id']}/resolve")
-        ->assertForbidden();
+        ->postJson(
+            "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$this->order->id}/checkout",
+            [
+                'expected_total' => '50.00',
+                'payment' => ['method' => 'cash', 'received_amount' => '50.00', 'reference' => null],
+            ],
+        )
+        ->assertUnprocessable();
 
-    // El almacén de medio ve su cola de comandas pendientes por polling.
     asActor($this, $this->operatorHeaders)
-        ->getJson('/api/v1/warehouse/supply-requests?status=draft')
+        ->postJson("/api/v1/warehouse/supply-requests/{$request['id']}/acknowledge", ['expected_version' => 1])
         ->assertOk()
-        ->assertJsonPath('data.0.id', $transfer['id']);
+        ->assertJsonPath('data.status', 'preparing')
+        ->assertJsonPath('data.acknowledged_version', 1);
 
-    // El almacén marca "listo": se despacha y recibe en un solo paso.
     asActor($this, $this->operatorHeaders)
-        ->postJson("/api/v1/warehouse/supply-requests/{$transfer['id']}/resolve")
+        ->patchJson(
+            "/api/v1/warehouse/supply-requests/{$request['id']}/items/{$request['items'][0]['id']}",
+            ['expected_version' => 1, 'prepared_quantity' => '5'],
+        )
         ->assertOk()
-        ->assertJsonPath('data.status', 'received');
+        ->assertJsonPath('data.items.0.prepared_quantity', '5.000000');
+
+    asActor($this, $this->operatorHeaders)
+        ->postJson("/api/v1/warehouse/supply-requests/{$request['id']}/ready", ['expected_version' => 1])
+        ->assertOk()
+        ->assertJsonPath('data.status', 'ready');
+
+    $this->assertDatabaseCount('inventory_transfers', 0);
+
+    asActor($this, $this->cashierHeaders)
+        ->postJson(
+            supplyRequestUrl($this->session, $this->order)."/{$request['id']}/receive",
+            ['expected_version' => 1],
+        )
+        ->assertOk()
+        ->assertJsonPath('data.status', 'delivered');
 
     $this->assertDatabaseHas('stocks', [
         'warehouse_id' => $this->main->id,
@@ -157,13 +185,6 @@ it('lets the seller ask the almacén de medio for the missing stock, and the che
         'quantity' => '5.000000',
     ]);
 
-    // El cajero, haciendo polling de la orden, ve la comanda resuelta.
-    asActor($this, $this->cashierHeaders)
-        ->getJson("/api/v1/cash-register-sessions/{$this->session->id}/orders/{$this->order->id}")
-        ->assertOk()
-        ->assertJsonPath('data.supply_requests.0.status', 'received');
-
-    // Y ya puede cobrar la orden normalmente.
     asActor($this, $this->cashierHeaders)
         ->postJson(
             "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$this->order->id}/checkout",
@@ -176,79 +197,192 @@ it('lets the seller ask the almacén de medio for the missing stock, and the che
         ->assertJsonPath('data.order.status', 'completed');
 });
 
-it('still requests the full quantity even when the system thinks the register already has enough stock', function (): void {
-    // El conteo del sistema no es confiable (ventas o mermas no registradas),
-    // así que no se usa para decidir si hay que pedir al almacén.
-    Stock::query()
-        ->where('warehouse_id', $this->pos->id)
-        ->where('product_id', $this->product->id)
-        ->update(['quantity' => '10.000000']);
+it('versions POS changes, preserves prepared quantities and rejects stale warehouse actions', function (): void {
+    $request = createSupplyRequest($this);
 
+    asActor($this, $this->operatorHeaders)
+        ->postJson("/api/v1/warehouse/supply-requests/{$request['id']}/acknowledge", ['expected_version' => 1])
+        ->assertOk();
+    asActor($this, $this->operatorHeaders)
+        ->patchJson(
+            "/api/v1/warehouse/supply-requests/{$request['id']}/items/{$request['items'][0]['id']}",
+            ['expected_version' => 1, 'prepared_quantity' => '5'],
+        )
+        ->assertOk();
+
+    $orderItemId = $this->order->items()->firstOrFail()->id;
     asActor($this, $this->cashierHeaders)
-        ->postJson(supplyRequestUrl($this->session, $this->order), ['assigned_to' => $this->warehouseOperator->id])
-        ->assertCreated()
-        ->assertJsonPath('data.items.0.quantity', '5.000000');
+        ->patchJson(
+            "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$this->order->id}/items/{$orderItemId}",
+            ['quantity' => 7],
+        )
+        ->assertOk()
+        ->assertJsonPath('data.supply_requests.0.status', 'changes_pending')
+        ->assertJsonPath('data.supply_requests.0.version', 2)
+        ->assertJsonPath('data.supply_requests.0.has_unreviewed_changes', true)
+        ->assertJsonPath('data.supply_requests.0.items.0.change_type', 'increased')
+        ->assertJsonPath('data.supply_requests.0.items.0.requested_quantity', '7.000000')
+        ->assertJsonPath('data.supply_requests.0.items.0.prepared_quantity', '5.000000');
+
+    asActor($this, $this->operatorHeaders)
+        ->patchJson(
+            "/api/v1/warehouse/supply-requests/{$request['id']}/items/{$request['items'][0]['id']}",
+            ['expected_version' => 1, 'prepared_quantity' => '7'],
+        )
+        ->assertConflict();
+
+    asActor($this, $this->operatorHeaders)
+        ->postJson("/api/v1/warehouse/supply-requests/{$request['id']}/acknowledge", ['expected_version' => 2])
+        ->assertOk()
+        ->assertJsonPath('data.status', 'preparing')
+        ->assertJsonPath('data.acknowledged_version', 2);
 });
 
-it('shows a comanda only to its assigned warehouse user', function (): void {
+it('sends general and product instructions and versions their later changes', function (): void {
+    $orderItemId = $this->order->items()->firstOrFail()->id;
+
+    asActor($this, $this->cashierHeaders)
+        ->patchJson(
+            "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$this->order->id}/warehouse-notes",
+            ['warehouse_notes' => '  Entregar primero este pedido.  '],
+        )
+        ->assertOk()
+        ->assertJsonPath('data.warehouse_notes', 'Entregar primero este pedido.');
+
+    asActor($this, $this->cashierHeaders)
+        ->patchJson(
+            "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$this->order->id}/items/{$orderItemId}",
+            ['quantity' => 5, 'warehouse_notes' => 'Separar en cinco bolsas.'],
+        )
+        ->assertOk()
+        ->assertJsonPath('data.items.0.warehouse_notes', 'Separar en cinco bolsas.');
+
+    $request = createSupplyRequest($this);
+    expect($request['warehouse_notes'])->toBe('Entregar primero este pedido.')
+        ->and($request['items'][0]['warehouse_notes'])->toBe('Separar en cinco bolsas.');
+
+    asActor($this, $this->operatorHeaders)
+        ->getJson('/api/v1/warehouse/supply-requests')
+        ->assertOk()
+        ->assertJsonPath('data.0.warehouse_notes', 'Entregar primero este pedido.')
+        ->assertJsonPath('data.0.items.0.warehouse_notes', 'Separar en cinco bolsas.');
+
+    asActor($this, $this->operatorHeaders)
+        ->postJson("/api/v1/warehouse/supply-requests/{$request['id']}/acknowledge", ['expected_version' => 1])
+        ->assertOk();
+    asActor($this, $this->operatorHeaders)
+        ->patchJson(
+            "/api/v1/warehouse/supply-requests/{$request['id']}/items/{$request['items'][0]['id']}",
+            ['expected_version' => 1, 'prepared_quantity' => 2],
+        )
+        ->assertOk();
+
+    asActor($this, $this->cashierHeaders)
+        ->patchJson(
+            "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$this->order->id}/warehouse-notes",
+            ['warehouse_notes' => 'Entrega urgente y completa.'],
+        )
+        ->assertOk()
+        ->assertJsonPath('data.supply_requests.0.status', 'changes_pending')
+        ->assertJsonPath('data.supply_requests.0.version', 2)
+        ->assertJsonPath('data.supply_requests.0.warehouse_notes', 'Entrega urgente y completa.')
+        ->assertJsonPath('data.supply_requests.0.warehouse_notes_changed_version', 2);
+
+    asActor($this, $this->cashierHeaders)
+        ->patchJson(
+            "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$this->order->id}/items/{$orderItemId}",
+            ['quantity' => 5, 'warehouse_notes' => 'Usar bolsas transparentes.'],
+        )
+        ->assertOk()
+        ->assertJsonPath('data.supply_requests.0.version', 3)
+        ->assertJsonPath('data.supply_requests.0.items.0.change_type', 'note_changed')
+        ->assertJsonPath('data.supply_requests.0.items.0.warehouse_notes', 'Usar bolsas transparentes.')
+        ->assertJsonPath('data.supply_requests.0.items.0.prepared_quantity', '2.000000');
+
+    asActor($this, $this->operatorHeaders)
+        ->postJson("/api/v1/warehouse/supply-requests/{$request['id']}/acknowledge", ['expected_version' => 2])
+        ->assertConflict();
+    asActor($this, $this->operatorHeaders)
+        ->postJson("/api/v1/warehouse/supply-requests/{$request['id']}/acknowledge", ['expected_version' => 3])
+        ->assertOk()
+        ->assertJsonPath('data.acknowledged_version', 3);
+});
+
+it('forces warehouse to correct already prepared items that POS decreases or removes', function (): void {
+    $request = createSupplyRequest($this);
+    $itemId = $request['items'][0]['id'];
+
+    asActor($this, $this->operatorHeaders)
+        ->postJson("/api/v1/warehouse/supply-requests/{$request['id']}/acknowledge", ['expected_version' => 1])
+        ->assertOk();
+    asActor($this, $this->operatorHeaders)
+        ->patchJson(
+            "/api/v1/warehouse/supply-requests/{$request['id']}/items/{$itemId}",
+            ['expected_version' => 1, 'prepared_quantity' => '5'],
+        )
+        ->assertOk();
+
+    $orderItemId = $this->order->items()->firstOrFail()->id;
+    asActor($this, $this->cashierHeaders)
+        ->deleteJson("/api/v1/cash-register-sessions/{$this->session->id}/orders/{$this->order->id}/items/{$orderItemId}")
+        ->assertOk()
+        ->assertJsonPath('data.supply_requests.0.status', 'changes_pending')
+        ->assertJsonPath('data.supply_requests.0.items.0.change_type', 'removed')
+        ->assertJsonPath('data.supply_requests.0.items.0.requested_quantity', '0.000000')
+        ->assertJsonPath('data.supply_requests.0.items.0.prepared_quantity', '5.000000');
+
+    asActor($this, $this->operatorHeaders)
+        ->postJson("/api/v1/warehouse/supply-requests/{$request['id']}/acknowledge", ['expected_version' => 2])
+        ->assertOk();
+    asActor($this, $this->operatorHeaders)
+        ->postJson("/api/v1/warehouse/supply-requests/{$request['id']}/ready", ['expected_version' => 2])
+        ->assertUnprocessable();
+    asActor($this, $this->operatorHeaders)
+        ->patchJson(
+            "/api/v1/warehouse/supply-requests/{$request['id']}/items/{$itemId}",
+            ['expected_version' => 2, 'prepared_quantity' => '0'],
+        )
+        ->assertOk();
+});
+
+it('isolates each assigned warehouse queue and action', function (): void {
     $otherOperator = User::factory()->create();
     $otherOperator->assignRole('warehouse');
     grantApiPermissions(
         $otherOperator,
         'pos-supply-requests.view-assigned',
-        'pos-supply-requests.resolve-assigned',
+        'pos-supply-requests.prepare-assigned',
     );
-    $otherHeaders = ['Authorization' => 'Bearer '.$otherOperator->createToken('other-operator')->plainTextToken];
-
-    $transferId = asActor($this, $this->cashierHeaders)
-        ->postJson(supplyRequestUrl($this->session, $this->order), ['assigned_to' => $this->warehouseOperator->id])
-        ->assertCreated()
-        ->json('data.id');
+    $otherHeaders = ['Authorization' => 'Bearer '.$otherOperator->createToken('other')->plainTextToken];
+    $request = createSupplyRequest($this);
 
     asActor($this, $this->operatorHeaders)
-        ->getJson('/api/v1/warehouse/supply-requests?status=draft')
+        ->getJson('/api/v1/warehouse/supply-requests')
         ->assertOk()
-        ->assertJsonPath('data.0.id', $transferId);
+        ->assertJsonPath('data.0.id', $request['id']);
 
     asActor($this, $otherHeaders)
-        ->getJson('/api/v1/warehouse/supply-requests?status=draft')
+        ->getJson('/api/v1/warehouse/supply-requests')
         ->assertOk()
         ->assertJsonCount(0, 'data');
 
     asActor($this, $otherHeaders)
-        ->postJson("/api/v1/warehouse/supply-requests/{$transferId}/resolve")
-        ->assertForbidden();
+        ->postJson("/api/v1/warehouse/supply-requests/{$request['id']}/acknowledge", ['expected_version' => 1])
+        ->assertUnprocessable();
 });
 
-it('accepts only assignees with the warehouse role', function (): void {
-    $ordinaryUser = User::factory()->create();
+it('keeps the POS order editable and other sales operational while warehouse prepares', function (): void {
+    createSupplyRequest($this);
+    $orderItemId = $this->order->items()->firstOrFail()->id;
 
-    asActor($this, $this->cashierHeaders)
-        ->postJson(supplyRequestUrl($this->session, $this->order), ['assigned_to' => $ordinaryUser->id])
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors('assigned_to');
-
-    asActor($this, $this->cashierHeaders)
-        ->getJson('/api/v1/pos/supply-assignees')
-        ->assertOk()
-        ->assertJsonCount(1, 'data')
-        ->assertJsonPath('data.0.id', $this->warehouseOperator->id);
-});
-
-it('keeps other orders operational while one order waits for the warehouse', function (): void {
-    asActor($this, $this->cashierHeaders)
-        ->postJson(supplyRequestUrl($this->session, $this->order), ['assigned_to' => $this->warehouseOperator->id])
-        ->assertCreated();
-
-    // La orden enviada queda congelada individualmente.
     asActor($this, $this->cashierHeaders)
         ->patchJson(
-            "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$this->order->id}/items/{$this->order->items()->first()->id}",
+            "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$this->order->id}/items/{$orderItemId}",
             ['quantity' => 6],
         )
-        ->assertUnprocessable();
+        ->assertOk()
+        ->assertJsonPath('data.total', '60.0000');
 
-    // Otra orden se puede crear, editar y cobrar con normalidad.
     $otherOrder = asActor($this, $this->cashierHeaders)
         ->postJson("/api/v1/cash-register-sessions/{$this->session->id}/orders")
         ->assertCreated()
@@ -269,71 +403,25 @@ it('keeps other orders operational while one order waits for the warehouse', fun
                 'payment' => ['method' => 'cash', 'received_amount' => '10.00', 'reference' => null],
             ],
         )
-        ->assertCreated()
-        ->assertJsonPath('data.order.status', 'completed');
+        ->assertCreated();
 });
 
-it('refuses a second supply request once everything the order needs was already requested', function (): void {
-    asActor($this, $this->cashierHeaders)
-        ->postJson(supplyRequestUrl($this->session, $this->order), ['assigned_to' => $this->warehouseOperator->id])
-        ->assertCreated();
+it('accepts only warehouse assignees and cancels their task with the POS order', function (): void {
+    $ordinaryUser = User::factory()->create();
 
-    // Nada cambió en la orden desde la primera comanda: ya se pidió todo.
     asActor($this, $this->cashierHeaders)
-        ->postJson(supplyRequestUrl($this->session, $this->order), ['assigned_to' => $this->warehouseOperator->id])
-        ->assertUnprocessable();
-});
+        ->postJson(supplyRequestUrl($this->session, $this->order), ['assigned_to' => $ordinaryUser->id])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('assigned_to');
 
-it('lets the seller request more once new items are added on top of an already-requested comanda', function (): void {
+    $request = createSupplyRequest($this);
     asActor($this, $this->cashierHeaders)
-        ->postJson(supplyRequestUrl($this->session, $this->order), ['assigned_to' => $this->warehouseOperator->id])
-        ->assertCreated();
-
-    $transferId = $this->order->supplyRequests()->latest('id')->value('id');
-    asActor($this, $this->operatorHeaders)
-        ->postJson("/api/v1/warehouse/supply-requests/{$transferId}/resolve")
+        ->patchJson("/api/v1/cash-register-sessions/{$this->session->id}/orders/{$this->order->id}/cancel")
         ->assertOk();
 
-    asActor($this, $this->cashierHeaders)
-        ->patchJson(
-            "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$this->order->id}/items/{$this->order->items()->first()->id}",
-            ['quantity' => 8],
-        )
-        ->assertOk();
-
-    // Ya se pidieron 5, la orden ahora necesita 8: solo debe pedir los 3 nuevos.
-    asActor($this, $this->cashierHeaders)
-        ->postJson(supplyRequestUrl($this->session, $this->order), ['assigned_to' => $this->warehouseOperator->id])
-        ->assertCreated()
-        ->assertJsonPath('data.items.0.quantity', '3.000000');
-});
-
-it('resolves a comanda even when the source warehouse itself does not have enough stock, leaving it negative', function (): void {
-    // El almacén principal solo tiene 2, pero la orden necesita 5.
-    Stock::query()
-        ->where('warehouse_id', $this->main->id)
-        ->where('product_id', $this->product->id)
-        ->update(['quantity' => '2.000000']);
-
-    $transfer = asActor($this, $this->cashierHeaders)
-        ->postJson(supplyRequestUrl($this->session, $this->order), ['assigned_to' => $this->warehouseOperator->id])
-        ->assertCreated()
-        ->json('data');
-
-    // El almacén igual entrega: la operación continúa, el stock queda negativo.
+    expect(PosSupplyRequest::query()->findOrFail($request['id'])->status)->toBe('cancelled');
     asActor($this, $this->operatorHeaders)
-        ->postJson("/api/v1/warehouse/supply-requests/{$transfer['id']}/resolve")
+        ->getJson('/api/v1/warehouse/supply-requests')
         ->assertOk()
-        ->assertJsonPath('data.status', 'received');
-
-    $this->assertDatabaseHas('stocks', [
-        'warehouse_id' => $this->main->id,
-        'product_id' => $this->product->id,
-        'quantity' => '-3.000000',
-    ]);
-    $this->assertDatabaseHas('stocks', [
-        'warehouse_id' => $this->pos->id,
-        'product_id' => $this->product->id,
-        'quantity' => '5.000000',
-    ]);
+        ->assertJsonCount(0, 'data');
 });

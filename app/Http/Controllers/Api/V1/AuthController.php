@@ -63,7 +63,12 @@ final class AuthController extends ApiController
     {
         /** @var User $user */
         $user = $request->user();
-        $user->currentAccessToken()->delete();
+        $accessToken = $user->currentAccessToken();
+        $deviceId = $accessToken?->getAttribute('device_id');
+        if (is_string($deviceId) && $deviceId !== '') {
+            $user->pushSubscriptions()->where('device_id', $deviceId)->update(['is_active' => false]);
+        }
+        $accessToken?->delete();
 
         return $this->success(message: 'Logged out successfully');
     }

@@ -1,8 +1,8 @@
 import { router, type Href } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { Snackbar } from 'react-native-paper';
 import { getVisibleMenu, type MenuItem, type MenuModule } from '../../config/menu';
 import { useAuth } from '../../lib/auth-context';
+import { usePriceNotifications } from '../../lib/price-notifications-context';
 import { AppScreenLayout } from '../layout/app-screen-layout';
 import { ApplicationSwitcher } from '../navigation/application-switcher';
 import { ModuleDrawer } from '../navigation/module-drawer';
@@ -17,9 +17,9 @@ type ModuleLayoutProps = {
 
 export function ModuleLayout({ children, module, selectedItemId }: ModuleLayoutProps) {
   const { user, logout } = useAuth();
+  const { openNotifications, unreadCount } = usePriceNotifications();
   const [applicationsVisible, setApplicationsVisible] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [message, setMessage] = useState('');
 
   function openModule(nextModule: MenuModule) {
     setApplicationsVisible(false);
@@ -46,7 +46,8 @@ export function ModuleLayout({ children, module, selectedItemId }: ModuleLayoutP
       iconColor={module.color}
       onApplicationsPress={() => setApplicationsVisible(true)}
       onMenuPress={() => setDrawerVisible(true)}
-      onNotificationsPress={() => setMessage('No tienes notificaciones nuevas')}
+      notificationCount={unreadCount}
+      onNotificationsPress={openNotifications}
       onProfilePress={() => setDrawerVisible(true)}
       title={module.title}
       userName={user?.name}
@@ -72,9 +73,6 @@ export function ModuleLayout({ children, module, selectedItemId }: ModuleLayoutP
         user={user}
         visible={drawerVisible}
       />
-      <Snackbar duration={2600} onDismiss={() => setMessage('')} visible={Boolean(message)}>
-        {message}
-      </Snackbar>
     </AppScreenLayout>
   );
 }

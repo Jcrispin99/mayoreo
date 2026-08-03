@@ -44,6 +44,60 @@ export type WarehouseAssignee = {
   name: string;
 };
 
+export type PosSupplyRequestStatus =
+  | 'assigned'
+  | 'preparing'
+  | 'changes_pending'
+  | 'ready'
+  | 'delivered'
+  | 'cancelled';
+
+export type PosSupplyRequestChangeType =
+  | 'initial'
+  | 'added'
+  | 'increased'
+  | 'decreased'
+  | 'removed'
+  | 'note_changed';
+
+export type PosSupplyRequestItem = {
+  id: number;
+  product_id: number;
+  product?: { id: number; sku: string; name: string; base_unit: UnitOfMeasure | null } | null;
+  requested_quantity: string;
+  prepared_quantity: string;
+  warehouse_notes: string | null;
+  change_type: PosSupplyRequestChangeType;
+  changed_version: number;
+  prepared_by: number | null;
+  prepared_at: string | null;
+};
+
+export type PosSupplyRequest = {
+  id: number;
+  pos_order_id: number;
+  pos_order_number: number | null;
+  from_warehouse_id: number;
+  to_warehouse_id: number;
+  assigned_to: number | null;
+  assignee: WarehouseAssignee | null;
+  status: PosSupplyRequestStatus;
+  warehouse_notes: string | null;
+  warehouse_notes_changed_version: number;
+  version: number;
+  acknowledged_version: number;
+  has_unreviewed_changes: boolean;
+  items: PosSupplyRequestItem[];
+  inventory_transfer_id: number | null;
+  assigned_at: string | null;
+  acknowledged_at: string | null;
+  ready_at: string | null;
+  delivered_at: string | null;
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type InventoryTransferItem = {
   id: number;
   product_id: number;

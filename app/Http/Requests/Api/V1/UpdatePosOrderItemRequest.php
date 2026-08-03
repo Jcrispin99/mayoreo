@@ -20,6 +20,7 @@ final class UpdatePosOrderItemRequest extends FormRequest
         return [
             'quantity' => ['required', 'numeric', 'gt:0', 'decimal:0,6'],
             'unit_code' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'warehouse_notes' => ['sometimes', 'nullable', 'string', 'max:500'],
         ];
     }
 
@@ -39,12 +40,30 @@ final class UpdatePosOrderItemRequest extends FormRequest
         return is_string($unitCode) && $unitCode !== '' ? $unitCode : null;
     }
 
+    public function warehouseNotesProvided(): bool
+    {
+        return array_key_exists('warehouse_notes', $this->all());
+    }
+
+    public function warehouseNotes(): ?string
+    {
+        $value = $this->validated('warehouse_notes');
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
     protected function prepareForValidation(): void
     {
         $unitCode = $this->input('unit_code');
 
         if (is_string($unitCode)) {
             $this->merge(['unit_code' => mb_strtolower(mb_trim($unitCode))]);
+        }
+
+        $warehouseNotes = $this->input('warehouse_notes');
+        if (is_string($warehouseNotes)) {
+            $trimmed = mb_trim($warehouseNotes);
+            $this->merge(['warehouse_notes' => $trimmed !== '' ? $trimmed : null]);
         }
     }
 }

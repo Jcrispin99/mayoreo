@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Actions\Inventory\ResolveInventoryTransferAction;
+use App\Actions\Pos\ManagePosSupplyPreparationAction;
 use App\Http\Controllers\Api\ApiController;
-use App\Http\Resources\InventoryTransferResource;
-use App\Models\InventoryTransfer;
+use App\Http\Requests\Api\V1\UpdatePosSupplyRequestItemRequest;
+use App\Http\Requests\Api\V1\VersionedPosSupplyRequest;
+use App\Http\Resources\PosSupplyRequestResource;
+use App\Models\PosSupplyRequest;
+use App\Models\PosSupplyRequestItem;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,15 +18,14 @@ use Illuminate\Http\Request;
 final class AssignedPosSupplyRequestController extends ApiController
 {
     public function __construct(
-        private readonly ResolveInventoryTransferAction $resolveTransferAction,
+        private readonly ManagePosSupplyPreparationAction $preparationAction,
     ) {}
 
     public function index(Request $request): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
-        $transfers = InventoryTransfer::query()
-            ->whereNotNull('pos_order_id')
+        $requests = PosSupplyRequest::query()
             ->where('assigned_to', $user->id)
             ->with([
                 'items.product.baseUnit',
@@ -32,31 +34,62 @@ final class AssignedPosSupplyRequestController extends ApiController
                 'posOrder.cashRegisterSession.cashRegister',
                 'assignee',
             ])
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
+            ->when(
+                $request->filled('status'),
+                fn ($query) => $query->where('status', $request->string('status')),
+                fn ($query) => $query->whereNotIn('status', ['delivered', 'cancelled']),
+            )
             ->orderByDesc('id')
             ->get();
 
-        return $this->success(InventoryTransferResource::collection($transfers));
+        return $this->success(PosSupplyRequestResource::collection($requests));
     }
 
-    public function resolve(Request $request, InventoryTransfer $inventoryTransfer): JsonResponse
-    {
+    public function acknowledge(
+        VersionedPosSupplyRequest $request,
+        PosSupplyRequest $posSupplyRequest,
+    ): JsonResponse {
         /** @var User $user */
         $user = $request->user();
-
-        abort_unless(
-            $inventoryTransfer->pos_order_id !== null
-            && $inventoryTransfer->assigned_to === $user->id
-            && $user->hasRole('warehouse'),
-            403,
-            'Esta comanda está asignada a otro usuario de almacén.',
+        $updated = $this->preparationAction->acknowledge(
+            $posSupplyRequest,
+            $user,
+            $request->expectedVersion(),
         );
 
-        $transfer = $this->resolveTransferAction->execute($inventoryTransfer, $user->id);
+        return $this->success(new PosSupplyRequestResource($updated), 'Cambios revisados');
+    }
 
-        return $this->success(
-            new InventoryTransferResource($transfer->load(['items.product.baseUnit', 'assignee'])),
-            'Comanda lista, stock repuesto',
+    public function updateItem(
+        UpdatePosSupplyRequestItemRequest $request,
+        PosSupplyRequest $posSupplyRequest,
+        PosSupplyRequestItem $item,
+    ): JsonResponse {
+        /** @var User $user */
+        $user = $request->user();
+        $updated = $this->preparationAction->updateItem(
+            $posSupplyRequest,
+            $item,
+            $user,
+            $request->expectedVersion(),
+            $request->preparedQuantity(),
         );
+
+        return $this->success(new PosSupplyRequestResource($updated), 'Preparación actualizada');
+    }
+
+    public function ready(
+        VersionedPosSupplyRequest $request,
+        PosSupplyRequest $posSupplyRequest,
+    ): JsonResponse {
+        /** @var User $user */
+        $user = $request->user();
+        $updated = $this->preparationAction->markReady(
+            $posSupplyRequest,
+            $user,
+            $request->expectedVersion(),
+        );
+
+        return $this->success(new PosSupplyRequestResource($updated), 'Pedido listo para entregar');
     }
 }

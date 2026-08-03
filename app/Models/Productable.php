@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property string $productable_type
  * @property int $productable_id
  * @property string $quantity
+ * @property string|null $warehouse_notes
  * @property string|null $stock_quantity
  * @property int|null $product_purchase_unit_id
  * @property string|null $quantity_purchased
@@ -48,6 +49,7 @@ final class Productable extends Model
         'productable_type',
         'productable_id',
         'quantity',
+        'warehouse_notes',
         'stock_quantity',
         'product_purchase_unit_id',
         'quantity_purchased',

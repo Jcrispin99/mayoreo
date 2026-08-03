@@ -7,10 +7,12 @@ namespace App\Http\Controllers\Api\V1;
 use App\Actions\Pos\AssignPosOrderCustomerAction;
 use App\Actions\Pos\CancelPosOrderAction;
 use App\Actions\Pos\CreatePosOrderAction;
+use App\Actions\Pos\UpdatePosOrderWarehouseNotesAction;
 use App\Exceptions\CashRegisterSessionException;
 use App\Exceptions\PosOrderException;
 use App\Http\Controllers\Api\ApiController;
 use App\Http\Requests\Api\V1\AssignPosOrderCustomerRequest;
+use App\Http\Requests\Api\V1\UpdatePosOrderWarehouseNotesRequest;
 use App\Http\Resources\PosOrderResource;
 use App\Models\CashRegisterSession;
 use App\Models\PosOrder;
@@ -24,6 +26,7 @@ final class PosOrderController extends ApiController
         private readonly CreatePosOrderAction $createAction,
         private readonly CancelPosOrderAction $cancelAction,
         private readonly AssignPosOrderCustomerAction $assignCustomerAction,
+        private readonly UpdatePosOrderWarehouseNotesAction $updateWarehouseNotesAction,
     ) {}
 
     public function index(CashRegisterSession $cashRegisterSession): JsonResponse
@@ -75,6 +78,21 @@ final class PosOrderController extends ApiController
         return $this->success(new PosOrderResource($this->loadOrder($order)), 'Cliente de la orden actualizado');
     }
 
+    public function updateWarehouseNotes(
+        UpdatePosOrderWarehouseNotesRequest $request,
+        CashRegisterSession $cashRegisterSession,
+        PosOrder $posOrder,
+    ): JsonResponse {
+        $order = $this->updateWarehouseNotesAction->execute(
+            $cashRegisterSession,
+            $posOrder,
+            $request->warehouseNotes(),
+            $request->user()?->id,
+        );
+
+        return $this->success(new PosOrderResource($this->loadOrder($order)), 'Indicaciones de almacén actualizadas');
+    }
+
     private function ensureOpenSession(CashRegisterSession $session): void
     {
         if ($session->status !== 'open') {
@@ -105,7 +123,10 @@ final class PosOrderController extends ApiController
             'items.product.priceTiers' => function (Relation $relation): void {
                 $relation->getQuery()->where('is_active', true)->orderBy('min_quantity');
             },
-            'supplyRequests.items',
+            'supplyRequests.items.product.baseUnit',
+            'supplyRequests.assignee',
+            'supplyRequests.fromWarehouse.store',
+            'supplyRequests.toWarehouse.store',
         ];
     }
 }

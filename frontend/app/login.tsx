@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
@@ -19,8 +20,12 @@ export default function LoginScreen() {
     try {
       await login(email, password);
       router.replace('/home');
-    } catch {
-      setError('Credenciales inválidas');
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        setError(typeof error.response?.data?.message === 'string' ? error.response.data.message : 'No se pudo iniciar sesión');
+      } else {
+        setError('No se pudo iniciar sesión');
+      }
     } finally {
       setLoading(false);
     }

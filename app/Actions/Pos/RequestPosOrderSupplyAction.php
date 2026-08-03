@@ -8,8 +8,8 @@ use App\Exceptions\CashRegisterSessionException;
 use App\Exceptions\PosOrderException;
 use App\Models\CashRegister;
 use App\Models\CashRegisterSession;
-use App\Models\InventoryTransfer;
 use App\Models\PosOrder;
+use App\Models\PosSupplyRequest;
 use App\Models\Product;
 use App\Models\User;
 use App\Models\Warehouse;
@@ -17,13 +17,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * "Comanda": genera un traslado en borrador desde el almacén principal de
- * la tienda hacia el almacén de la caja, con lo que le falta a la orden
- * respecto a lo que YA se le solicitó al almacén por comandas anteriores
- * de esa misma orden. No se compara contra el stock del sistema: el
- * conteo puede no reflejar la realidad (ventas o mermas no registradas),
- * así que el vendedor siempre puede volver a pedir si en la práctica
- * sigue sin tener el producto, hasta cubrir la cantidad de la orden.
+ * Creates a mutable, versioned warehouse preparation task. Inventory does
+ * not move until the POS confirms physical receipt of the prepared order.
  */
 final readonly class RequestPosOrderSupplyAction
 {
@@ -32,8 +27,8 @@ final readonly class RequestPosOrderSupplyAction
         PosOrder $order,
         int $assignedTo,
         ?int $requestedBy,
-    ): InventoryTransfer {
-        return DB::transaction(function () use ($session, $order, $assignedTo, $requestedBy): InventoryTransfer {
+    ): PosSupplyRequest {
+        return DB::transaction(function () use ($session, $order, $assignedTo, $requestedBy): PosSupplyRequest {
             $lockedSession = CashRegisterSession::query()->lockForUpdate()->findOrFail($session->id);
 
             if ($lockedSession->status !== 'open') {
@@ -53,6 +48,10 @@ final readonly class RequestPosOrderSupplyAction
                 throw PosOrderException::notOpen($lockedOrder->id);
             }
 
+            if ($lockedOrder->supplyRequests()->whereNotIn('status', ['delivered', 'cancelled'])->exists()) {
+                throw PosOrderException::supplyPending($lockedOrder->id);
+            }
+
             $assignee = User::query()->lockForUpdate()->find($assignedTo);
 
             if (! $assignee instanceof User || ! $assignee->hasRole('warehouse')) {
@@ -62,16 +61,18 @@ final readonly class RequestPosOrderSupplyAction
             }
 
             $cashRegister = CashRegister::query()->findOrFail($lockedSession->cash_register_id);
-
             $toWarehouse = Warehouse::query()
                 ->whereKey($cashRegister->warehouse_id)
                 ->where('store_id', $cashRegister->store_id)
+                ->where('is_active', true)
                 ->firstOrFail();
-
             $fromWarehouse = Warehouse::query()
                 ->where('store_id', $cashRegister->store_id)
                 ->where('type', 'main')
+                ->where('is_active', true)
                 ->where('id', '!=', $toWarehouse->id)
+                ->orderByDesc('is_default')
+                ->orderBy('id')
                 ->first();
 
             if (! $fromWarehouse instanceof Warehouse) {
@@ -79,73 +80,88 @@ final readonly class RequestPosOrderSupplyAction
             }
 
             $items = $lockedOrder->items()->with('product')->orderBy('product_id')->get();
-
-            $existingTransfers = InventoryTransfer::query()
-                ->where('pos_order_id', $lockedOrder->id)
-                ->where('status', '!=', 'cancelled')
+            $deliveredRequests = $lockedOrder->supplyRequests()
+                ->where('status', 'delivered')
                 ->with('items')
                 ->lockForUpdate()
                 ->get();
+            /** @var array<int, numeric-string> $alreadyDelivered */
+            $alreadyDelivered = [];
 
-            /** @var array<int, numeric-string> $alreadyRequested */
-            $alreadyRequested = [];
-
-            foreach ($existingTransfers as $existingTransfer) {
-                foreach ($existingTransfer->items as $existingItem) {
+            foreach ($deliveredRequests as $deliveredRequest) {
+                foreach ($deliveredRequest->items as $deliveredItem) {
                     /** @var numeric-string $current */
-                    $current = $alreadyRequested[$existingItem->product_id] ?? '0';
-                    /** @var numeric-string $existingQuantity */
-                    $existingQuantity = (string) $existingItem->quantity;
-                    $alreadyRequested[$existingItem->product_id] = bcadd($current, $existingQuantity, 6);
+                    $current = $alreadyDelivered[$deliveredItem->product_id] ?? '0';
+                    /** @var numeric-string $quantity */
+                    $quantity = (string) $deliveredItem->requested_quantity;
+                    $alreadyDelivered[$deliveredItem->product_id] = bcadd($current, $quantity, 6);
                 }
             }
 
-            /** @var list<array{product_id: int, quantity: numeric-string}> $shortages */
-            $shortages = [];
-
+            /** @var list<array{product_id: int, requested_quantity: numeric-string, warehouse_notes: string|null}> $requestedItems */
+            $requestedItems = [];
             foreach ($items as $item) {
-                $product = $item->product;
-
-                if (! $product instanceof Product) {
+                if (! $item->product instanceof Product) {
                     throw PosOrderException::productUnavailable($item->product_id);
                 }
 
-                /** @var numeric-string $itemQuantity */
-                $itemQuantity = (string) $item->quantity;
-                /** @var numeric-string $requestedQuantity */
-                $requestedQuantity = $alreadyRequested[$item->product_id] ?? '0';
-                /** @var numeric-string $missing */
-                $missing = bcsub($itemQuantity, $requestedQuantity, 6);
+                /** @var numeric-string $quantity */
+                $quantity = (string) $item->quantity;
+                /** @var numeric-string $delivered */
+                $delivered = $alreadyDelivered[$item->product_id] ?? '0';
+                /** @var numeric-string $remaining */
+                $remaining = bcsub($quantity, $delivered, 6);
 
-                if (bccomp($missing, '0', 6) > 0) {
-                    $shortages[] = [
+                if (bccomp($remaining, '0', 6) > 0) {
+                    $requestedItems[] = [
                         'product_id' => $item->product_id,
-                        'quantity' => $missing,
+                        'requested_quantity' => $remaining,
+                        'warehouse_notes' => $item->warehouse_notes,
                     ];
                 }
             }
 
-            if ($shortages === []) {
+            if ($requestedItems === []) {
                 throw PosOrderException::nothingMissing($lockedOrder->id);
             }
 
-            $transfer = InventoryTransfer::query()->create([
+            $supplyRequest = PosSupplyRequest::query()->create([
+                'pos_order_id' => $lockedOrder->id,
                 'from_warehouse_id' => $fromWarehouse->id,
                 'to_warehouse_id' => $toWarehouse->id,
-                'pos_order_id' => $lockedOrder->id,
                 'assigned_to' => $assignee->id,
                 'assigned_by' => $requestedBy,
+                'status' => 'assigned',
+                'warehouse_notes' => $lockedOrder->warehouse_notes,
+                'version' => 1,
+                'acknowledged_version' => 0,
+                'warehouse_notes_changed_version' => 1,
                 'assigned_at' => now(),
-                'status' => 'draft',
-                'notes' => "Solicitado desde POS, orden #{$lockedOrder->number}.",
-                'created_by' => $requestedBy,
             ]);
 
-            foreach ($shortages as $shortage) {
-                $transfer->items()->create($shortage);
+            foreach ($requestedItems as $requestedItem) {
+                $supplyRequest->items()->create([
+                    ...$requestedItem,
+                    'prepared_quantity' => '0',
+                    'change_type' => 'added',
+                    'changed_version' => 1,
+                ]);
             }
 
-            return $transfer->load('items');
+            $supplyRequest->changes()->create([
+                'version' => 1,
+                'actor_id' => $requestedBy,
+                'type' => 'created',
+                'changes' => $requestedItems,
+            ]);
+
+            return $supplyRequest->load([
+                'items.product.baseUnit',
+                'posOrder',
+                'fromWarehouse.store',
+                'toWarehouse.store',
+                'assignee',
+            ]);
         });
     }
 }

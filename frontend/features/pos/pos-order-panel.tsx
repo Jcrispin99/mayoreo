@@ -13,9 +13,11 @@ import {
 import {
   ActivityIndicator,
   Button,
+  Dialog,
   Icon,
   IconButton,
   Menu,
+  Portal,
   Text,
   TextInput,
 } from 'react-native-paper';
@@ -24,7 +26,7 @@ import { formatBaseQuantity, isMeasuredProduct, pricingDisplay } from './pos-mea
 import { formatPosMoney as formatMoney } from './pos-money';
 import { PosCustomerSelector } from './pos-customer-selector';
 import type { Customer } from '../customers/customer-types';
-import type { WarehouseAssignee } from '../inventory/inventory-types';
+import type { PosSupplyRequest, PosSupplyRequestStatus, WarehouseAssignee } from '../inventory/inventory-types';
 import type { PosOrder, PosOrderItem } from './pos-types';
 
 type PosOrderPanelProps = {
@@ -40,15 +42,49 @@ type PosOrderPanelProps = {
   onDismissNotice: () => void;
   onEditMeasuredItem: (item: PosOrderItem) => void;
   onRemoveItem: (order: PosOrder, item: PosOrderItem) => void;
+  onReceiveSupply: (order: PosOrder, request: PosSupplyRequest) => void;
   onRequestSupply: (order: PosOrder, assignedTo: number) => void;
   onSelectOrder: (orderId: number) => void;
   onUpdateQuantity: (order: PosOrder, item: PosOrderItem, quantity: number) => void;
   onUpdateCustomer: (order: PosOrder, customer: Customer | null) => Promise<boolean>;
+  onUpdateItemWarehouseNotes: (order: PosOrder, item: PosOrderItem, notes: string) => Promise<boolean>;
   orders: PosOrder[];
+  onUpdateWarehouseNotes: (order: PosOrder, notes: string) => Promise<boolean>;
   sessionOpen: boolean;
   visible: boolean;
   warehouseAssignees: WarehouseAssignee[];
 };
+
+const ACTIVE_SUPPLY_STATUSES: PosSupplyRequestStatus[] = [
+  'assigned',
+  'preparing',
+  'changes_pending',
+  'ready',
+];
+
+function supplyProgress(request: PosSupplyRequest) {
+  const requested = request.items.filter((item) => Number(item.requested_quantity) > 0);
+  const prepared = requested.filter(
+    (item) => Math.abs(Number(item.prepared_quantity) - Number(item.requested_quantity)) < 0.000001,
+  );
+
+  return `${prepared.length}/${requested.length}`;
+}
+
+function supplyMessage(request: PosSupplyRequest) {
+  switch (request.status) {
+    case 'assigned':
+      return 'Pedido enviado. Esperando que almacén lo revise.';
+    case 'preparing':
+      return `Almacén está preparando el pedido (${supplyProgress(request)} productos).`;
+    case 'changes_pending':
+      return 'Tus cambios fueron enviados. Almacén debe revisarlos antes de continuar.';
+    case 'ready':
+      return 'Almacén terminó el pedido. Confirma cuando lo recibas.';
+    default:
+      return 'Pedido en proceso.';
+  }
+}
 
 function formatQuantity(value: string | number) {
   return new Intl.NumberFormat('es-PE', { maximumFractionDigits: 3 }).format(Number(value) || 0);
@@ -72,12 +108,14 @@ function OrderLine({
   busy,
   item,
   onEditMeasured,
+  onEditWarehouseNotes,
   onRemove,
   onUpdateQuantity,
 }: {
   busy: boolean;
   item: PosOrderItem;
   onEditMeasured: () => void;
+  onEditWarehouseNotes: () => void;
   onRemove: () => void;
   onUpdateQuantity: (quantity: number) => void;
 }) {
@@ -198,6 +236,21 @@ function OrderLine({
           </Text>
           <Text style={styles.lineTotal}>{formatMoney(item.line_total)}</Text>
         </View>
+        <Pressable
+          accessibilityLabel={`Editar indicación para almacén de ${item.product.name}`}
+          disabled={busy}
+          onPress={onEditWarehouseNotes}
+          style={({ pressed }) => [styles.lineNote, pressed && styles.lineNotePressed]}
+        >
+          <Icon color={item.warehouse_notes ? '#1F6174' : '#60706E'} size={17} source="note-edit-outline" />
+          <Text
+            numberOfLines={2}
+            style={[styles.lineNoteText, item.warehouse_notes && styles.lineNoteTextFilled]}
+          >
+            {item.warehouse_notes ?? 'Agregar indicación para almacén'}
+          </Text>
+          <Icon color="#60706E" size={15} source="chevron-right" />
+        </Pressable>
       </View>
     </View>
   );
@@ -216,10 +269,13 @@ export function PosOrderPanel({
   onDismissNotice,
   onEditMeasuredItem,
   onRemoveItem,
+  onReceiveSupply,
   onRequestSupply,
   onSelectOrder,
   onUpdateCustomer,
+  onUpdateItemWarehouseNotes,
   onUpdateQuantity,
+  onUpdateWarehouseNotes,
   orders,
   sessionOpen,
   visible,
@@ -228,16 +284,43 @@ export function PosOrderPanel({
   const [cancelVisible, setCancelVisible] = useState(false);
   const [customerSelectorVisible, setCustomerSelectorVisible] = useState(false);
   const [assigneeMenuVisible, setAssigneeMenuVisible] = useState(false);
+  const [noteEditor, setNoteEditor] = useState<{ kind: 'order' } | { kind: 'item'; item: PosOrderItem } | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
   const activeOrder = orders.find((order) => order.id === activeOrderId) ?? orders[0] ?? null;
-  const pendingSupplyRequest = activeOrder?.supply_requests?.find((request) => request.status !== 'received') ?? null;
+  const pendingSupplyRequest = activeOrder?.supply_requests?.find(
+    (request) => ACTIVE_SUPPLY_STATUSES.includes(request.status),
+  ) ?? null;
 
   useEffect(() => {
     if (!visible) {
       setCancelVisible(false);
       setCustomerSelectorVisible(false);
       setAssigneeMenuVisible(false);
+      setNoteEditor(null);
     }
   }, [visible]);
+
+  function editOrderNotes() {
+    setNoteDraft(activeOrder?.warehouse_notes ?? '');
+    setNoteEditor({ kind: 'order' });
+  }
+
+  function editItemNotes(item: PosOrderItem) {
+    setNoteDraft(item.warehouse_notes ?? '');
+    setNoteEditor({ kind: 'item', item });
+  }
+
+  async function saveNotes() {
+    if (!activeOrder || !noteEditor) return;
+
+    setNoteSaving(true);
+    const saved = noteEditor.kind === 'order'
+      ? await onUpdateWarehouseNotes(activeOrder, noteDraft)
+      : await onUpdateItemWarehouseNotes(activeOrder, noteEditor.item, noteDraft);
+    setNoteSaving(false);
+    if (saved) setNoteEditor(null);
+  }
 
   return (
     <Modal animationType="slide" onRequestClose={onClose} presentationStyle="fullScreen" visible={visible}>
@@ -371,7 +454,7 @@ export function PosOrderPanel({
                 </View>
                 <Button
                   compact
-                  disabled={busy || !sessionOpen || Boolean(pendingSupplyRequest)}
+                  disabled={busy || !sessionOpen}
                   icon={activeOrder.customer ? 'account-edit-outline' : 'account-outline'}
                   mode={activeOrder.customer ? 'text' : 'contained-tonal'}
                   onPress={() => setCustomerSelectorVisible(true)}
@@ -390,7 +473,7 @@ export function PosOrderPanel({
                 <Button
                   buttonColor="#D9F8F3"
                   compact
-                  disabled={busy || !sessionOpen || Boolean(pendingSupplyRequest)}
+                  disabled={busy || !sessionOpen}
                   icon="plus"
                   mode="contained"
                   onPress={() => onAddProducts(activeOrder)}
@@ -400,6 +483,24 @@ export function PosOrderPanel({
                 </Button>
                 <Text style={styles.orderTotal}>{formatMoney(activeOrder.total)}</Text>
               </View>
+
+              <Pressable
+                accessibilityLabel="Editar indicaciones generales para almacén"
+                disabled={busy}
+                onPress={editOrderNotes}
+                style={({ pressed }) => [styles.orderNote, pressed && styles.orderNotePressed]}
+              >
+                <View style={styles.orderNoteIcon}>
+                  <Icon color="#1F6174" size={19} source="text-box-edit-outline" />
+                </View>
+                <View style={styles.orderNoteCopy}>
+                  <Text style={styles.orderNoteLabel}>Indicaciones generales para almacén</Text>
+                  <Text numberOfLines={2} style={styles.orderNoteText}>
+                    {activeOrder.warehouse_notes ?? 'Toca para agregar una indicación para todo el pedido.'}
+                  </Text>
+                </View>
+                <Icon color="#60706E" size={18} source="chevron-right" />
+              </Pressable>
 
               <FlatList
                 contentContainerStyle={activeOrder.items.length === 0 ? styles.emptyLines : styles.lines}
@@ -415,9 +516,10 @@ export function PosOrderPanel({
                 )}
                 renderItem={({ item }) => (
                   <OrderLine
-                    busy={busy || Boolean(pendingSupplyRequest)}
+                    busy={busy}
                     item={item}
                     onEditMeasured={() => onEditMeasuredItem(item)}
+                    onEditWarehouseNotes={() => editItemNotes(item)}
                     onRemove={() => onRemoveItem(activeOrder, item)}
                     onUpdateQuantity={(quantity) => onUpdateQuantity(activeOrder, item, quantity)}
                   />
@@ -428,12 +530,25 @@ export function PosOrderPanel({
               <View style={styles.footer}>
                 {pendingSupplyRequest ? (
                   <View style={styles.supplyBanner}>
-                    <ActivityIndicator color="#8A5A32" size={16} />
+                    {pendingSupplyRequest.status === 'ready' ? (
+                      <Icon color="#247451" size={19} source="package-variant-closed-check" />
+                    ) : (
+                      <ActivityIndicator color="#8A5A32" size={16} />
+                    )}
                     <Text style={styles.supplyBannerText}>
-                      {pendingSupplyRequest.status === 'draft'
-                        ? 'Comanda enviada al almacén, esperando que la preparen...'
-                        : 'El almacén está trayendo el stock que falta...'}
+                      {supplyMessage(pendingSupplyRequest)}
                     </Text>
+                    {pendingSupplyRequest.status === 'ready' ? (
+                      <Button
+                        compact
+                        disabled={busy}
+                        loading={busy}
+                        mode="contained"
+                        onPress={() => onReceiveSupply(activeOrder, pendingSupplyRequest)}
+                      >
+                        Recibido
+                      </Button>
+                    ) : null}
                   </View>
                 ) : null}
                 <View style={styles.footerHeading}>
@@ -544,6 +659,40 @@ export function PosOrderPanel({
                 selectedCustomer={activeOrder.customer}
                 visible={customerSelectorVisible}
               />
+
+              <Portal>
+                <Dialog onDismiss={() => !noteSaving && setNoteEditor(null)} visible={noteEditor !== null}>
+                  <Dialog.Icon icon={noteEditor?.kind === 'order' ? 'text-box-edit-outline' : 'note-edit-outline'} />
+                  <Dialog.Title style={styles.noteDialogTitle}>
+                    {noteEditor?.kind === 'order'
+                      ? 'Indicaciones del pedido'
+                      : `Indicación de ${noteEditor?.item.product.name ?? 'producto'}`}
+                  </Dialog.Title>
+                  <Dialog.Content>
+                    <Text style={styles.noteDialogHelp}>
+                      Esta información será visible para la persona de almacén asignada.
+                    </Text>
+                    <TextInput
+                      autoFocus
+                      disabled={noteSaving}
+                      label="Indicación para almacén"
+                      maxLength={noteEditor?.kind === 'order' ? 1000 : 500}
+                      mode="outlined"
+                      multiline
+                      numberOfLines={4}
+                      onChangeText={setNoteDraft}
+                      style={styles.noteInput}
+                      value={noteDraft}
+                    />
+                  </Dialog.Content>
+                  <Dialog.Actions>
+                    <Button disabled={noteSaving} onPress={() => setNoteEditor(null)}>Cancelar</Button>
+                    <Button loading={noteSaving} mode="contained" onPress={() => void saveNotes()}>
+                      Guardar
+                    </Button>
+                  </Dialog.Actions>
+                </Dialog>
+              </Portal>
             </>
           )}
         </KeyboardAvoidingView>
@@ -613,6 +762,12 @@ const styles = StyleSheet.create({
   orderLabel: { color: '#172423', fontSize: 13, fontWeight: '900' },
   orderDetail: { marginTop: 2, color: '#60706E', fontSize: 9 },
   orderTotal: { color: '#B4232D', fontSize: 18, fontWeight: '900' },
+  orderNote: { minHeight: 58, paddingHorizontal: 16, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: '#D7E0DE', backgroundColor: '#EDF7FA' },
+  orderNotePressed: { backgroundColor: '#DDEFF4' },
+  orderNoteIcon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#D5E7EC' },
+  orderNoteCopy: { flex: 1, minWidth: 0 },
+  orderNoteLabel: { color: '#1F6174', fontSize: 9, fontWeight: '900' },
+  orderNoteText: { marginTop: 2, color: '#415250', fontSize: 9, lineHeight: 13 },
   customerBar: { minHeight: 64, paddingHorizontal: 16, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: '#D7E0DE', backgroundColor: '#FFFFFF' },
   customerBarIcon: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: '#FFE5E5' },
   customerBarCopy: { flex: 1, minWidth: 0 },
@@ -642,6 +797,10 @@ const styles = StyleSheet.create({
   lineTotals: { marginTop: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   unitPrice: { color: '#60706E', fontSize: 9 },
   lineTotal: { color: '#B4232D', fontSize: 12, fontWeight: '900' },
+  lineNote: { minHeight: 38, marginTop: 8, paddingHorizontal: 9, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 8, backgroundColor: '#F7FAFA' },
+  lineNotePressed: { backgroundColor: '#EAEFEE' },
+  lineNoteText: { flex: 1, color: '#60706E', fontSize: 9, lineHeight: 13 },
+  lineNoteTextFilled: { color: '#1F6174', fontWeight: '700' },
   empty: { flex: 1, minHeight: 220, padding: 26, alignItems: 'center', justifyContent: 'center', gap: 10 },
   emptyIcon: { width: 76, height: 76, alignItems: 'center', justifyContent: 'center', borderRadius: 38, backgroundColor: '#FFE5E5' },
   emptyTitle: { color: '#172423', fontSize: 15, fontWeight: '900', textAlign: 'center' },
@@ -659,6 +818,9 @@ const styles = StyleSheet.create({
   cancelConfirmation: { marginTop: 7, padding: 9, borderRadius: 7, backgroundColor: '#FCE8EA' },
   cancelText: { color: '#8F1D2C', fontSize: 9, fontWeight: '700' },
   cancelActions: { marginTop: 5, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 5 },
+  noteDialogTitle: { textAlign: 'center' },
+  noteDialogHelp: { color: '#60706E', fontSize: 10, lineHeight: 15, textAlign: 'center' },
+  noteInput: { marginTop: 12, minHeight: 110, backgroundColor: '#FFFFFF' },
   dock: { minHeight: 58, paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#B4232D' },
   dockIcon: { position: 'relative', width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: '#1F6174' },
   dockCount: { position: 'absolute', top: -5, right: -5, minWidth: 18, height: 18, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#FF4D4D' },

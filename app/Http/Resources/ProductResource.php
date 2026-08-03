@@ -51,6 +51,8 @@ final class ProductResource extends JsonResource
             'is_active' => $this->is_active,
             'is_favorite' => $this->is_favorite,
             'is_principal' => $this->is_principal,
+            'price_changed_at' => $this->price_changed_at?->toIso8601String(),
+            'price_highlight_until' => $this->price_highlight_until?->toIso8601String(),
             'purchase_units' => ProductPurchaseUnitResource::collection($this->whenLoaded('purchaseUnits')),
             'price_tiers' => PriceTierResource::collection($this->whenLoaded('priceTiers')),
             'created_at' => $this->created_at?->toIso8601String(),

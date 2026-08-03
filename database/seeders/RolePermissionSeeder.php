@@ -10,6 +10,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 final class RolePermissionSeeder extends Seeder
 {
@@ -40,11 +41,15 @@ final class RolePermissionSeeder extends Seeder
             'pos-supply-requests.assign',
             'pos-supply-requests.view-assigned',
             'pos-supply-requests.resolve-assigned',
+            'pos-supply-requests.prepare-assigned',
+            'price-notifications.receive',
         ];
 
         foreach ($permissions as $permission) {
             Permission::query()->firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $admin = Role::query()->firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $admin->syncPermissions($permissions);
@@ -63,6 +68,7 @@ final class RolePermissionSeeder extends Seeder
             'cash-sessions.view', 'cash-sessions.manage',
             'fiscal-settings.view',
             'pos-supply-requests.assign',
+            'price-notifications.receive',
         ]);
 
         $cashier = Role::query()->firstOrCreate(['name' => 'cashier', 'guard_name' => 'web']);
@@ -73,12 +79,14 @@ final class RolePermissionSeeder extends Seeder
             'customers.view', 'customers.manage',
             'cash-sessions.view', 'cash-sessions.manage',
             'pos-supply-requests.assign',
+            'price-notifications.receive',
         ]);
 
         $warehouse = Role::query()->firstOrCreate(['name' => 'warehouse', 'guard_name' => 'web']);
         $warehouse->syncPermissions([
             'pos-supply-requests.view-assigned',
             'pos-supply-requests.resolve-assigned',
+            'pos-supply-requests.prepare-assigned',
         ]);
 
         $viewer = Role::query()->firstOrCreate(['name' => 'viewer', 'guard_name' => 'web']);

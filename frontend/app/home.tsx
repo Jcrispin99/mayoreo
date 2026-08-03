@@ -7,9 +7,11 @@ import { ApplicationGrid } from '../components/menu/application-grid';
 import { AppDrawer } from '../components/navigation/app-drawer';
 import { getVisibleMenu, type MenuModule } from '../config/menu';
 import { useAuth } from '../lib/auth-context';
+import { usePriceNotifications } from '../lib/price-notifications-context';
 
 export default function HomeScreen() {
   const { user, logout } = useAuth();
+  const { openNotifications, unreadCount } = usePriceNotifications();
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [message, setMessage] = useState('');
   const modules = useMemo(() => getVisibleMenu(user?.permissions), [user?.permissions]);
@@ -33,7 +35,8 @@ export default function HomeScreen() {
   return (
     <AppScreenLayout
       onMenuPress={() => setDrawerVisible(true)}
-      onNotificationsPress={() => setMessage('No tienes notificaciones nuevas')}
+      notificationCount={unreadCount}
+      onNotificationsPress={openNotifications}
       onProfilePress={() => setDrawerVisible(true)}
       title="Mayoreo"
       userName={user?.name}
