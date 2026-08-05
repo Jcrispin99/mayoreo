@@ -14,6 +14,7 @@ import {
   formatBaseQuantity,
   formatPosQuantity,
   pricingDisplay,
+  resolveAmountToQuantity,
   resolvePriceTier,
   saleUnitOptions,
   type PosMeasuredProduct,
@@ -42,6 +43,12 @@ function money(value: number) {
   return `S/ ${Number.isFinite(value) ? value.toFixed(2) : '0.00'}`;
 }
 
+function moneyInput(value: number) {
+  return Number.isFinite(value)
+    ? value.toFixed(2).replace(/\.?0+$/, '')
+    : '';
+}
+
 export function PosQuantityEditor({
   busy,
   currentBaseQuantity,
@@ -52,16 +59,25 @@ export function PosQuantityEditor({
   const options = useMemo(() => saleUnitOptions(product?.base_unit ?? null), [product?.base_unit]);
   const [unitCode, setUnitCode] = useState<PosSaleUnitCode>('kg');
   const [quantity, setQuantity] = useState('1');
+  const [amount, setAmount] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const selectedUnit = options.find((option) => option.code === unitCode) ?? options[0] ?? null;
   const numericQuantity = parseQuantity(quantity);
+  const numericAmount = parseQuantity(amount);
+  const amountResolution = useMemo(
+    () => resolveAmountToQuantity(product, numericAmount),
+    [numericAmount, product],
+  );
   const baseQuantity = selectedUnit ? numericQuantity * selectedUnit.factor : 0;
   const tier = product ? resolvePriceTier(product.price_tiers, baseQuantity) : null;
   const priceDisplay = pricingDisplay(product?.base_unit ?? null);
   const displayUnitPrice = tier ? Number(tier.unit_price) * priceDisplay.factor : 0;
   const total = tier ? baseQuantity * Number(tier.unit_price) : 0;
+  const suggestedQuantity = selectedUnit && amountResolution
+    ? amountResolution.baseQuantity / selectedUnit.factor
+    : 0;
   const valid = Boolean(
     product
     && selectedUnit
@@ -79,9 +95,9 @@ export function PosQuantityEditor({
     const initialQuantity = currentBaseQuantity > 0
       ? currentBaseQuantity / initialUnit.factor
       : 1;
-
     setUnitCode(initialUnit.code);
     setQuantity(inputNumber(initialQuantity));
+    setAmount('');
     setSaving(false);
     setError('');
   }, [currentBaseQuantity, options, product]);
@@ -95,6 +111,18 @@ export function PosQuantityEditor({
       : nextUnit.factor;
     setUnitCode(nextUnit.code);
     setQuantity(inputNumber(currentBase / nextUnit.factor));
+    setError('');
+  }
+
+  function applyAmountSuggestion() {
+    if (!selectedUnit) return;
+
+    if (!amountResolution || suggestedQuantity <= 0) {
+      setError('No se pudo calcular una cantidad para ese monto.');
+      return;
+    }
+
+    setQuantity(inputNumber(suggestedQuantity));
     setError('');
   }
 
@@ -213,6 +241,81 @@ export function PosQuantityEditor({
               })}
             </View>
 
+            <View style={styles.helperCard}>
+              <Text style={styles.helperTitle}>Calcular cantidad desde monto</Text>
+              <Text style={styles.helperText}>
+                Escribe cuánto quiere llevar el cliente y el POS rellenará la cantidad.
+              </Text>
+              <TextInput
+                dense
+                keyboardType="decimal-pad"
+                label="Monto deseado"
+                left={<TextInput.Affix text="S/" />}
+                mode="outlined"
+                onChangeText={(value) => {
+                  setAmount(value);
+                  setError('');
+                }}
+                outlineColor="#879692"
+                selectTextOnFocus
+                style={styles.helperInput}
+                value={amount}
+              />
+              <View style={styles.quickValues}>
+                {[5, 10, 20, 50].map((value) => {
+                  const selected = Math.abs(numericAmount - value) < 0.000001;
+
+                  return (
+                    <Pressable
+                      accessibilityRole="button"
+                      key={`amount-${value}`}
+                      onPress={() => {
+                        setAmount(moneyInput(value));
+                        setError('');
+                      }}
+                      style={[styles.quickValue, selected && styles.quickValueSelected]}
+                    >
+                      <Text style={[styles.quickValueText, selected && styles.quickValueTextSelected]}>
+                        {money(value)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={styles.helperSummary}>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Cantidad sugerida</Text>
+                  <View style={styles.priceDetail}>
+                    <Text style={styles.summaryValue}>
+                      {amountResolution
+                        ? formatBaseQuantity(amountResolution.baseQuantity, product.base_unit)
+                        : '—'}
+                    </Text>
+                    {amountResolution && suggestedQuantity > 0 ? (
+                      <Text style={styles.unitPrice}>
+                        {formatPosQuantity(suggestedQuantity)} {selectedUnit.label}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Total estimado</Text>
+                  <Text style={styles.summaryValue}>
+                    {amountResolution ? money(amountResolution.lineTotal) : '—'}
+                  </Text>
+                </View>
+              </View>
+              <Button
+                disabled={busy || saving || !amountResolution}
+                mode="outlined"
+                onPress={applyAmountSuggestion}
+                style={styles.helperButton}
+                textColor="#B4232D"
+              >
+                Usar cantidad sugerida
+              </Button>
+            </View>
+
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <View style={styles.summary}>
@@ -293,6 +396,12 @@ const styles = StyleSheet.create({
   quickValueSelected: { borderColor: '#B4232D', backgroundColor: '#FFE5E5' },
   quickValueText: { color: '#59656A', fontSize: 10, fontWeight: '800' },
   quickValueTextSelected: { color: '#B4232D' },
+  helperCard: { marginTop: 16, padding: 12, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 12, backgroundColor: '#FFF8F8', gap: 10 },
+  helperTitle: { color: '#172423', fontSize: 11, fontWeight: '900' },
+  helperText: { color: '#60706E', fontSize: 10, lineHeight: 14 },
+  helperInput: { backgroundColor: '#FFFFFF' },
+  helperSummary: { overflow: 'hidden', borderWidth: 1, borderColor: '#ECD3D6', borderRadius: 10, backgroundColor: '#FFFFFF' },
+  helperButton: { alignSelf: 'flex-end', borderColor: '#F0B5BC' },
   error: { marginTop: 9, color: '#8F1D2C', fontSize: 10, fontWeight: '700' },
   summary: { marginTop: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 12, backgroundColor: '#F8FAFA' },
   summaryRow: { minHeight: 50, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderBottomWidth: 1, borderBottomColor: '#D7E0DE' },

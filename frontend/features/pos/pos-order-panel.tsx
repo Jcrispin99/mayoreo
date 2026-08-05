@@ -184,7 +184,7 @@ function OrderLine({
               <Text style={styles.measuredQuantityValue}>
                 {formatBaseQuantity(numericQuantity, item.product.base_unit)}
               </Text>
-              <Text style={styles.measuredQuantityHelp}>Toca para cambiar unidad o cantidad</Text>
+                <Text style={styles.measuredQuantityHelp}>Toca para cambiar cantidad o calcular desde monto</Text>
             </View>
             <Icon color="#60706E" size={17} source="pencil-outline" />
           </Pressable>

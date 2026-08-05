@@ -19,6 +19,13 @@ export type PosMeasuredProduct = {
   price_tiers: PosCatalogPriceTier[];
 };
 
+export type PosAmountResolution = {
+  requestedAmount: number;
+  baseQuantity: number;
+  lineTotal: number;
+  tier: PosCatalogPriceTier;
+};
+
 function normalizedBaseCode(baseUnit: UnitOfMeasure | null) {
   return baseUnit?.code.trim().toLocaleLowerCase('es') ?? '';
 }
@@ -61,6 +68,50 @@ export function resolvePriceTier(
       Number(tier.min_quantity) <= quantityInBaseUnit
       && (tier.max_quantity === null || Number(tier.max_quantity) >= quantityInBaseUnit)
     )) ?? null;
+}
+
+function baseUnitStep(baseUnit: UnitOfMeasure | null) {
+  if (baseUnit?.type === 'weight' || baseUnit?.type === 'volume') return 1;
+  return 0.000001;
+}
+
+function roundDownToStep(value: number, step: number) {
+  if (!Number.isFinite(value) || value <= 0 || !Number.isFinite(step) || step <= 0) return 0;
+
+  return Math.floor((value + Number.EPSILON) / step) * step;
+}
+
+export function resolveAmountToQuantity(
+  product: PosMeasuredProduct | null,
+  requestedAmount: number,
+): PosAmountResolution | null {
+  if (!product || !Number.isFinite(requestedAmount) || requestedAmount <= 0) return null;
+
+  const tiers = [...product.price_tiers]
+    .filter((tier) => tier.is_active !== false)
+    .sort((left, right) => Number(right.min_quantity) - Number(left.min_quantity));
+  const step = baseUnitStep(product.base_unit);
+
+  for (const tier of tiers) {
+    const unitPrice = Number(tier.unit_price);
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) continue;
+
+    const rawBaseQuantity = requestedAmount / unitPrice;
+    const baseQuantity = roundDownToStep(rawBaseQuantity, step);
+    if (!Number.isFinite(baseQuantity) || baseQuantity <= 0) continue;
+
+    const resolvedTier = resolvePriceTier(tiers, baseQuantity);
+    if (!resolvedTier || resolvedTier.id !== tier.id) continue;
+
+    return {
+      requestedAmount,
+      baseQuantity,
+      lineTotal: baseQuantity * unitPrice,
+      tier,
+    };
+  }
+
+  return null;
 }
 
 export function pricingDisplay(baseUnit: UnitOfMeasure | null) {
