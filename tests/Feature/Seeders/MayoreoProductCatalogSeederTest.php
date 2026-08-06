@@ -77,6 +77,21 @@ it('keeps incomplete products outside the POS and preserves review notes', funct
         ->and($oliveOil->contentUnit?->code)->toBe('L');
 });
 
+it('only expands the explicit H abbreviation as harina', function (): void {
+    $this->seed(MayoreoProductCatalogSeeder::class);
+
+    expect(Product::query()->where('sku', 'A001')->firstOrFail()->template?->name)
+        ->toBe('Harina 7 semillas')
+        ->and(Product::query()->where('sku', 'A074')->firstOrFail()->template?->name)
+        ->toBe('Habas enteras')
+        ->and(Product::query()->where('sku', 'A151')->firstOrFail()->template?->name)
+        ->toBe('Habas fritas (Abeja)')
+        ->and(Product::query()->where('sku', 'A131')->firstOrFail()->template?->name)
+        ->toBe('Hoja de moringa')
+        ->and(Product::query()->where('sku', 'A369')->firstOrFail()->template?->name)
+        ->toBe('Hongos');
+});
+
 it('can run repeatedly without duplicating catalog records', function (): void {
     $this->seed(MayoreoProductCatalogSeeder::class);
 
