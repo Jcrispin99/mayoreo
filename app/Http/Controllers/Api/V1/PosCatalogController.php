@@ -55,9 +55,13 @@ final class PosCatalogController extends ApiController
             ->where('is_active', true)
             ->where(function (Builder $query): void {
                 $query->whereNull('product_template_id')
-                    ->orWhereHas('template', fn (Builder $template): Builder => $template
-                        ->where('is_active', true)
-                        ->where('is_pos_visible', true));
+                    ->orWhere(function (Builder $subQuery): void {
+                        $subQuery->whereNotNull('product_template_id')
+                            ->where('is_principal', true)
+                            ->whereHas('template', fn (Builder $template): Builder => $template
+                                ->where('is_active', true)
+                                ->where('is_pos_visible', true));
+                    });
             })
             ->where(function (Builder $availability) use ($storeId): void {
                 $availability

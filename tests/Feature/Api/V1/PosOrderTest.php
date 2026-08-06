@@ -68,12 +68,19 @@ it('creates and lists consecutive open orders for the cash session', function ()
         ->assertCreated()
         ->assertJsonPath('data.number', 1)
         ->assertJsonPath('data.status', 'open')
+        ->assertJsonPath('data.customer.name', 'Varios')
+        ->assertJsonPath('data.customer.document_number', '00000000')
+        ->assertJsonPath('data.customer.phone', '999999999')
+        ->assertJsonPath('data.customer.email', 'varios@mayoreo.test')
         ->assertJsonPath('data.total', '0.0000');
 
     $second = $this->withHeaders($this->headers)
         ->postJson("/api/v1/cash-register-sessions/{$this->session->id}/orders")
         ->assertCreated()
-        ->assertJsonPath('data.number', 2);
+        ->assertJsonPath('data.number', 2)
+        ->assertJsonPath('data.customer_id', $first->json('data.customer_id'));
+
+    expect(Customer::query()->where('document_number', '00000000')->count())->toBe(1);
 
     $this->withHeaders($this->headers)
         ->getJson("/api/v1/cash-register-sessions/{$this->session->id}/orders")
@@ -147,7 +154,7 @@ it('adds products and recalculates quantity tier without changing stock', functi
     $this->assertDatabaseCount('inventory_movements', 0);
 });
 
-it('sells packaged variants as whole units and exposes their total content', function (): void {
+it('sells packaged variants with fractional quantities and exposes their total content', function (): void {
     $units = UnitOfMeasure::factory()->create([
         'code' => 'NIU',
         'name' => 'Unidad',
@@ -176,17 +183,18 @@ it('sells packaged variants as whole units and exposes their total content', fun
     $itemsUrl = "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$orderId}/items";
 
     $this->withHeaders($this->headers)
-        ->postJson($itemsUrl, ['product_id' => $packaged->id, 'quantity' => 3])
+        ->postJson($itemsUrl, ['product_id' => $packaged->id, 'quantity' => '1.5'])
         ->assertCreated()
-        ->assertJsonPath('data.items.0.quantity', '3.000000')
-        ->assertJsonPath('data.items.0.line_total', '6.0000')
+        ->assertJsonPath('data.items.0.quantity', '1.500000')
+        ->assertJsonPath('data.items.0.line_total', '3.0000')
         ->assertJsonPath('data.items.0.product.content_quantity', '100.000000')
         ->assertJsonPath('data.items.0.product.content_unit.code', 'g');
 
     $this->withHeaders($this->headers)
         ->postJson($itemsUrl, ['product_id' => $packaged->id, 'quantity' => '0.5'])
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors('quantity');
+        ->assertCreated()
+        ->assertJsonPath('data.items.0.quantity', '2.000000')
+        ->assertJsonPath('data.items.0.line_total', '4.0000');
 });
 
 it('keeps free weight entry on the measured variant', function (): void {

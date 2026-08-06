@@ -6,15 +6,15 @@ import {
   Pressable,
   StyleSheet,
   View,
-  useWindowDimensions,
-  type LayoutChangeEvent,
 } from 'react-native';
 import { ActivityIndicator, Button, Icon, Text } from 'react-native-paper';
 import { ListSearch, type ListFilterOption } from '../../components/data/list-search';
 import { api } from '../../lib/api';
 import { usePriceNotifications } from '../../lib/price-notifications-context';
 import { catalogPriceSummary } from './pos-measurement';
+import type { PosSaleUnitCode } from './pos-measurement';
 import type { PosCatalogProduct } from './pos-types';
+import { PosVariantSelectorModal } from './pos-variant-selector-modal';
 
 const CATALOG_PAGE_SIZE = 24;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -55,82 +55,79 @@ function ProductCard({
   product: PosCatalogProduct;
 }) {
   const price = catalogPriceSummary(product);
-  const stockUnit = product.base_unit?.code ?? product.base_unit?.name ?? 'unidades';
   const priceRecentlyChanged = Boolean(
     product.price_highlight_until
     && new Date(product.price_highlight_until).getTime() > Date.now(),
   );
 
   return (
-    <Pressable
-      accessibilityLabel={`Agregar ${product.name} a la orden`}
-      accessibilityRole="button"
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
+    <View
+      style={[
         styles.productCard,
-        priceRecentlyChanged && styles.productCardPriceChanged,
-        pressed && styles.productCardPressed,
         adding && styles.productCardAdding,
       ]}
     >
-      <View style={styles.imageFrame}>
-        {product.image_url ? (
-          <Image
-            accessibilityLabel={`Imagen de ${product.name}`}
-            resizeMode="cover"
-            source={{ uri: imageUrlForDevice(product.image_url) }}
-            style={styles.productImage}
-          />
-        ) : (
-          <Icon color="#60706E" size={42} source="image-outline" />
-        )}
-        {product.is_favorite ? (
-          <View pointerEvents="none" style={styles.favoriteBadge}>
-            <Icon color="#FFFFFF" size={17} source="star" />
+      <Pressable
+        accessibilityLabel={product.product_template_id
+          ? `Seleccionar variante de ${product.name}`
+          : `Agregar ${product.name} a la orden`}
+        accessibilityRole="button"
+        disabled={disabled}
+        onPress={onPress}
+        style={({ pressed }) => [styles.productCardPressable, pressed && styles.productCardPressed]}
+      >
+        <View style={styles.productCardRow}>
+          <View style={styles.imageFrame}>
+            {product.image_url ? (
+              <Image
+                accessibilityLabel={`Imagen de ${product.name}`}
+                resizeMode="cover"
+                source={{ uri: imageUrlForDevice(product.image_url) }}
+                style={styles.productImage}
+              />
+            ) : (
+              <Icon color="#60706E" size={34} source="image-outline" />
+            )}
+            {product.is_favorite ? (
+              <View pointerEvents="none" style={styles.favoriteBadge}>
+                <Icon color="#FFFFFF" size={14} source="star" />
+              </View>
+            ) : null}
+            {orderQuantity > 0 ? (
+              <View pointerEvents="none" style={styles.orderQuantityBadge}>
+                <Text
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.65}
+                  numberOfLines={1}
+                  style={styles.orderQuantityText}
+                >
+                  {formatNumber(orderQuantity)}
+                </Text>
+              </View>
+            ) : null}
           </View>
-        ) : null}
-        {orderQuantity > 0 ? (
-          <View pointerEvents="none" style={styles.orderQuantityBadge}>
-            <Text
-              adjustsFontSizeToFit
-              minimumFontScale={0.65}
-              numberOfLines={1}
-              style={styles.orderQuantityText}
-            >
-              {formatNumber(orderQuantity)}
-            </Text>
-          </View>
-        ) : null}
-        {priceRecentlyChanged ? (
-          <View pointerEvents="none" style={styles.priceChangedBadge}>
-            <Icon color="#7A4300" size={14} source="tag-outline" />
-            <Text style={styles.priceChangedBadgeText}>PRECIO NUEVO</Text>
-          </View>
-        ) : null}
-      </View>
 
-      <View style={styles.cardBody}>
-        <Text numberOfLines={2} style={styles.productName}>{product.name}</Text>
-        <Text numberOfLines={1} style={styles.productSku}>{product.sku}</Text>
-        <View style={styles.stockRow}>
-          <Icon color="#337B67" size={15} source="package-variant-closed" />
-          <Text numberOfLines={1} style={styles.stockText}>
-            Stock: {formatNumber(product.stock_available)} {stockUnit}
-          </Text>
+          <View style={styles.cardBody}>
+            <Text numberOfLines={2} style={styles.productName}>
+              {product.product_template_id && product.variant_name
+                ? product.name.replace(` - ${product.variant_name}`, '')
+                : product.name}
+            </Text>
+            <Text numberOfLines={1} style={[styles.price, !price && styles.missingPrice]}>
+              {price
+                ? `S/ ${price.amount.toFixed(2)}${price.unit ? ` / ${price.unit}` : ''}`
+                : 'Precio no configurado'}
+            </Text>
+            {priceRecentlyChanged ? (
+              <View pointerEvents="none" style={styles.priceChangedBadge}>
+                <Icon color="#7A4300" size={13} source="tag-outline" />
+                <Text style={styles.priceChangedBadgeText}>PRECIO NUEVO</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
-        <Text numberOfLines={1} style={[styles.price, !price && styles.missingPrice]}>
-          {price
-            ? `S/ ${price.amount.toFixed(2)}${price.unit ? ` / ${price.unit}` : ''}`
-            : 'Precio no configurado'}
-        </Text>
-        {price?.lowerAmount !== null && price?.lowerFrom ? (
-          <Text numberOfLines={1} style={styles.lowerPrice}>
-            Desde S/ {price.lowerAmount.toFixed(2)} · {price.lowerFrom}+
-          </Text>
-        ) : null}
-      </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 }
 
@@ -148,7 +145,11 @@ type PosProductCatalogProps = {
   addingProductId: number | null;
   cashSessionId: string;
   orderBusy: boolean;
-  onAddProduct: (product: PosCatalogProduct) => void;
+  onAddProduct: (
+    product: PosCatalogProduct,
+    quantity: number,
+    unitCode: PosSaleUnitCode,
+  ) => Promise<boolean>;
   onSearchExpandedChange: (expanded: boolean) => void;
   onQueryChange: (query: string) => void;
   onToggleFilter: (filterId: string) => void;
@@ -176,8 +177,6 @@ export function PosProductCatalog({
   searchExpanded,
 }: PosProductCatalogProps) {
   const { catalogVersion } = usePriceNotifications();
-  const { width } = useWindowDimensions();
-  const [catalogWidth, setCatalogWidth] = useState(width);
   const [products, setProducts] = useState<PosCatalogProduct[]>([]);
   const [debouncedQuery, setDebouncedQuery] = useState(query.trim());
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -187,6 +186,7 @@ export function PosProductCatalog({
   const [error, setError] = useState('');
   const [loadMoreError, setLoadMoreError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+  const [selectedTemplateProduct, setSelectedTemplateProduct] = useState<PosCatalogProduct | null>(null);
   const loadMoreController = useRef<AbortController | null>(null);
   const loadingMoreRef = useRef(false);
 
@@ -280,21 +280,8 @@ export function PosProductCatalog({
 
   const filtered = Boolean(debouncedQuery) || activeFilterIds.length > 0;
 
-  const availableWidth = catalogWidth;
-  const columns = availableWidth >= 1050 ? 4 : availableWidth >= 700 ? 3 : 2;
-  const rowWidth = Math.max(0, availableWidth - 24);
-  const cardWidth = Math.floor((rowWidth - (columns - 1) * 8) / columns);
-
-  const handleCatalogLayout = useCallback((event: LayoutChangeEvent) => {
-    const nextWidth = Math.round(event.nativeEvent.layout.width);
-
-    if (nextWidth > 0) {
-      setCatalogWidth((current) => current === nextWidth ? current : nextWidth);
-    }
-  }, []);
-
   return (
-    <View onLayout={handleCatalogLayout} style={styles.catalog}>
+    <View style={styles.catalog}>
       {searchExpanded ? (
         <View style={styles.searchArea}>
           <View style={styles.searchComponent}>
@@ -316,13 +303,23 @@ export function PosProductCatalog({
         </View>
       ) : null}
 
+      {selectedTemplateProduct ? (
+        <PosVariantSelectorModal
+          busy={orderBusy}
+          cashSessionId={cashSessionId}
+          onClose={() => setSelectedTemplateProduct(null)}
+          onAdd={onAddProduct}
+          templateProduct={selectedTemplateProduct}
+          visible={true}
+        />
+      ) : null}
+
       <FlatList
-        columnWrapperStyle={styles.productRow}
         contentContainerStyle={styles.productList}
         data={products}
         extraData={activeOrderQuantities}
-        initialNumToRender={columns * 3}
-        key={columns}
+        initialNumToRender={8}
+        ItemSeparatorComponent={() => <View style={styles.productSeparator} />}
         keyExtractor={(product) => String(product.id)}
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={loading ? (
@@ -362,21 +359,18 @@ export function PosProductCatalog({
           </View>
         ) : null}
         ListHeaderComponent={<CatalogHeading />}
-        maxToRenderPerBatch={columns * 2}
-        numColumns={columns}
+        maxToRenderPerBatch={6}
         onEndReached={() => void loadMoreProducts()}
         onEndReachedThreshold={0.6}
         removeClippedSubviews={Platform.OS !== 'web'}
         renderItem={({ item }) => (
-          <View style={{ width: cardWidth }}>
-            <ProductCard
-              adding={addingProductId === item.id}
-              disabled={orderBusy}
-              onPress={() => onAddProduct(item)}
-              orderQuantity={activeOrderQuantities[item.id] ?? 0}
-              product={item}
-            />
-          </View>
+          <ProductCard
+            adding={addingProductId === item.id}
+            disabled={orderBusy}
+            onPress={() => setSelectedTemplateProduct(item)}
+            orderQuantity={activeOrderQuantities[item.id] ?? 0}
+            product={item}
+          />
         )}
         showsVerticalScrollIndicator={false}
         updateCellsBatchingPeriod={40}
@@ -390,29 +384,26 @@ const styles = StyleSheet.create({
   catalog: { flex: 1, backgroundColor: '#F3F6F5' },
   searchArea: { paddingHorizontal: 12, paddingBottom: 8, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#D7E0DE' },
   searchComponent: { maxWidth: 760, width: '100%', alignSelf: 'center' },
-  productList: { width: '100%', alignSelf: 'center', paddingHorizontal: 12, paddingBottom: 20 },
+  productList: { width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: 12, paddingBottom: 20, backgroundColor: '#F3F6F5' },
   sectionTitle: { color: '#172423', fontSize: 15, fontWeight: '900' },
   catalogHeading: { paddingTop: 12, paddingBottom: 8 },
-  productRow: { width: '100%', gap: 8, marginBottom: 8 },
-  productCard: { overflow: 'hidden', borderWidth: 1, borderColor: '#DFE5E7', borderRadius: 10, backgroundColor: '#FFFFFF' },
-  productCardPriceChanged: { borderWidth: 2, borderColor: '#E7A83D', backgroundColor: '#FFF9EC' },
-  productCardPressed: { borderColor: '#75A9B7', transform: [{ scale: 0.985 }] },
+  productCard: { width: '100%', alignSelf: 'stretch', overflow: 'hidden', borderRadius: 12, backgroundColor: '#FFFFFF', shadowColor: '#172423', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 2 },
+  productCardPressable: { width: '100%', backgroundColor: '#FFFFFF' },
+  productCardRow: { width: '100%', minHeight: 90, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF' },
+  productCardPressed: { opacity: 0.82 },
   productCardAdding: { opacity: 0.72 },
-  imageFrame: { position: 'relative', width: '100%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EAEFEE' },
+  productSeparator: { width: '100%', height: 10, backgroundColor: '#F3F6F5' },
+  imageFrame: { position: 'relative', width: 72, height: 72, flexGrow: 0, flexShrink: 0, overflow: 'hidden', borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EAEFEE' },
   productImage: { width: '100%', height: '100%' },
-  favoriteBadge: { position: 'absolute', top: 7, left: 7, width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', borderRadius: 15, backgroundColor: '#FF4D4D' },
-  orderQuantityBadge: { position: 'absolute', top: 7, right: 7, width: 31, height: 31, paddingHorizontal: 3, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', borderRadius: 16, backgroundColor: '#B4232D' },
-  orderQuantityText: { width: '100%', color: '#FFFFFF', fontSize: 10, fontWeight: '900', textAlign: 'center' },
-  priceChangedBadge: { position: 'absolute', left: 7, right: 7, bottom: 7, minHeight: 27, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 8, backgroundColor: '#FFE1A8' },
+  favoriteBadge: { position: 'absolute', top: 5, left: 5, width: 24, height: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', borderRadius: 12, backgroundColor: '#FF4D4D' },
+  orderQuantityBadge: { position: 'absolute', top: 5, right: 5, minWidth: 25, height: 25, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', borderRadius: 13, backgroundColor: '#B4232D' },
+  orderQuantityText: { width: '100%', color: '#FFFFFF', fontSize: 9, fontWeight: '900', textAlign: 'center' },
+  priceChangedBadge: { alignSelf: 'flex-start', minHeight: 22, marginTop: 6, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 7, backgroundColor: '#FFE1A8' },
   priceChangedBadgeText: { color: '#7A4300', fontSize: 9, fontWeight: '900' },
-  cardBody: { padding: 8 },
-  productName: { minHeight: 35, color: '#172423', fontSize: 13, lineHeight: 17, fontWeight: '900' },
-  productSku: { marginTop: 2, color: '#60706E', fontSize: 9, fontWeight: '700' },
-  stockRow: { minWidth: 0, marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  stockText: { flex: 1, color: '#337B67', fontSize: 10, fontWeight: '800' },
-  price: { marginTop: 5, color: '#B4232D', fontSize: 11, fontWeight: '900' },
-  lowerPrice: { marginTop: 2, color: '#60706E', fontSize: 8, fontWeight: '700' },
-  missingPrice: { color: '#8F1D2C', fontSize: 9 },
+  cardBody: { flex: 1, minWidth: 0, justifyContent: 'center', paddingRight: 6 },
+  productName: { color: '#172423', fontSize: 15, lineHeight: 20, fontWeight: '900' },
+  price: { marginTop: 7, color: '#B4232D', fontSize: 14, lineHeight: 19, fontWeight: '900' },
+  missingPrice: { color: '#8F1D2C', fontSize: 12 },
   stateTitle: { color: '#4D565A', fontSize: 16, fontWeight: '900', textAlign: 'center' },
   stateText: { maxWidth: 360, color: '#60706E', fontSize: 11, lineHeight: 17, textAlign: 'center' },
   errorText: { maxWidth: 380, color: '#8F1D2C', fontSize: 11, lineHeight: 17, textAlign: 'center' },

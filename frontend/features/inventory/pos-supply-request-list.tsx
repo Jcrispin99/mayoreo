@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { Button, Checkbox, Icon, Text } from 'react-native-paper';
 import { MobileRecordList } from '../../components/data/mobile-record-list';
 import { api, apiErrorMessage } from '../../lib/api';
+import { useAuth } from '../../lib/auth-context';
 import { formatBaseQuantity } from '../pos/pos-measurement';
 import type { PosSupplyRequest, PosSupplyRequestItem } from './inventory-types';
 
@@ -42,6 +43,7 @@ function statusLabel(request: PosSupplyRequest) {
 }
 
 export function PosSupplyRequestList() {
+  const { user } = useAuth();
   const [items, setItems] = useState<PosSupplyRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -143,8 +145,10 @@ export function PosSupplyRequestList() {
       <MobileRecordList
         data={items}
         emptyIcon="clipboard-check-outline"
-        emptyText="Las órdenes del POS asignadas a este usuario aparecerán aquí."
-        emptyTitle="No tienes pedidos pendientes"
+        emptyText={user
+          ? `Esta bandeja muestra únicamente las órdenes asignadas a ${user.name} (${user.email}).`
+          : 'Las órdenes del POS asignadas a este usuario aparecerán aquí.'}
+        emptyTitle="No tienes pedidos asignados"
         error={error}
         keyExtractor={(item) => String(item.id)}
         loading={loading}

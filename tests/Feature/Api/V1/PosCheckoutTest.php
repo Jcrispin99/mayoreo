@@ -540,7 +540,7 @@ it('keeps a measured product in its base quantity through sale and stock movemen
     ]);
 });
 
-it('sells a packaged variant in pos and consumes its content from the principal granel stock', function (): void {
+it('sells a fractional packaged variant and consumes its proportional content from principal stock', function (): void {
     $grams = UnitOfMeasure::query()->where('code', 'g')->firstOrFail();
     $units = UnitOfMeasure::factory()->units()->create();
     $template = ProductTemplate::query()->create([
@@ -587,32 +587,34 @@ it('sells a packaged variant in pos and consumes its content from the principal 
     $this->withHeaders($this->headers)
         ->postJson(
             "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$order->id}/items",
-            ['product_id' => $bag250->id, 'quantity' => 4, 'unit_code' => 'unit'],
+            ['product_id' => $bag250->id, 'quantity' => '0.25', 'unit_code' => 'unit'],
         )
         ->assertCreated()
-        ->assertJsonPath('data.total', '8.0000');
+        ->assertJsonPath('data.items.0.quantity', '0.250000')
+        ->assertJsonPath('data.total', '0.5000');
 
     $response = $this->withHeaders($this->headers)
         ->postJson(
             posCheckoutUrl($this->session, $order),
-            posCheckoutPayload('8.00', 'cash', '8.00'),
+            posCheckoutPayload('0.50', 'cash', '0.50'),
         )
         ->assertCreated()
         ->assertJsonPath('data.sale.items.0.product_id', $bag250->id)
         ->assertJsonPath('data.sale.items.0.stock_product_id', $principal->id)
-        ->assertJsonPath('data.sale.items.0.stock_quantity', '1000.000000');
+        ->assertJsonPath('data.sale.items.0.quantity', '0.250000')
+        ->assertJsonPath('data.sale.items.0.stock_quantity', '62.500000');
 
     $saleId = $response->json('data.sale.id');
     $this->assertDatabaseHas('inventory_movements', [
         'reference_type' => Sale::class,
         'reference_id' => $saleId,
         'product_id' => $principal->id,
-        'quantity' => '1000.000000',
+        'quantity' => '62.500000',
     ]);
     $this->assertDatabaseHas('stocks', [
         'warehouse_id' => $this->warehouse->id,
         'product_id' => $principal->id,
-        'quantity' => '4000.000000',
+        'quantity' => '4937.500000',
     ]);
     $this->assertDatabaseMissing('stocks', [
         'warehouse_id' => $this->warehouse->id,

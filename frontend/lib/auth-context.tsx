@@ -15,7 +15,7 @@ type User = {
 type AuthContextValue = {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, replaceExistingDevice?: boolean) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       isLoading,
-      async login(email: string, password: string) {
+      async login(email: string, password: string, replaceExistingDevice = false) {
         const deviceId = await getPersistentDeviceId();
         const deviceName = getDeviceName();
         const response = await api.post('/login', {
@@ -54,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           password,
           device_id: deviceId,
           device_name: deviceName,
+          replace_existing_device: replaceExistingDevice,
         });
         const { token, user: loggedInUser } = response.data.data;
         await AsyncStorage.setItem(TOKEN_STORAGE_KEY, token);

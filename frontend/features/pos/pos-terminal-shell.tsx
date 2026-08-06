@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../lib/api';
 import { PosBarcodeScanner } from './pos-barcode-scanner';
 import { PosCheckoutModal } from './pos-checkout-modal';
-import { isMeasuredProduct, type PosMeasuredProduct, type PosSaleUnitCode } from './pos-measurement';
+import { type PosMeasuredProduct, type PosSaleUnitCode } from './pos-measurement';
 import { PosOrderDock, PosOrderPanel } from './pos-order-panel';
 import { PosProductCatalog } from './pos-product-catalog';
 import { PosQuantityEditor } from './pos-quantity-editor';
@@ -25,6 +25,7 @@ import type { PosSupplyRequest, PosSupplyRequestStatus, WarehouseAssignee } from
 type OrderNotice = {
   message: string;
   error: boolean;
+  surface?: 'catalog' | 'order';
 };
 
 type OrderOverlay =
@@ -77,6 +78,8 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
   const [orderNotice, setOrderNotice] = useState<OrderNotice | null>(null);
   const [quantityProduct, setQuantityProduct] = useState<PosMeasuredProduct | null>(null);
   const [warehouseAssignees, setWarehouseAssignees] = useState<WarehouseAssignee[]>([]);
+  const [warehouseAssigneesError, setWarehouseAssigneesError] = useState('');
+  const [warehouseAssigneesLoading, setWarehouseAssigneesLoading] = useState(false);
   const orderMutation = useRef(false);
 
   const loadSession = useCallback(async (initialLoad = false): Promise<CashRegisterSession | null> => {
@@ -138,13 +141,32 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
     return () => controller.abort();
   }, [session]);
 
-  useEffect(() => {
-    if (!session || session.status !== 'open') return;
+  const loadWarehouseAssignees = useCallback(async () => {
+    setWarehouseAssigneesLoading(true);
+    setWarehouseAssigneesError('');
 
-    void api.get('/pos/supply-assignees')
-      .then((response) => setWarehouseAssignees((response.data.data ?? []) as WarehouseAssignee[]))
-      .catch(() => setWarehouseAssignees([]));
-  }, [session]);
+    try {
+      const response = await api.get('/pos/supply-assignees');
+      setWarehouseAssignees((response.data.data ?? []) as WarehouseAssignee[]);
+    } catch (requestError: any) {
+      setWarehouseAssignees([]);
+      setWarehouseAssigneesError(
+        requestErrorMessage(requestError, 'No se pudo cargar el personal de almacén.'),
+      );
+    } finally {
+      setWarehouseAssigneesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!session || session.status !== 'open') {
+      setWarehouseAssignees([]);
+      setWarehouseAssigneesError('');
+      return;
+    }
+
+    void loadWarehouseAssignees();
+  }, [loadWarehouseAssignees, session?.id, session?.status]);
 
   // Mientras una orden tenga una comanda pendiente (esperando al almacén),
   // se hace polling periódico de esa orden hasta que quede resuelta.
@@ -191,6 +213,13 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
       pathname: '/module/[moduleId]/[itemId]',
       params: { moduleId: 'pos', itemId: 'cash-registers' },
     } as Href);
+  }
+
+  function openOrders() {
+    setOrderNotice((current) => (
+      current?.surface === 'catalog' && !current.error ? null : current
+    ));
+    setOrderOverlay({ kind: 'orders' });
   }
 
   function openCloseDialog() {
@@ -334,57 +363,42 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
   // los productos tocados no caigan en la orden que quedó activa por accidente.
   function startAddingProducts(order: PosOrder) {
     setActiveOrderId(order.id);
-    setOrderNotice({ message: `Agregando productos a la orden ${order.number}.`, error: false });
+    setOrderNotice({
+      message: `Agregando productos a la orden ${order.number}.`,
+      error: false,
+      surface: 'catalog',
+    });
     setOrderOverlay({ kind: 'closed' });
   }
 
-  async function addProduct(product: PosCatalogProduct) {
-    if (!session || orderMutation.current) return;
-
-    const currentQuantity = activeOrderQuantities[product.id] ?? 0;
-    const configuredMinimums = product.price_tiers
-      .map((tier) => Number(tier.min_quantity))
-      .filter((minimum) => Number.isFinite(minimum));
-    const addQuantity = currentQuantity > 0
-      ? 1
-      : Math.max(1, configuredMinimums.length > 0 ? Math.min(...configuredMinimums) : 1);
-    const targetQuantity = currentQuantity + addQuantity;
-    const hasApplicablePrice = product.price_tiers.some((tier) => (
-      Number(tier.min_quantity) <= targetQuantity
-      && (tier.max_quantity === null || Number(tier.max_quantity) >= targetQuantity)
-    ));
-    if (!hasApplicablePrice) {
-      setOrderNotice({
-        message: `${product.name} no tiene un precio configurado para esta cantidad.`,
-        error: true,
-      });
-      return;
-    }
+  async function addConfiguredProduct(
+    product: PosCatalogProduct,
+    quantity: number,
+    unitCode: PosSaleUnitCode,
+  ): Promise<boolean> {
+    if (!session || orderMutation.current) return false;
 
     setAddingProductId(product.id);
     const updatedOrder = await runOrderMutation(async () => {
       const order = activeOrder ?? await requestNewOrder();
       const response = await api.post(
         `/cash-register-sessions/${session.id}/orders/${order.id}/items`,
-        { product_id: product.id, quantity: addQuantity },
+        { product_id: product.id, quantity, unit_code: unitCode },
       );
 
       return response.data.data as PosOrder;
     });
     setAddingProductId(null);
 
-    if (!updatedOrder) return;
+    if (!updatedOrder) return false;
     replaceOrder(updatedOrder);
-    setOrderNotice({ message: `${product.name} agregado a la orden.`, error: false });
-  }
+    setOrderNotice({
+      message: `${product.name} agregado a la orden.`,
+      error: false,
+      surface: 'catalog',
+    });
 
-  function selectCatalogProduct(product: PosCatalogProduct) {
-    if (isMeasuredProduct(product)) {
-      setQuantityProduct(product);
-      return;
-    }
-
-    void addProduct(product);
+    return true;
   }
 
   async function saveMeasuredQuantity(
@@ -426,13 +440,6 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
     });
 
     return true;
-  }
-
-  function editMeasuredOrderItem(item: PosOrderItem) {
-    if (!isMeasuredProduct(item.product)) return;
-
-    setOrderOverlay({ kind: 'closed' });
-    setQuantityProduct(item.product);
   }
 
   async function updateOrderQuantity(order: PosOrder, item: PosOrderItem, quantity: number) {
@@ -697,7 +704,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
               leadingIcon="receipt-text-outline"
               onPress={() => {
                 setMenuVisible(false);
-                setOrderOverlay({ kind: 'orders' });
+                openOrders();
               }}
               title={`Órdenes (${orders.length})`}
             />
@@ -725,7 +732,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
           activeOrderQuantities={activeOrderQuantities}
           addingProductId={addingProductId}
           cashSessionId={cashSessionId}
-          onAddProduct={selectCatalogProduct}
+          onAddProduct={addConfiguredProduct}
           onQueryChange={setCatalogQuery}
           onSearchExpandedChange={setSearchExpanded}
           onToggleFilter={toggleCatalogFilter}
@@ -742,7 +749,7 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
 
       {activeOrder ? (
         <PosOrderDock
-          onPress={() => setOrderOverlay({ kind: 'orders' })}
+          onPress={openOrders}
           order={activeOrder}
         />
       ) : null}
@@ -766,16 +773,16 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
           activeOrderId={activeOrder?.id ?? null}
           busy={orderBusy || ordersLoading}
           loading={ordersLoading}
-          notice={orderNotice}
+          notice={orderNotice?.surface === 'catalog' && !orderNotice.error ? null : orderNotice}
           onAddProducts={startAddingProducts}
           onCancelOrder={(order) => void cancelOrder(order)}
           onCheckout={openCheckout}
           onClose={() => setOrderOverlay({ kind: 'closed' })}
           onCreateOrder={() => void createOrder()}
           onDismissNotice={() => setOrderNotice(null)}
-          onEditMeasuredItem={editMeasuredOrderItem}
           onRemoveItem={(order, item) => void removeOrderItem(order, item)}
           onReceiveSupply={(order, request) => void receiveSupply(order, request)}
+          onReloadWarehouseAssignees={() => void loadWarehouseAssignees()}
           onRequestSupply={(order, assignedTo) => void requestSupply(order, assignedTo)}
           onSelectOrder={setActiveOrderId}
           onUpdateQuantity={(order, item, quantity) => void updateOrderQuantity(order, item, quantity)}
@@ -786,6 +793,8 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
           sessionOpen={session?.status === 'open'}
           visible
           warehouseAssignees={warehouseAssignees}
+          warehouseAssigneesError={warehouseAssigneesError}
+          warehouseAssigneesLoading={warehouseAssigneesLoading}
         />
       ) : null}
 
@@ -839,10 +848,12 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
           </Dialog.Actions>
         </Dialog>
         <Snackbar
-          duration={2200}
+          duration={orderNotice?.error ? 6000 : 1800}
+          elevation={4}
           onDismiss={() => setOrderNotice(null)}
           style={orderNotice?.error ? styles.errorSnackbar : styles.successSnackbar}
           visible={Boolean(orderNotice) && orderOverlay.kind === 'closed'}
+          wrapperStyle={activeOrder ? styles.snackbarAboveOrder : undefined}
         >
           {orderNotice?.message ?? ''}
         </Snackbar>
@@ -877,4 +888,5 @@ const styles = StyleSheet.create({
   closeError: { marginTop: 6, color: '#8F1D2C', fontSize: 9, fontWeight: '700' },
   errorSnackbar: { backgroundColor: '#8F1D2C' },
   successSnackbar: { backgroundColor: '#247451' },
+  snackbarAboveOrder: { bottom: 58 },
 });

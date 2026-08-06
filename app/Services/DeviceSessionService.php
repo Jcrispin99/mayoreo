@@ -12,9 +12,14 @@ final class DeviceSessionService
 {
     public const string MULTIPLE_DEVICES_PERMISSION = 'auth.multiple-devices';
 
-    public function issueToken(User $user, string $deviceId, string $deviceName): string
+    public function issueToken(
+        User $user,
+        string $deviceId,
+        string $deviceName,
+        bool $replaceExistingDevice = false,
+    ): string
     {
-        return DB::transaction(function () use ($user, $deviceId, $deviceName): string {
+        return DB::transaction(function () use ($user, $deviceId, $deviceName, $replaceExistingDevice): string {
             /** @var User $lockedUser */
             $lockedUser = User::query()->lockForUpdate()->findOrFail($user->getKey());
             $allowsMultipleDevices = $lockedUser->can(self::MULTIPLE_DEVICES_PERMISSION);
@@ -24,7 +29,7 @@ final class DeviceSessionService
                 ->where('device_id', '!=', $deviceId)
                 ->exists();
 
-            if (! $allowsMultipleDevices && $hasAnotherDevice) {
+            if (! $allowsMultipleDevices && $hasAnotherDevice && ! $replaceExistingDevice) {
                 throw new DeviceAlreadyLinkedException;
             }
 

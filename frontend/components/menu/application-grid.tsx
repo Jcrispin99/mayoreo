@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Icon, Text } from 'react-native-paper';
 import type { MenuModule } from '../../config/menu';
 import { COLORS } from '../../theme/colors';
@@ -11,51 +10,25 @@ type ApplicationGridProps = {
 };
 
 export function ApplicationGrid({ modules, onModulePress, title = 'Aplicaciones' }: ApplicationGridProps) {
-  const [containerWidth, setContainerWidth] = useState(0);
-  const horizontalPadding = containerWidth >= 760 ? 56 : 24;
-  const availableWidth = Math.max(0, containerWidth - (horizontalPadding * 2));
-  const columns = availableWidth >= 1000
-    ? 4
-    : availableWidth >= 520
-      ? 3
-      : 2;
-  const gap = availableWidth >= 520 ? 24 : 16;
-  const cardWidth = availableWidth > 0
-    ? Math.min(190, (availableWidth - (gap * (columns - 1))) / columns)
-    : 0;
-
-  function measureContainer(event: LayoutChangeEvent) {
-    const nextWidth = Math.round(event.nativeEvent.layout.width);
-    if (nextWidth !== containerWidth) setContainerWidth(nextWidth);
-  }
-
   return (
-    <View
-      onLayout={measureContainer}
-      style={[styles.container, { paddingHorizontal: horizontalPadding }]}
-    >
+    <View style={styles.container}>
       <View style={styles.heading}>
         <Text accessibilityRole="header" style={styles.sectionTitle}>{title}</Text>
       </View>
-      <View style={[styles.grid, { gap }]}>
+      <View style={styles.grid}>
         {modules.map((module) => (
           <Pressable
             accessibilityHint={`Abrir el módulo ${module.title}`}
             accessibilityRole="button"
+            android_ripple={{ color: module.softColor }}
             key={module.id}
             onPress={() => onModulePress(module)}
-            style={({ pressed }) => [
-              styles.card,
-              cardWidth > 0 ? { width: cardWidth } : styles.cardPending,
-              pressed && styles.cardPressed,
-            ]}
+            style={[styles.card, { backgroundColor: module.color }]}
           >
-            <View style={[styles.iconTile, { backgroundColor: module.softColor }]}>
-              <Icon source={module.icon} color={module.color} size={30} />
+            <View style={[styles.iconTile, { borderLeftColor: module.color }]}>
+              <Icon source={module.icon} color={module.color} size={28} />
             </View>
-            <Text numberOfLines={2} style={styles.title}>
-              {module.title}
-            </Text>
+            <Text numberOfLines={2} style={styles.title}>{module.title}</Text>
           </Pressable>
         ))}
       </View>
@@ -66,12 +39,13 @@ export function ApplicationGrid({ modules, onModulePress, title = 'Aplicaciones'
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    maxWidth: 1120,
+    maxWidth: 720,
+    paddingHorizontal: 20,
     alignSelf: 'center',
   },
   heading: {
     marginTop: 32,
-    marginBottom: 30,
+    marginBottom: 24,
     alignItems: 'center',
   },
   sectionTitle: {
@@ -84,45 +58,34 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'stretch',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    rowGap: 14,
   },
   card: {
-    minHeight: 142,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    width: '48%',
+    height: 56,
+    paddingRight: 8,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 14,
-    backgroundColor: COLORS.surface,
-  },
-  cardPending: { width: '46%' },
-  cardPressed: {
-    opacity: 0.78,
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryContainer,
-    transform: [{ scale: 0.985 }],
-  },
-  iconTile: {
-    width: 54,
-    height: 54,
-    marginBottom: 14,
-    alignSelf: 'center',
-    alignItems: 'center',
-    justifyContent: 'center',
     borderRadius: 16,
   },
+  iconTile: {
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    borderLeftWidth: 1,
+    borderRadius: 16,
+    backgroundColor: COLORS.surface,
+  },
   title: {
-    width: '100%',
-    minHeight: 30,
-    paddingHorizontal: 4,
-    color: COLORS.text,
-    fontSize: 12,
-    lineHeight: 15,
-    fontWeight: '800',
-    textAlign: 'center',
-    textAlignVertical: 'center',
+    flex: 1,
+    marginLeft: 10,
+    color: COLORS.onPrimary,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '900',
+    letterSpacing: -0.2,
   },
 });

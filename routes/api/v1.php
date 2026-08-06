@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V1\InventoryMovementController;
 use App\Http\Controllers\Api\V1\InventoryTransferController;
 use App\Http\Controllers\Api\V1\PermissionController;
 use App\Http\Controllers\Api\V1\PosCatalogController;
+use App\Http\Controllers\Api\V1\PosCatalogTemplateVariantController;
 use App\Http\Controllers\Api\V1\PosCheckoutController;
 use App\Http\Controllers\Api\V1\PosOrderController;
 use App\Http\Controllers\Api\V1\PosOrderItemController;
@@ -138,6 +139,9 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     Route::get('cash-register-sessions/{cash_register_session}/catalog', PosCatalogController::class)
         ->middleware('can:cash-sessions.view')
         ->name('api.v1.cash-register-sessions.catalog');
+    Route::get('cash-register-sessions/{cash_register_session}/catalog/templates/{product_template}/variants', PosCatalogTemplateVariantController::class)
+        ->middleware('can:cash-sessions.view')
+        ->name('api.v1.cash-register-sessions.catalog.template-variants');
     Route::get('pos/payment-methods', [PosPaymentMethodController::class, 'index'])
         ->middleware('can:cash-sessions.view')
         ->name('api.v1.pos.payment-methods.index');

@@ -92,7 +92,7 @@ final class ProductCatalogSeeder extends Seeder
         ]);
         $kilogram->attributeValues()->sync([$oneKilogram->id]);
         $this->priceTiers($kilogram, [
-            ['label' => 'Precio por kilo', 'min' => '1', 'max' => null, 'price' => '5.0000'],
+            ['label' => 'Precio por kilo', 'min' => '0.000001', 'max' => null, 'price' => '5.0000'],
         ]);
 
         $sack = $this->product($template, [
@@ -109,7 +109,7 @@ final class ProductCatalogSeeder extends Seeder
         ]);
         $sack->attributeValues()->sync([$sack50Kilograms->id]);
         $this->priceTiers($sack, [
-            ['label' => 'Precio por saco', 'min' => '1', 'max' => null, 'price' => '210.0000'],
+            ['label' => 'Precio por saco', 'min' => '0.000001', 'max' => null, 'price' => '210.0000'],
         ]);
     }
 
@@ -165,7 +165,7 @@ final class ProductCatalogSeeder extends Seeder
         ]);
         $bottle->attributeValues()->sync([$oneLiter->id]);
         $this->priceTiers($bottle, [
-            ['label' => 'Precio por botella', 'min' => '1', 'max' => null, 'price' => '12.0000'],
+            ['label' => 'Precio por botella', 'min' => '0.000001', 'max' => null, 'price' => '12.0000'],
         ]);
 
         $drum = $this->product($template, [
@@ -182,7 +182,7 @@ final class ProductCatalogSeeder extends Seeder
         ]);
         $drum->attributeValues()->sync([$drum20Liters->id]);
         $this->priceTiers($drum, [
-            ['label' => 'Precio por bidón', 'min' => '1', 'max' => null, 'price' => '200.0000'],
+            ['label' => 'Precio por bidón', 'min' => '0.000001', 'max' => null, 'price' => '200.0000'],
         ]);
     }
 
@@ -238,7 +238,7 @@ final class ProductCatalogSeeder extends Seeder
         ]);
         $kilogram->attributeValues()->sync([$oneKilogram->id]);
         $this->priceTiers($kilogram, [
-            ['label' => 'Precio por kilo', 'min' => '1', 'max' => null, 'price' => '4.8000'],
+            ['label' => 'Precio por kilo', 'min' => '0.000001', 'max' => null, 'price' => '4.8000'],
         ]);
 
         $sack = $this->product($template, [
@@ -255,7 +255,7 @@ final class ProductCatalogSeeder extends Seeder
         ]);
         $sack->attributeValues()->sync([$sack50Kilograms->id]);
         $this->priceTiers($sack, [
-            ['label' => 'Precio por saco', 'min' => '1', 'max' => null, 'price' => '195.0000'],
+            ['label' => 'Precio por saco', 'min' => '0.000001', 'max' => null, 'price' => '195.0000'],
         ]);
     }
 
@@ -281,7 +281,7 @@ final class ProductCatalogSeeder extends Seeder
             'is_favorite' => true,
         ]);
         $this->priceTiers($product, [
-            ['label' => 'Precio por unidad', 'min' => '1', 'max' => null, 'price' => '3.5000'],
+            ['label' => 'Precio por unidad', 'min' => '0.000001', 'max' => null, 'price' => '3.5000'],
         ]);
         $this->purchaseUnits($product, [
             ['name' => 'Caja x 24', 'factor' => '24', 'default' => true],

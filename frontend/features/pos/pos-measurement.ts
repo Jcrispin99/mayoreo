@@ -47,27 +47,41 @@ export function saleUnitOptions(baseUnit: UnitOfMeasure | null): PosSaleUnitOpti
     ];
   }
 
+  if (baseUnit) {
+    return [
+      { code: baseUnit.code as PosSaleUnitCode, factor: 1, label: baseUnit.name || baseUnit.code, quickValues: [] }
+    ];
+  }
+
   return [];
 }
 
 export function isMeasuredProduct(product: PosMeasuredProduct) {
-  if (product.sale_mode) return product.sale_mode === 'measured';
-  return saleUnitOptions(product.base_unit).length > 0;
+  return product.sale_mode === 'measured';
 }
 
 export function resolvePriceTier(
   tiers: PosCatalogPriceTier[],
   quantityInBaseUnit: number,
+  allowBelowMinimum = false,
 ) {
   if (!Number.isFinite(quantityInBaseUnit) || quantityInBaseUnit <= 0) return null;
 
-  return [...tiers]
+  const activeTiers = [...tiers]
     .filter((tier) => tier.is_active !== false)
-    .sort((left, right) => Number(right.min_quantity) - Number(left.min_quantity))
-    .find((tier) => (
+    .sort((left, right) => Number(right.min_quantity) - Number(left.min_quantity));
+  const matchedTier = activeTiers.find((tier) => (
       Number(tier.min_quantity) <= quantityInBaseUnit
       && (tier.max_quantity === null || Number(tier.max_quantity) >= quantityInBaseUnit)
-    )) ?? null;
+    ));
+
+  if (matchedTier || !allowBelowMinimum) return matchedTier ?? null;
+
+  const lowestTier = activeTiers.at(-1) ?? null;
+
+  return lowestTier && quantityInBaseUnit < Number(lowestTier.min_quantity)
+    ? lowestTier
+    : null;
 }
 
 function baseUnitStep(baseUnit: UnitOfMeasure | null) {
@@ -78,7 +92,7 @@ function baseUnitStep(baseUnit: UnitOfMeasure | null) {
 function roundDownToStep(value: number, step: number) {
   if (!Number.isFinite(value) || value <= 0 || !Number.isFinite(step) || step <= 0) return 0;
 
-  return Math.floor((value + Number.EPSILON) / step) * step;
+  return Math.floor((value + step * 1e-9) / step) * step;
 }
 
 export function resolveAmountToQuantity(
@@ -100,7 +114,11 @@ export function resolveAmountToQuantity(
     const baseQuantity = roundDownToStep(rawBaseQuantity, step);
     if (!Number.isFinite(baseQuantity) || baseQuantity <= 0) continue;
 
-    const resolvedTier = resolvePriceTier(tiers, baseQuantity);
+    const resolvedTier = resolvePriceTier(
+      tiers,
+      baseQuantity,
+      product.sale_mode === 'unit',
+    );
     if (!resolvedTier || resolvedTier.id !== tier.id) continue;
 
     return {

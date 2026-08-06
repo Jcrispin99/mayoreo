@@ -51,7 +51,12 @@ final class AuthController extends ApiController
             return $this->unauthorized('Invalid credentials');
         }
 
-        $token = $this->deviceSessionService->issueToken($user, $request->device_id, $request->device_name);
+        $token = $this->deviceSessionService->issueToken(
+            $user,
+            $request->device_id,
+            $request->device_name,
+            $request->replaceExistingDevice(),
+        );
 
         return $this->success([
             'user' => new AuthenticatedUserResource($user),

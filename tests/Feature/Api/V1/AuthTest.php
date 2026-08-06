@@ -166,6 +166,28 @@ describe('Login', function (): void {
             ->and($user->tokens()->value('device_id'))->toBe('cashier-phone-1');
     });
 
+    it('replaces the previous device after the user explicitly confirms it', function (): void {
+        $user = User::factory()->create(['password' => bcrypt('password123')]);
+
+        $this->postJson('/api/v1/login', [
+            'email' => $user->email,
+            'password' => 'password123',
+            'device_id' => 'warehouse-phone-old',
+            'device_name' => 'Teléfono anterior',
+        ])->assertOk();
+
+        $this->postJson('/api/v1/login', [
+            'email' => $user->email,
+            'password' => 'password123',
+            'device_id' => 'warehouse-phone-new',
+            'device_name' => 'Teléfono nuevo',
+            'replace_existing_device' => true,
+        ])->assertOk();
+
+        expect($user->tokens()->count())->toBe(1)
+            ->and($user->tokens()->value('device_id'))->toBe('warehouse-phone-new');
+    });
+
     it('allows multiple devices when the user has permission', function (): void {
         $user = User::factory()->create(['password' => bcrypt('password123')]);
         grantApiPermissions($user, DeviceSessionService::MULTIPLE_DEVICES_PERMISSION);

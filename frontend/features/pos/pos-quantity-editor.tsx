@@ -71,7 +71,9 @@ export function PosQuantityEditor({
     [numericAmount, product],
   );
   const baseQuantity = selectedUnit ? numericQuantity * selectedUnit.factor : 0;
-  const tier = product ? resolvePriceTier(product.price_tiers, baseQuantity) : null;
+  const tier = product
+    ? resolvePriceTier(product.price_tiers, baseQuantity, product.sale_mode === 'unit')
+    : null;
   const priceDisplay = pricingDisplay(product?.base_unit ?? null);
   const displayUnitPrice = tier ? Number(tier.unit_price) * priceDisplay.factor : 0;
   const total = tier ? baseQuantity * Number(tier.unit_price) : 0;
@@ -114,17 +116,7 @@ export function PosQuantityEditor({
     setError('');
   }
 
-  function applyAmountSuggestion() {
-    if (!selectedUnit) return;
-
-    if (!amountResolution || suggestedQuantity <= 0) {
-      setError('No se pudo calcular una cantidad para ese monto.');
-      return;
-    }
-
-    setQuantity(inputNumber(suggestedQuantity));
-    setError('');
-  }
+  // La cantidad sugerida ahora se auto-aplica en el onChangeText y onPress
 
   async function confirm() {
     if (!selectedUnit || !valid) {
@@ -255,6 +247,14 @@ export function PosQuantityEditor({
                 onChangeText={(value) => {
                   setAmount(value);
                   setError('');
+                  const parsed = parseQuantity(value);
+                  if (parsed > 0) {
+                    const resolution = resolveAmountToQuantity(product, parsed);
+                    if (resolution && selectedUnit) {
+                      const suggested = resolution.baseQuantity / selectedUnit.factor;
+                      if (suggested > 0) setQuantity(inputNumber(suggested));
+                    }
+                  }
                 }}
                 outlineColor="#879692"
                 selectTextOnFocus
@@ -262,7 +262,7 @@ export function PosQuantityEditor({
                 value={amount}
               />
               <View style={styles.quickValues}>
-                {[5, 10, 20, 50].map((value) => {
+                {[5, 10, 20, 50, 100].map((value) => {
                   const selected = Math.abs(numericAmount - value) < 0.000001;
 
                   return (
@@ -272,6 +272,11 @@ export function PosQuantityEditor({
                       onPress={() => {
                         setAmount(moneyInput(value));
                         setError('');
+                        const resolution = resolveAmountToQuantity(product, value);
+                        if (resolution && selectedUnit) {
+                          const suggested = resolution.baseQuantity / selectedUnit.factor;
+                          if (suggested > 0) setQuantity(inputNumber(suggested));
+                        }
                       }}
                       style={[styles.quickValue, selected && styles.quickValueSelected]}
                     >
@@ -300,20 +305,21 @@ export function PosQuantityEditor({
                 </View>
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Total estimado</Text>
-                  <Text style={styles.summaryValue}>
-                    {amountResolution ? money(amountResolution.lineTotal) : '—'}
-                  </Text>
+                  <View style={styles.priceDetail}>
+                    <Text style={styles.summaryValue}>
+                      {amountResolution ? money(amountResolution.lineTotal) : '—'}
+                    </Text>
+                    {amountResolution && Math.abs(numericAmount - amountResolution.lineTotal) >= 0.01 ? (
+                      <Text style={[
+                        styles.unitPrice,
+                        Math.abs(numericAmount - amountResolution.lineTotal) < 0.10 ? { color: '#0F766E' } : { color: '#8F1D2C' }
+                      ]}>
+                        (Diferencia: {money(Math.abs(numericAmount - amountResolution.lineTotal))})
+                      </Text>
+                    ) : null}
+                  </View>
                 </View>
               </View>
-              <Button
-                disabled={busy || saving || !amountResolution}
-                mode="outlined"
-                onPress={applyAmountSuggestion}
-                style={styles.helperButton}
-                textColor="#B4232D"
-              >
-                Usar cantidad sugerida
-              </Button>
             </View>
 
             {error ? <Text style={styles.error}>{error}</Text> : null}

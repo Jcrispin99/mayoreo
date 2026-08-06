@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\DB;
 
 final readonly class CreatePosOrderAction
 {
+    public function __construct(
+        private ResolveDefaultPosCustomerAction $resolveDefaultCustomerAction,
+    ) {}
+
     public function execute(CashRegisterSession $session, ?int $createdBy): PosOrder
     {
         return DB::transaction(function () use ($session, $createdBy): PosOrder {
@@ -22,8 +26,10 @@ final readonly class CreatePosOrderAction
 
             $latestNumber = $lockedSession->orders()->max('number');
             $nextNumber = is_numeric($latestNumber) ? ((int) $latestNumber) + 1 : 1;
+            $defaultCustomer = $this->resolveDefaultCustomerAction->execute();
 
             return $lockedSession->orders()->create([
+                'customer_id' => $defaultCustomer->id,
                 'number' => $nextNumber,
                 'status' => 'open',
                 'subtotal' => '0',
