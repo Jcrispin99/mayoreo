@@ -24,6 +24,6 @@ final class DatabaseSeeder extends Seeder
         $this->call(DefaultPosCustomerSeeder::class);
         $this->call(ProductCatalogSeeder::class);
         $this->call(MayoreoProductCatalogSeeder::class);
-        $this->call(PurchaseOrderSeeder::class);
+        $this->call(InitialInventoryPurchaseSeeder::class);
     }
 }
