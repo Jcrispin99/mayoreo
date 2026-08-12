@@ -23,6 +23,7 @@ type ListSearchProps = {
   onExpandedChange?: (expanded: boolean) => void;
   placeholder?: string;
   searchAccessibilityLabel?: string;
+  showFilters?: boolean;
 };
 
 export function ListSearch({
@@ -39,6 +40,7 @@ export function ListSearch({
   onExpandedChange,
   placeholder = 'Buscar...',
   searchAccessibilityLabel = 'Buscar',
+  showFilters = true,
 }: ListSearchProps) {
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [internalExpanded, setInternalExpanded] = useState(!collapsible || Boolean(query));
@@ -128,7 +130,7 @@ export function ListSearch({
           </Pressable>
         ) : null}
 
-        <Menu
+        {showFilters ? <Menu
           anchor={
             <Pressable
               accessibilityLabel="Mostrar filtros"
@@ -172,7 +174,7 @@ export function ListSearch({
               })}
             </View>
           ))}
-        </Menu>
+        </Menu> : null}
       </View>
     </View>
   );

@@ -20,6 +20,7 @@ export function ModuleLayout({ children, module, selectedItemId }: ModuleLayoutP
   const { openNotifications, unreadCount } = usePriceNotifications();
   const [applicationsVisible, setApplicationsVisible] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const selectedItemTitle = module.items.find((item) => item.id === selectedItemId)?.title ?? module.title;
 
   function openModule(nextModule: MenuModule) {
     setApplicationsVisible(false);
@@ -49,7 +50,7 @@ export function ModuleLayout({ children, module, selectedItemId }: ModuleLayoutP
       notificationCount={unreadCount}
       onNotificationsPress={openNotifications}
       onProfilePress={() => setDrawerVisible(true)}
-      title={module.title}
+      title={selectedItemTitle}
       userName={user?.name}
     >
       {children}

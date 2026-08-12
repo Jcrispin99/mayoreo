@@ -111,6 +111,14 @@ export const MENU_MODULES: MenuModule[] = [
         permission: 'purchase-orders.view',
       },
       {
+        id: 'supplier-price-comparison',
+        title: 'Comparador de precios',
+        description: 'Últimos costos por proveedor y variante',
+        icon: 'compare-horizontal',
+        group: 'Análisis',
+        permission: 'purchase-orders.view',
+      },
+      {
         id: 'suppliers',
         title: 'Proveedores',
         description: 'Catálogo de proveedores',

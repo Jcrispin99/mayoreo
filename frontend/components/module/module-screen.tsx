@@ -11,6 +11,7 @@ import { InventoryMovementList } from '../../features/inventory/inventory-moveme
 import { PosSupplyRequestList } from '../../features/inventory/pos-supply-request-list';
 import { ProductList, type ProductSummary } from '../../features/products/product-list';
 import { PurchaseOrderList } from '../../features/purchases/purchase-order-list';
+import { SupplierPriceComparison } from '../../features/purchases/supplier-price-comparison';
 import { SupplierList } from '../../features/purchases/supplier-list';
 import { CashRegisterList } from '../../features/pos/cash-register-list';
 import { DocumentSeriesList } from '../../features/pos/document-series-list';
@@ -60,6 +61,8 @@ export function ModuleScreen() {
         <PosSupplyRequestList />
       ) : module.id === 'purchases' && selectedItem.id === 'purchase-orders' ? (
         <PurchaseOrderList />
+      ) : module.id === 'purchases' && selectedItem.id === 'supplier-price-comparison' ? (
+        <SupplierPriceComparison />
       ) : module.id === 'purchases' && selectedItem.id === 'suppliers' ? (
         <SupplierList />
       ) : module.id === 'pos' && selectedItem.id === 'cash-registers' ? (
