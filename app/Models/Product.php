@@ -115,6 +115,14 @@ final class Product extends Model
     }
 
     /**
+     * @return HasMany<SupplierProductPrice, $this>
+     */
+    public function supplierPrices(): HasMany
+    {
+        return $this->hasMany(SupplierProductPrice::class);
+    }
+
+    /**
      * @return HasMany<PriceTier, $this>
      */
     public function priceTiers(): HasMany

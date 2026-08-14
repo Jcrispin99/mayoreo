@@ -16,7 +16,7 @@ final class UserController extends ApiController
 {
     public function index(): JsonResponse
     {
-        $users = User::query()->with('roles')->orderBy('name')->get();
+        $users = User::query()->with(['roles', 'employeeProfile.store'])->orderBy('name')->get();
 
         return $this->success(UserResource::collection($users));
     }
@@ -29,12 +29,12 @@ final class UserController extends ApiController
             'password' => Hash::make($request->password),
         ]);
 
-        return $this->created(new UserResource($user->load('roles')));
+        return $this->created(new UserResource($user->load(['roles', 'employeeProfile.store'])));
     }
 
     public function show(User $user): JsonResponse
     {
-        return $this->success(new UserResource($user->load('roles')));
+        return $this->success(new UserResource($user->load(['roles', 'employeeProfile.store'])));
     }
 
     public function update(UpdateUserRequest $request, User $user): JsonResponse
@@ -45,11 +45,16 @@ final class UserController extends ApiController
             'password' => $request->filled('password') ? Hash::make($request->string('password')->toString()) : null,
         ], fn (mixed $value): bool => $value !== null));
 
-        return $this->success(new UserResource($user->load('roles')), 'User updated successfully');
+        return $this->success(new UserResource($user->load(['roles', 'employeeProfile.store'])), 'User updated successfully');
     }
 
     public function destroy(User $user): JsonResponse
     {
+        if ($user->employeeProfile()->whereHas('shifts')->exists()
+            || $user->employeeProfile()->whereHas('payrollLines')->exists()) {
+            return $this->error('El trabajador tiene historial de asistencia o planilla; cámbialo a estado inactivo.', 409);
+        }
+
         $user->delete();
 
         return $this->noContent();

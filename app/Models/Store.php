@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -70,6 +71,18 @@ final class Store extends Model
     public function cashRegisters(): HasMany
     {
         return $this->hasMany(CashRegister::class);
+    }
+
+    /** @return HasMany<EmployeeProfile, $this> */
+    public function employeeProfiles(): HasMany
+    {
+        return $this->hasMany(EmployeeProfile::class);
+    }
+
+    /** @return HasOne<StoreAttendanceQrToken, $this> */
+    public function attendanceQrToken(): HasOne
+    {
+        return $this->hasOne(StoreAttendanceQrToken::class);
     }
 
     /**

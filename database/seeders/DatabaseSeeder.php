@@ -25,5 +25,10 @@ final class DatabaseSeeder extends Seeder
         $this->call(ProductCatalogSeeder::class);
         $this->call(MayoreoProductCatalogSeeder::class);
         $this->call(InitialInventoryPurchaseSeeder::class);
+
+        if (app()->environment(['local', 'testing'])) {
+            $this->call(WorkforceDemoSeeder::class);
+            $this->call(AdminWorkforceDemoSeeder::class);
+        }
     }
 }

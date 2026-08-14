@@ -2,20 +2,25 @@
 
 declare(strict_types=1);
 
-use App\Http\Controllers\Api\V1\AssignedPosSupplyRequestController;
 use App\Http\Controllers\Api\V1\AppNotificationController;
+use App\Http\Controllers\Api\V1\AssignedPosSupplyRequestController;
+use App\Http\Controllers\Api\V1\AttendanceScanController;
+use App\Http\Controllers\Api\V1\AttendanceShiftController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CashRegisterController;
 use App\Http\Controllers\Api\V1\CashRegisterMovementController;
 use App\Http\Controllers\Api\V1\CashRegisterSessionController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\DocumentSeriesController;
+use App\Http\Controllers\Api\V1\EmployeeCompensationController;
+use App\Http\Controllers\Api\V1\EmployeeProfileController;
 use App\Http\Controllers\Api\V1\FiscalCertificateController;
 use App\Http\Controllers\Api\V1\FiscalCredentialController;
 use App\Http\Controllers\Api\V1\FiscalDocumentController;
 use App\Http\Controllers\Api\V1\FiscalIssuerController;
 use App\Http\Controllers\Api\V1\InventoryMovementController;
 use App\Http\Controllers\Api\V1\InventoryTransferController;
+use App\Http\Controllers\Api\V1\PayrollPeriodController;
 use App\Http\Controllers\Api\V1\PermissionController;
 use App\Http\Controllers\Api\V1\PosCatalogController;
 use App\Http\Controllers\Api\V1\PosCatalogTemplateVariantController;
@@ -33,8 +38,11 @@ use App\Http\Controllers\Api\V1\PushSubscriptionController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\StockController;
+use App\Http\Controllers\Api\V1\StoreAttendanceQrController;
 use App\Http\Controllers\Api\V1\StoreController;
+use App\Http\Controllers\Api\V1\SpecialDayController;
 use App\Http\Controllers\Api\V1\SupplierController;
+use App\Http\Controllers\Api\V1\SupplierProductPriceController;
 use App\Http\Controllers\Api\V1\UnitOfMeasureController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\UserRoleController;
@@ -213,6 +221,59 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
         ->middleware('can:roles.view')
         ->names('api.v1.permissions');
 
+    // Personal, asistencia y planilla
+    Route::get('employees', [EmployeeProfileController::class, 'index'])
+        ->middleware('can:employees.view')->name('api.v1.employees.index');
+    Route::get('employees/{employee_profile}', [EmployeeProfileController::class, 'show'])
+        ->middleware('can:employees.view')->name('api.v1.employees.show');
+    Route::put('users/{user}/employee-profile', [EmployeeProfileController::class, 'update'])
+        ->middleware('can:employees.manage')->name('api.v1.users.employee-profile.update');
+    Route::get('employees/{employee_profile}/compensations', [EmployeeCompensationController::class, 'index'])
+        ->middleware('can:payroll.view')->name('api.v1.employees.compensations.index');
+    Route::post('employees/{employee_profile}/compensations', [EmployeeCompensationController::class, 'store'])
+        ->middleware('can:payroll.manage')->name('api.v1.employees.compensations.store');
+    Route::apiResource('special-days', SpecialDayController::class)
+        ->only(['index', 'store', 'update', 'destroy'])
+        ->middlewareFor('index', 'can:payroll.view')
+        ->middlewareFor(['store', 'update', 'destroy'], 'can:payroll.manage')
+        ->names('api.v1.special-days');
+
+    Route::get('stores/{store}/attendance-qr', [StoreAttendanceQrController::class, 'show'])
+        ->middleware('can:attendance-qr.manage')->name('api.v1.stores.attendance-qr.show');
+    Route::post('stores/{store}/attendance-qr/rotate', [StoreAttendanceQrController::class, 'rotate'])
+        ->middleware('can:attendance-qr.manage')->name('api.v1.stores.attendance-qr.rotate');
+    Route::post('attendance/scan', [AttendanceScanController::class, 'store'])
+        ->middleware('can:attendance.mark')->name('api.v1.attendance.scan');
+    Route::get('attendance/status', [AttendanceScanController::class, 'status'])
+        ->middleware('can:attendance.view-own')->name('api.v1.attendance.status');
+    Route::get('attendance/mine', [AttendanceScanController::class, 'history'])
+        ->middleware('can:attendance.view-own')->name('api.v1.attendance.mine');
+    Route::get('attendance-shifts', [AttendanceShiftController::class, 'index'])
+        ->middleware('can:attendance.view')->name('api.v1.attendance-shifts.index');
+    Route::post('attendance-shifts', [AttendanceShiftController::class, 'store'])
+        ->middleware('can:attendance.manage')->name('api.v1.attendance-shifts.store');
+    Route::get('attendance-shifts/{attendance_shift}', [AttendanceShiftController::class, 'show'])
+        ->middleware('can:attendance.view')->name('api.v1.attendance-shifts.show');
+    Route::patch('attendance-shifts/{attendance_shift}', [AttendanceShiftController::class, 'update'])
+        ->middleware('can:attendance.manage')->name('api.v1.attendance-shifts.update');
+
+    Route::get('payroll/mine', [PayrollPeriodController::class, 'mine'])
+        ->middleware('can:payroll.view-own')->name('api.v1.payroll.mine');
+    Route::get('employees/{employee_profile}/payroll-lines', [PayrollPeriodController::class, 'employee'])
+        ->middleware('can:payroll.view')->name('api.v1.employees.payroll-lines.index');
+    Route::get('payroll-periods', [PayrollPeriodController::class, 'index'])
+        ->middleware('can:payroll.view')->name('api.v1.payroll-periods.index');
+    Route::post('payroll-periods', [PayrollPeriodController::class, 'store'])
+        ->middleware('can:payroll.manage')->name('api.v1.payroll-periods.store');
+    Route::get('payroll-periods/{payroll_period}', [PayrollPeriodController::class, 'show'])
+        ->middleware('can:payroll.view')->name('api.v1.payroll-periods.show');
+    Route::post('payroll-periods/{payroll_period}/recalculate', [PayrollPeriodController::class, 'recalculate'])
+        ->middleware('can:payroll.manage')->name('api.v1.payroll-periods.recalculate');
+    Route::patch('payroll-periods/{payroll_period}/lines/{payroll_line}', [PayrollPeriodController::class, 'updateLine'])
+        ->middleware('can:payroll.manage')->name('api.v1.payroll-periods.lines.update');
+    Route::post('payroll-periods/{payroll_period}/close', [PayrollPeriodController::class, 'close'])
+        ->middleware('can:payroll.manage')->name('api.v1.payroll-periods.close');
+
     // Catálogo
     Route::apiResource('units-of-measure', UnitOfMeasureController::class)
         ->parameters(['units-of-measure' => 'unit_of_measure'])
@@ -258,6 +319,15 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
         ->middlewareFor(['index', 'show'], 'can:suppliers.view')
         ->middlewareFor(['store', 'update', 'destroy'], 'can:suppliers.manage')
         ->names('api.v1.suppliers');
+    Route::get('supplier-product-prices/suppliers', [SupplierProductPriceController::class, 'suppliers'])
+        ->middleware('can:purchase-orders.view')
+        ->name('api.v1.supplier-product-prices.suppliers');
+    Route::get('supplier-product-prices', [SupplierProductPriceController::class, 'index'])
+        ->middleware('can:purchase-orders.view')
+        ->name('api.v1.supplier-product-prices.index');
+    Route::post('supplier-product-prices', [SupplierProductPriceController::class, 'store'])
+        ->middleware('can:purchase-orders.manage')
+        ->name('api.v1.supplier-product-prices.store');
     Route::apiResource('purchase-orders', PurchaseOrderController::class)
         ->only(['index', 'store', 'show', 'update'])
         ->middlewareFor(['index', 'show'], 'can:purchase-orders.view')

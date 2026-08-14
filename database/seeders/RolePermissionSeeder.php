@@ -35,6 +35,10 @@ final class RolePermissionSeeder extends Seeder
             'cash-sessions.view', 'cash-sessions.manage',
             'users.view', 'users.manage',
             'roles.view', 'roles.manage',
+            'employees.view', 'employees.manage',
+            'attendance.mark', 'attendance.view-own', 'attendance.view', 'attendance.manage',
+            'attendance-qr.manage',
+            'payroll.view-own', 'payroll.view', 'payroll.manage',
             'fiscal-settings.view', 'fiscal-settings.manage',
             'fiscal-credentials.manage',
             'auth.multiple-devices',
@@ -67,6 +71,10 @@ final class RolePermissionSeeder extends Seeder
             'pos-config.view', 'pos-config.manage',
             'cash-sessions.view', 'cash-sessions.manage',
             'fiscal-settings.view',
+            'employees.view', 'employees.manage',
+            'attendance.mark', 'attendance.view-own', 'attendance.view', 'attendance.manage',
+            'attendance-qr.manage',
+            'payroll.view-own', 'payroll.view', 'payroll.manage',
             'pos-supply-requests.assign',
             'price-notifications.receive',
         ]);
@@ -78,6 +86,7 @@ final class RolePermissionSeeder extends Seeder
             'sales.view', 'sales.manage',
             'customers.view', 'customers.manage',
             'cash-sessions.view', 'cash-sessions.manage',
+            'attendance.mark', 'attendance.view-own', 'payroll.view-own',
             'pos-supply-requests.assign',
             'price-notifications.receive',
         ]);
@@ -87,6 +96,7 @@ final class RolePermissionSeeder extends Seeder
             'pos-supply-requests.view-assigned',
             'pos-supply-requests.resolve-assigned',
             'pos-supply-requests.prepare-assigned',
+            'attendance.mark', 'attendance.view-own', 'payroll.view-own',
         ]);
 
         $viewer = Role::query()->firstOrCreate(['name' => 'viewer', 'guard_name' => 'web']);

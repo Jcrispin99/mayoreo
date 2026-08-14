@@ -47,6 +47,14 @@ final class Supplier extends Model
     }
 
     /**
+     * @return HasMany<SupplierProductPrice, $this>
+     */
+    public function productPrices(): HasMany
+    {
+        return $this->hasMany(SupplierProductPrice::class);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

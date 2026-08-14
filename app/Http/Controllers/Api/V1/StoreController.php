@@ -84,6 +84,7 @@ final class StoreController extends ApiController
     {
         $warehouseIds = $store->warehouses()->pluck('id');
         $inUse = DB::table('stocks')->whereIn('warehouse_id', $warehouseIds)->exists()
+            || DB::table('employee_profiles')->where('store_id', $store->id)->exists()
             || DB::table('inventory_movements')->whereIn('warehouse_id', $warehouseIds)->exists()
             || DB::table('purchase_orders')->whereIn('warehouse_id', $warehouseIds)->exists()
             || DB::table('sales')->whereIn('warehouse_id', $warehouseIds)->exists()

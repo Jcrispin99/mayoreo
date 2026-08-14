@@ -24,6 +24,7 @@ final class UserResource extends JsonResource
             'email' => $this->email,
             'email_verified_at' => $this->email_verified_at?->toIso8601String(),
             'roles' => RoleResource::collection($this->whenLoaded('roles')),
+            'employee_profile' => new EmployeeProfileResource($this->whenLoaded('employeeProfile')),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
