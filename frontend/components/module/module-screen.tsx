@@ -17,6 +17,11 @@ import { CashRegisterList } from '../../features/pos/cash-register-list';
 import { DocumentSeriesList } from '../../features/pos/document-series-list';
 import { PosPaymentMethodList } from '../../features/pos/pos-payment-method-list';
 import { SunatSettingsScreen } from '../../features/settings/sunat-settings-screen';
+import { AttendanceList } from '../../features/workforce/attendance-list';
+import { AttendanceMarkScreen } from '../../features/workforce/attendance-mark-screen';
+import { AttendanceQrScreen } from '../../features/workforce/attendance-qr-screen';
+import { PayrollList } from '../../features/workforce/payroll-list';
+import { SpecialDayList } from '../../features/workforce/special-day-list';
 import { ModuleLayout } from './module-layout';
 
 function firstParam(value?: string | string[]) {
@@ -77,6 +82,16 @@ export function ModuleScreen() {
         <AccountingSaleList />
       ) : module.id === 'access' && selectedItem.id === 'users' ? (
         <AccessReferenceList kind="users" />
+      ) : module.id === 'access' && selectedItem.id === 'attendance' ? (
+        <AttendanceList />
+      ) : module.id === 'access' && selectedItem.id === 'attendance-mark' ? (
+        <AttendanceMarkScreen />
+      ) : module.id === 'access' && selectedItem.id === 'payroll' ? (
+        <PayrollList />
+      ) : module.id === 'access' && selectedItem.id === 'special-days' ? (
+        <SpecialDayList />
+      ) : module.id === 'access' && selectedItem.id === 'attendance-qr' ? (
+        <AttendanceQrScreen />
       ) : module.id === 'access' && selectedItem.id === 'roles' ? (
         <AccessReferenceList kind="roles" />
       ) : module.id === 'settings' && selectedItem.id === 'sunat' ? (

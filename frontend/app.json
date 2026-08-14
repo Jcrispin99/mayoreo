@@ -30,7 +30,7 @@
         "expo-notifications",
         {
           "color": "#B4232D",
-            "defaultChannel": "price-changes-v2"
+          "defaultChannel": "price-changes-v2"
         }
       ],
       [
@@ -57,7 +57,19 @@
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": true
         }
-      ]
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": false,
+          "savePhotosPermission": "Mayoreo necesita permiso para guardar el código QR de asistencia en tus fotos.",
+          "granularPermissions": [
+            "photo"
+          ]
+        }
+      ],
+      "expo-sharing",
+      "expo-font"
     ]
   }
 }
