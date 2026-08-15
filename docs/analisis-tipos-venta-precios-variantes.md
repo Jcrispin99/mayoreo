@@ -68,7 +68,7 @@ Si se crean dos variantes llamadas `Kilo` y `Gramo`, se duplicaría artificialme
 1 kg = 1 000 g del mismo stock
 ```
 
-La app ya maneja esta conversión en [`frontend/features/pos/pos-measurement.ts`](../frontend/features/pos/pos-measurement.ts) y permite escribir cantidades libres en [`frontend/features/pos/pos-quantity-editor.tsx`](../frontend/features/pos/pos-quantity-editor.tsx).
+La app ya maneja esta conversión en [`frontend/features/pos/pos-measurement.ts`](../frontend/features/pos/pos-measurement.ts) y permite escribir cantidades libres desde [`frontend/features/pos/pos-variant-selector-modal.tsx`](../frontend/features/pos/pos-variant-selector-modal.tsx).
 
 ## 2. Productos embotellados o envasados
 

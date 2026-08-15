@@ -7,10 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../lib/api';
 import { PosBarcodeScanner } from './pos-barcode-scanner';
 import { PosCheckoutModal } from './pos-checkout-modal';
-import { type PosMeasuredProduct, type PosSaleUnitCode } from './pos-measurement';
+import type { PosSaleUnitCode } from './pos-measurement';
 import { PosOrderDock, PosOrderPanel } from './pos-order-panel';
 import { PosProductCatalog } from './pos-product-catalog';
-import { PosQuantityEditor } from './pos-quantity-editor';
 import type {
   CashRegisterSession,
   PosCatalogProduct,
@@ -76,7 +75,6 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
   const [orderBusy, setOrderBusy] = useState(false);
   const [addingProductId, setAddingProductId] = useState<number | null>(null);
   const [orderNotice, setOrderNotice] = useState<OrderNotice | null>(null);
-  const [quantityProduct, setQuantityProduct] = useState<PosMeasuredProduct | null>(null);
   const [warehouseAssignees, setWarehouseAssignees] = useState<WarehouseAssignee[]>([]);
   const [warehouseAssigneesError, setWarehouseAssigneesError] = useState('');
   const [warehouseAssigneesLoading, setWarehouseAssigneesLoading] = useState(false);
@@ -401,47 +399,6 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
     return true;
   }
 
-  async function saveMeasuredQuantity(
-    inputQuantity: number,
-    unitCode: PosSaleUnitCode,
-  ): Promise<boolean> {
-    if (!session || !quantityProduct || orderMutation.current) return false;
-
-    const product = quantityProduct;
-    const existingItem = activeOrder?.items.find((item) => item.product_id === product.id) ?? null;
-    setAddingProductId(product.id);
-
-    const updatedOrder = await runOrderMutation(async () => {
-      const order = activeOrder ?? await requestNewOrder();
-      const payload = { quantity: inputQuantity, unit_code: unitCode };
-      const response = existingItem
-        ? await api.patch(
-          `/cash-register-sessions/${session.id}/orders/${order.id}/items/${existingItem.id}`,
-          payload,
-        )
-        : await api.post(
-          `/cash-register-sessions/${session.id}/orders/${order.id}/items`,
-          { product_id: product.id, ...payload },
-        );
-
-      return response.data.data as PosOrder;
-    });
-
-    setAddingProductId(null);
-    if (!updatedOrder) return false;
-
-    replaceOrder(updatedOrder);
-    setQuantityProduct(null);
-    setOrderNotice({
-      message: existingItem
-        ? `Cantidad de ${product.name} actualizada.`
-        : `${product.name} agregado a la orden.`,
-      error: false,
-    });
-
-    return true;
-  }
-
   async function updateOrderQuantity(order: PosOrder, item: PosOrderItem, quantity: number) {
     if (!session) return;
 
@@ -758,14 +715,6 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
         onClose={() => setScannerVisible(false)}
         onScanned={handleBarcodeScanned}
         visible={scannerVisible && catalogAvailable}
-      />
-
-      <PosQuantityEditor
-        busy={orderBusy || ordersLoading}
-        currentBaseQuantity={quantityProduct ? activeOrderQuantities[quantityProduct.id] ?? 0 : 0}
-        onClose={() => setQuantityProduct(null)}
-        onConfirm={saveMeasuredQuantity}
-        product={quantityProduct}
       />
 
       {orderOverlay.kind === 'orders' && catalogAvailable ? (

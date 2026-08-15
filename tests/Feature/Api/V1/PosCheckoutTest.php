@@ -473,6 +473,31 @@ it('derives the warehouse from the session register and allows negative stock', 
     ]);
 });
 
+it('creates negative stock when checking out a product without stock history', function (): void {
+    $this->stock->delete();
+
+    $response = $this->withHeaders($this->headers)
+        ->postJson(
+            posCheckoutUrl($this->session, $this->order),
+            posCheckoutPayload('10.00', 'cash', '10.00'),
+        )
+        ->assertCreated();
+
+    $saleId = $response->json('data.sale.id');
+    $this->assertDatabaseHas('stocks', [
+        'warehouse_id' => $this->warehouse->id,
+        'product_id' => $this->product->id,
+        'quantity' => '-1.000000',
+    ]);
+    $this->assertDatabaseHas('inventory_movements', [
+        'warehouse_id' => $this->warehouse->id,
+        'product_id' => $this->product->id,
+        'type' => 'sale',
+        'quantity' => '1.000000',
+        'reference_id' => $saleId,
+    ]);
+});
+
 it('keeps a measured product in its base quantity through sale and stock movement', function (): void {
     $milliliters = UnitOfMeasure::factory()->milliliters()->create();
     $measuredProduct = Product::factory()->create([

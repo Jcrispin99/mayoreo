@@ -36,7 +36,7 @@ final readonly class SavePosOrderItemAction
     ): PosOrder {
         return DB::transaction(function () use ($session, $order, $product, $quantity, $unitCode, $actorId, $warehouseNotes, $warehouseNotesProvided): PosOrder {
             [$lockedSession, $lockedOrder] = $this->lockContext($session, $order);
-            $availableProduct = $this->availableProduct($lockedSession, $product);
+            $availableProduct = $this->availableProduct($product);
             $quantityInBaseUnit = $this->unitConversionService->toBaseUnitFromCode(
                 $availableProduct,
                 $quantity,
@@ -81,7 +81,7 @@ final readonly class SavePosOrderItemAction
             }
 
             $product = Product::query()->findOrFail($lockedItem->product_id);
-            $availableProduct = $this->availableProduct($lockedSession, $product);
+            $availableProduct = $this->availableProduct($product);
             $quantityInBaseUnit = $this->unitConversionService->toBaseUnitFromCode(
                 $availableProduct,
                 $quantity,
@@ -147,24 +147,11 @@ final readonly class SavePosOrderItemAction
         return [$lockedSession, $lockedOrder];
     }
 
-    private function availableProduct(CashRegisterSession $session, Product $product): Product
+    private function availableProduct(Product $product): Product
     {
-        $storeId = $session->cashRegister()->value('store_id');
         $availableProduct = Product::query()
             ->whereKey($product->id)
             ->where('is_active', true)
-            ->where(function ($availability) use ($storeId): void {
-                $availability
-                    ->whereHas('stocks.warehouse', function ($query) use ($storeId): void {
-                        $query->where('store_id', $storeId);
-                    })
-                    ->orWhereHas(
-                        'template.principalVariant.stocks.warehouse',
-                        function ($query) use ($storeId): void {
-                            $query->where('store_id', $storeId);
-                        },
-                    );
-            })
             ->lockForUpdate()
             ->first();
 

@@ -16,7 +16,7 @@ import type { PosSaleUnitCode } from './pos-measurement';
 import type { PosCatalogProduct } from './pos-types';
 import { PosVariantSelectorModal } from './pos-variant-selector-modal';
 
-const CATALOG_PAGE_SIZE = 24;
+const CATALOG_PAGE_SIZE = 30;
 const SEARCH_DEBOUNCE_MS = 300;
 
 const FILTER_OPTIONS: ListFilterOption[] = [
@@ -344,24 +344,33 @@ export function PosProductCatalog({
             <Text style={styles.stateText}>
               {filtered
                 ? 'Prueba con otro texto o cambia los filtros seleccionados.'
-                : 'No hay productos activos vinculados con los almacenes de esta tienda.'}
+                : 'No hay productos activos visibles en el POS.'}
             </Text>
           </View>
         )}
-        ListFooterComponent={loadingMore ? (
-          <ActivityIndicator color="#B4232D" style={styles.loadMore} />
-        ) : loadMoreError ? (
+        ListFooterComponent={loadMoreError ? (
           <View style={styles.loadMoreError}>
             <Text style={styles.errorText}>{loadMoreError}</Text>
             <Button compact icon="reload" mode="text" onPress={() => void loadMoreProducts()}>
               Reintentar
             </Button>
           </View>
+        ) : hasMore || loadingMore ? (
+          <View style={styles.loadMoreAction}>
+            <Button
+              accessibilityLabel="Cargar más productos"
+              disabled={loadingMore}
+              icon="plus"
+              loading={loadingMore}
+              mode="outlined"
+              onPress={() => void loadMoreProducts()}
+            >
+              {loadingMore ? 'Buscando productos…' : 'Cargar más'}
+            </Button>
+          </View>
         ) : null}
         ListHeaderComponent={<CatalogHeading />}
         maxToRenderPerBatch={6}
-        onEndReached={() => void loadMoreProducts()}
-        onEndReachedThreshold={0.6}
         removeClippedSubviews={Platform.OS !== 'web'}
         renderItem={({ item }) => (
           <ProductCard
@@ -408,6 +417,6 @@ const styles = StyleSheet.create({
   stateText: { maxWidth: 360, color: '#60706E', fontSize: 11, lineHeight: 17, textAlign: 'center' },
   errorText: { maxWidth: 380, color: '#8F1D2C', fontSize: 11, lineHeight: 17, textAlign: 'center' },
   emptyCatalog: { minHeight: 220, padding: 24, alignItems: 'center', justifyContent: 'center', gap: 9 },
-  loadMore: { paddingVertical: 18 },
+  loadMoreAction: { paddingVertical: 16, alignItems: 'center' },
   loadMoreError: { paddingVertical: 12, alignItems: 'center', gap: 2 },
 });

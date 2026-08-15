@@ -59,7 +59,7 @@ La app ya tiene una buena base para inventario, compras, ventas, POS, búsqueda,
 
 - Catálogo POS con buscador y filtros: [`frontend/features/pos/pos-product-catalog.tsx`](../frontend/features/pos/pos-product-catalog.tsx).
 - Precios por rango de cantidad: [`frontend/features/products/product-sale-prices.tsx`](../frontend/features/products/product-sale-prices.tsx).
-- Entrada libre de gramos/kilogramos: [`frontend/features/pos/pos-quantity-editor.tsx`](../frontend/features/pos/pos-quantity-editor.tsx).
+- Selección de variantes, cantidades y cálculo desde monto: [`frontend/features/pos/pos-variant-selector-modal.tsx`](../frontend/features/pos/pos-variant-selector-modal.tsx).
 - Variantes y atributos, incluido el precio adicional por valor: [`frontend/features/products/product-attributes-form.tsx`](../frontend/features/products/product-attributes-form.tsx).
 
 ### Usuarios y permisos

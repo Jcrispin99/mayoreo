@@ -34,7 +34,6 @@ final class PosCatalogController extends ApiController
         }
 
         $cashRegister = $cashRegisterSession->cashRegister()->firstOrFail();
-        $storeId = $cashRegister->store_id;
         $warehouseId = $cashRegister->warehouse_id;
         $search = $request->catalogSearch();
         $filters = $request->catalogFilters();
@@ -62,18 +61,6 @@ final class PosCatalogController extends ApiController
                                 ->where('is_active', true)
                                 ->where('is_pos_visible', true));
                     });
-            })
-            ->where(function (Builder $availability) use ($storeId): void {
-                $availability
-                    ->whereHas('stocks.warehouse', function ($query) use ($storeId): void {
-                        $query->where('store_id', $storeId);
-                    })
-                    ->orWhereHas(
-                        'template.principalVariant.stocks.warehouse',
-                        function ($query) use ($storeId): void {
-                            $query->where('store_id', $storeId);
-                        },
-                    );
             })
             ->with([
                 'baseUnit',

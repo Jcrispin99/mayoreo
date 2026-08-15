@@ -45,7 +45,7 @@ beforeEach(function (): void {
     ]);
 });
 
-it('returns products associated with any warehouse from the session store', function (): void {
+it('returns every active catalog product without requiring warehouse stock', function (): void {
     $sameStoreProduct = Product::factory()->create([
         'sku' => 'POS-SAME-STORE',
         'barcode' => '7500000000001',
@@ -55,7 +55,14 @@ it('returns products associated with any warehouse from the session store', func
     ]);
     $otherStore = Store::factory()->create();
     $otherStoreWarehouse = Warehouse::factory()->for($otherStore)->create();
-    $otherStoreProduct = Product::factory()->create(['sku' => 'POS-OTHER-STORE']);
+    $otherStoreProduct = Product::factory()->create([
+        'sku' => 'POS-OTHER-STORE',
+        'name' => 'Producto de otra tienda',
+    ]);
+    $neverStockedProduct = Product::factory()->create([
+        'sku' => 'POS-NEVER-STOCKED',
+        'name' => 'Producto sin movimientos',
+    ]);
 
     Stock::factory()->for($sameStoreProduct)->for($this->otherWarehouse)->create(['quantity' => '30.000000']);
     Stock::factory()->for($otherStoreProduct)->for($otherStoreWarehouse)->create(['quantity' => '50.000000']);
@@ -70,10 +77,10 @@ it('returns products associated with any warehouse from the session store', func
         'is_active' => false,
     ]);
 
-    $this->withHeaders($this->headers)
-        ->getJson("/api/v1/cash-register-sessions/{$this->session->id}/catalog?warehouse_id={$otherStoreWarehouse->id}")
+    $response = $this->withHeaders($this->headers)
+        ->getJson("/api/v1/cash-register-sessions/{$this->session->id}/catalog")
         ->assertOk()
-        ->assertJsonCount(1, 'data.items')
+        ->assertJsonCount(3, 'data.items')
         ->assertJsonPath('data.items.0.id', $sameStoreProduct->id)
         ->assertJsonPath('data.items.0.sku', 'POS-SAME-STORE')
         ->assertJsonPath('data.items.0.barcode', '7500000000001')
@@ -84,6 +91,14 @@ it('returns products associated with any warehouse from the session store', func
         ->assertJsonCount(1, 'data.items.0.price_tiers')
         ->assertJsonPath('data.has_more', false)
         ->assertJsonPath('data.next_cursor', null);
+
+    expect($response->json('data.items.*.id'))
+        ->toContain($otherStoreProduct->id, $neverStockedProduct->id);
+
+    $neverStockedItem = collect($response->json('data.items'))
+        ->firstWhere('id', $neverStockedProduct->id);
+
+    expect($neverStockedItem['stock_available'] ?? null)->toBe('0.000000');
 });
 
 it('excludes inactive products even when they have stock', function (): void {
@@ -107,7 +122,7 @@ it('reports zero or negative stock independently for the session warehouse', fun
         ->assertJsonPath('data.items.0.stock_available', '-7.250000');
 });
 
-it('reports packaged variant availability derived from principal granel stock', function (): void {
+it('reports template stock in the catalog and packaged availability in its variant selector', function (): void {
     $grams = UnitOfMeasure::factory()->grams()->create();
     $units = UnitOfMeasure::factory()->units()->create();
     $template = ProductTemplate::query()->create([
@@ -141,27 +156,34 @@ it('reports packaged variant availability derived from principal granel stock', 
     ]);
 
     $this->withHeaders($this->headers)
-        ->getJson("/api/v1/cash-register-sessions/{$this->session->id}/catalog?search=Bolsa")
+        ->getJson("/api/v1/cash-register-sessions/{$this->session->id}/catalog?search=Az%C3%BAcar")
         ->assertOk()
         ->assertJsonCount(1, 'data.items')
-        ->assertJsonPath('data.items.0.id', $bag250->id)
-        ->assertJsonPath('data.items.0.stock_available', '40.000000');
+        ->assertJsonPath('data.items.0.id', $principal->id)
+        ->assertJsonPath('data.items.0.stock_available', '10000.000000');
+
+    $variants = $this->withHeaders($this->headers)
+        ->getJson("/api/v1/cash-register-sessions/{$this->session->id}/catalog/templates/{$template->id}/variants")
+        ->assertOk();
+
+    $bagItem = collect($variants->json('data'))->firstWhere('id', $bag250->id);
+
+    expect($bagItem['stock_available'] ?? null)->toBe('40.000000');
 });
 
-it('loads the POS catalog incrementally with an opaque cursor', function (): void {
-    foreach (['Alfa', 'Beta', 'Gamma'] as $index => $name) {
-        $product = Product::factory()->create([
-            'name' => $name,
+it('loads 30 products initially and continues with an opaque cursor', function (): void {
+    foreach (range(1, 31) as $index) {
+        Product::factory()->create([
+            'name' => sprintf('Producto paginado %02d', $index),
             'sku' => "PAGE-{$index}",
             'is_favorite' => false,
         ]);
-        Stock::factory()->for($product)->for($this->otherWarehouse)->create();
     }
 
     $firstPage = $this->withHeaders($this->headers)
-        ->getJson("/api/v1/cash-register-sessions/{$this->session->id}/catalog?per_page=2")
+        ->getJson("/api/v1/cash-register-sessions/{$this->session->id}/catalog")
         ->assertOk()
-        ->assertJsonCount(2, 'data.items')
+        ->assertJsonCount(30, 'data.items')
         ->assertJsonPath('data.has_more', true);
 
     $cursor = $firstPage->json('data.next_cursor');
@@ -170,7 +192,6 @@ it('loads the POS catalog incrementally with an opaque cursor', function (): voi
 
     $secondPage = $this->withHeaders($this->headers)
         ->getJson("/api/v1/cash-register-sessions/{$this->session->id}/catalog?".http_build_query([
-            'per_page' => 2,
             'cursor' => $cursor,
         ]))
         ->assertOk()
@@ -181,7 +202,32 @@ it('loads the POS catalog incrementally with an opaque cursor', function (): voi
     expect(array_merge(
         $firstPage->json('data.items.*.id'),
         $secondPage->json('data.items.*.id')
-    ))->toHaveCount(3)->each->toBeInt();
+    ))->toHaveCount(31)->each->toBeInt();
+});
+
+it('finds products by name even when they have never had stock', function (): void {
+    $template = ProductTemplate::query()->create([
+        'name' => 'Aji amarillo C/P',
+        'is_active' => true,
+        'is_pos_visible' => true,
+    ]);
+    $aji = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'name' => 'Aji amarillo C/P - Granel',
+        'variant_name' => 'Granel',
+        'sale_mode' => 'measured',
+        'is_principal' => true,
+    ]);
+    PriceTier::factory()->for($aji)->create(['is_active' => true]);
+
+    $this->withHeaders($this->headers)
+        ->getJson("/api/v1/cash-register-sessions/{$this->session->id}/catalog?".http_build_query([
+            'search' => 'aji amarillo',
+        ]))
+        ->assertOk()
+        ->assertJsonCount(1, 'data.items')
+        ->assertJsonPath('data.items.0.id', $aji->id)
+        ->assertJsonPath('data.items.0.stock_available', '0.000000');
 });
 
 it('searches and filters the catalog on the server', function (): void {

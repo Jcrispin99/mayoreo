@@ -139,18 +139,6 @@ final readonly class CompletePosOrderAction
             $products = Product::query()
                 ->whereIn('id', $productIds)
                 ->where('is_active', true)
-                ->where(function (Builder $availability) use ($cashRegister): void {
-                    $availability
-                        ->whereHas('stocks.warehouse', function (Builder $query) use ($cashRegister): void {
-                            $query->where('store_id', $cashRegister->store_id);
-                        })
-                        ->orWhereHas(
-                            'template.principalVariant.stocks.warehouse',
-                            function (Builder $query) use ($cashRegister): void {
-                                $query->where('store_id', $cashRegister->store_id);
-                            },
-                        );
-                })
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get()

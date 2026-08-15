@@ -356,7 +356,7 @@ it('rejects entry units that are incompatible with the product base unit type', 
     $this->assertDatabaseCount('productables', 0);
 });
 
-it('rejects products that are inactive or belong only to another store', function (): void {
+it('rejects inactive products but accepts products without stock in the cash register store', function (): void {
     $inactive = Product::factory()->create(['is_active' => false]);
     Stock::factory()->for($inactive)->for($this->warehouse)->create();
     PriceTier::factory()->for($inactive)->create();
@@ -366,6 +366,8 @@ it('rejects products that are inactive or belong only to another store', functio
     $otherProduct = Product::factory()->create();
     Stock::factory()->for($otherProduct)->for($otherWarehouse)->create();
     PriceTier::factory()->for($otherProduct)->create();
+    $neverStockedProduct = Product::factory()->create();
+    PriceTier::factory()->for($neverStockedProduct)->create();
 
     $orderId = $this->withHeaders($this->headers)
         ->postJson("/api/v1/cash-register-sessions/{$this->session->id}/orders")
@@ -377,7 +379,12 @@ it('rejects products that are inactive or belong only to another store', functio
         ->assertUnprocessable();
     $this->withHeaders($this->headers)
         ->postJson($url, ['product_id' => $otherProduct->id, 'quantity' => 1])
-        ->assertUnprocessable();
+        ->assertCreated()
+        ->assertJsonPath('data.items.0.product_id', $otherProduct->id);
+    $this->withHeaders($this->headers)
+        ->postJson($url, ['product_id' => $neverStockedProduct->id, 'quantity' => 1])
+        ->assertCreated()
+        ->assertJsonCount(2, 'data.items');
 });
 
 it('rejects cross-session orders and operations on a closed session', function (): void {

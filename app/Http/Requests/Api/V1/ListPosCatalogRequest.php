@@ -61,6 +61,6 @@ final class ListPosCatalogRequest extends FormRequest
 
     public function perPage(): int
     {
-        return $this->integer('per_page', 24);
+        return $this->integer('per_page', 30);
     }
 }
