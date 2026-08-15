@@ -69,9 +69,17 @@ final readonly class CompleteWholesaleSaleAction
      *     }
      * } $payload
      */
-    public function execute(array $payload, ?int $createdBy): Sale
-    {
-        return DB::transaction(function () use ($payload, $createdBy): Sale {
+    public function execute(
+        array $payload,
+        ?int $createdBy,
+        string $source = 'wholesale',
+        string $documentType = 'sales_ticket',
+    ): Sale {
+        if (! in_array($documentType, ['sales_ticket', 'receipt'], true)) {
+            throw WholesaleSaleException::invalidSeries();
+        }
+
+        return DB::transaction(function () use ($payload, $createdBy, $source, $documentType): Sale {
             $warehouse = Warehouse::query()
                 ->whereKey($payload['warehouse_id'])
                 ->where('is_active', true)
@@ -86,6 +94,7 @@ final readonly class CompleteWholesaleSaleAction
             $series = $this->lockSeries(
                 $payload['document_series_id'] ?? null,
                 $warehouse,
+                $documentType,
             );
             $fiscalIdentity = $this->fiscalDocumentIdentityService->snapshot(
                 $warehouse,
@@ -141,7 +150,7 @@ final readonly class CompleteWholesaleSaleAction
                 'cash_register_session_id' => $cashSession?->id,
                 'pos_order_id' => null,
                 'customer_id' => $customer?->id,
-                'source' => 'wholesale',
+                'source' => $source,
                 'customer_name' => $customerName,
                 'customer_document' => $customerDocument,
                 'notes' => $payload['notes'] ?? null,
@@ -192,7 +201,7 @@ final readonly class CompleteWholesaleSaleAction
             }
 
             $number = $this->nextSequenceNumberService->generate(
-                'sales_ticket',
+                $documentType,
                 $series->series_code,
                 $series->fiscal_issuer_id,
             );
@@ -200,7 +209,7 @@ final readonly class CompleteWholesaleSaleAction
             FiscalDocument::query()->create([
                 'sale_id' => $sale->id,
                 ...$fiscalIdentity,
-                'document_type' => 'sales_ticket',
+                'document_type' => $documentType,
                 'series_code' => $series->series_code,
                 'number' => $number,
                 'status' => 'issued',
@@ -226,7 +235,7 @@ final readonly class CompleteWholesaleSaleAction
         return $customer;
     }
 
-    private function lockSeries(?int $seriesId, Warehouse $warehouse): DocumentSeries
+    private function lockSeries(?int $seriesId, Warehouse $warehouse, string $documentType): DocumentSeries
     {
         $fiscalIssuerId = $warehouse->store_id === null
             ? null
@@ -239,7 +248,7 @@ final readonly class CompleteWholesaleSaleAction
                 'fiscal_issuer_id',
                 is_numeric($fiscalIssuerId) ? (int) $fiscalIssuerId : null,
             )
-            ->where('document_type', 'sales_ticket')
+            ->where('document_type', $documentType)
             ->where('is_active', true);
 
         if ($seriesId !== null) {

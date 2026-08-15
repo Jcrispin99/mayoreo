@@ -54,8 +54,10 @@ it('creates a product template with packaged and measured variants and variant p
 
     $response->assertCreated()
         ->assertJsonPath('data.name', 'Arroz Extra')
+        ->assertJsonMissingPath('data.default_price')
         ->assertJsonCount(2, 'data.variants')
         ->assertJsonPath('data.variants.0.display_name', 'Arroz Extra - Granel')
+        ->assertJsonPath('data.variants.0.barcode', fn (mixed $barcode): bool => is_string($barcode) && preg_match('/^\d{6}$/D', $barcode) === 1)
         ->assertJsonPath('data.variants.0.sale_mode', 'measured')
         ->assertJsonPath('data.variants.0.price_tiers.0.unit_price', '0.0100')
         ->assertJsonPath('data.variants.1.sale_mode', 'unit')
@@ -162,6 +164,61 @@ it('updates the base price without destroying the existing quantity ranges', fun
         'min_quantity' => 1000,
         'max_quantity' => 50000,
         'unit_price' => 0.008,
+    ]);
+});
+
+it('updates the price tier that applies to one base unit', function (): void {
+    $kilograms = UnitOfMeasure::factory()->create([
+        'code' => 'kg',
+        'name' => 'Kilogramos',
+        'type' => 'weight',
+    ]);
+    $template = $this->withHeaders($this->headers)->postJson('/api/v1/product-templates', [
+        'name' => 'Bicarbonato',
+        'variants' => [[
+            'variant_name' => 'Granel',
+            'sku' => 'BICARBONATO-GRANEL',
+            'base_unit_id' => $kilograms->id,
+            'sale_mode' => 'measured',
+            'price_tiers' => [
+                [
+                    'label' => 'Menudeo',
+                    'min_quantity' => 0.001,
+                    'max_quantity' => 0.999999,
+                    'unit_price' => 6,
+                ],
+                [
+                    'label' => 'Por kilo',
+                    'min_quantity' => 1,
+                    'max_quantity' => 24.999999,
+                    'unit_price' => 4.9959,
+                ],
+            ],
+        ]],
+    ])->assertCreated()->json('data');
+    $variant = $template['variants'][0];
+
+    $this->withHeaders($this->headers)->putJson("/api/v1/product-templates/{$template['id']}", [
+        'name' => 'Bicarbonato',
+        'variants' => [[
+            'id' => $variant['id'],
+            'variant_name' => 'Granel',
+            'sku' => 'BICARBONATO-GRANEL',
+            'base_unit_id' => $kilograms->id,
+            'sale_mode' => 'measured',
+            'base_price' => 5,
+        ]],
+    ])->assertOk();
+
+    $this->assertDatabaseHas('price_tiers', [
+        'product_id' => $variant['id'],
+        'label' => 'Menudeo',
+        'unit_price' => 6,
+    ]);
+    $this->assertDatabaseHas('price_tiers', [
+        'product_id' => $variant['id'],
+        'label' => 'Por kilo',
+        'unit_price' => 5,
     ]);
 });
 

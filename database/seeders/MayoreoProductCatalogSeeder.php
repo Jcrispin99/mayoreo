@@ -62,7 +62,6 @@ final class MayoreoProductCatalogSeeder extends Seeder
         $reviewStatus = $this->optionalString($item['review_status'] ?? null) ?? 'PENDIENTE';
         $prices = $this->prices($item['prices'] ?? null);
         $tiers = $this->priceTiersFor($unitCode, $quantity, $prices);
-        $defaultPrice = $prices['retail'] ?? $prices['regular'] ?? $prices['wholesale'];
 
         $product = Product::withTrashed()->where('sku', $sku)->first();
         $template = $product instanceof Product && $product->product_template_id !== null
@@ -77,7 +76,6 @@ final class MayoreoProductCatalogSeeder extends Seeder
         $template->fill([
             'name' => $name,
             'description' => $this->description($item, $quantity, $unitCode),
-            'default_price' => $defaultPrice,
             'is_active' => true,
             'is_pos_visible' => $tiers !== [] && ($confidence !== 'BAJA' || $reviewStatus === 'APROBADO'),
         ]);
@@ -95,7 +93,6 @@ final class MayoreoProductCatalogSeeder extends Seeder
         $product->fill([
             'product_template_id' => $template->id,
             'sku' => $sku,
-            'barcode' => null,
             'name' => "{$name} - {$variantName}",
             'variant_name' => $variantName,
             'description' => $template->description,
@@ -162,7 +159,7 @@ final class MayoreoProductCatalogSeeder extends Seeder
 
         $tiers = [];
         $retailPrice = $prices['retail'];
-        $regularPrice = $prices['regular'];
+        $regularPrice = $this->roundToCents($prices['regular']);
         $wholesalePrice = $prices['wholesale'];
         $hasWholesale = $wholesalePrice !== null && $quantity !== null;
 
@@ -205,7 +202,7 @@ final class MayoreoProductCatalogSeeder extends Seeder
     {
         $tiers = [];
         $retailPrice = $prices['retail'];
-        $regularPrice = $prices['regular'];
+        $regularPrice = $this->roundToCents($prices['regular']);
         $wholesalePrice = $prices['wholesale'];
         $wholesaleThreshold = $quantity !== null && bccomp($quantity, '1', 6) > 0
             ? $quantity
@@ -255,6 +252,22 @@ final class MayoreoProductCatalogSeeder extends Seeder
         };
 
         return $packageTotal === null ? $label : "{$label} (total S/ {$this->moneyLabel($packageTotal)})";
+    }
+
+    /**
+     * @param  numeric-string|null  $price
+     * @return numeric-string|null
+     */
+    private function roundToCents(?string $price): ?string
+    {
+        if ($price === null) {
+            return null;
+        }
+
+        /** @var numeric-string $rounded */
+        $rounded = bcadd($price, '0.005', 2);
+
+        return $rounded;
     }
 
     /**

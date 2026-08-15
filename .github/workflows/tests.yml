@@ -23,8 +23,20 @@ jobs:
           tools: composer:v2
           coverage: xdebug
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
       - name: Install Dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+
+      - name: Check and Build Frontend
+        run: npm run typecheck && npm run build
 
       - name: Copy Environment File
         run: cp .env.example .env

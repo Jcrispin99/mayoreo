@@ -1,6 +1,6 @@
-# Laravel API Kit
+# Mayoreo
 
-A production-ready, API-only Laravel 12 starter kit following the 2024-2025 REST API ecosystem best practices. No frontend dependencies - purely headless API for mobile apps, SPAs, or microservices.
+Aplicación Laravel 12 con API para Expo y frontend web integrado mediante Inertia, React, Vite y shadcn/ui. La web se compila dentro de `public/build` y se publica desde el mismo dominio y proceso de Laravel.
 
 [![PHP Version](https://img.shields.io/badge/PHP-8.3%2B-blue)](https://php.net)
 [![Laravel Version](https://img.shields.io/badge/Laravel-12.x-red)](https://laravel.com)
@@ -8,7 +8,8 @@ A production-ready, API-only Laravel 12 starter kit following the 2024-2025 REST
 
 ## Features
 
-- **API-Only** - No Blade, Vite, or frontend assets
+- **Web integrada** - React e Inertia servidos por Laravel, sin servidor Node en producción
+- **Interfaz** - TypeScript, Tailwind CSS y componentes oficiales de shadcn/ui
 - **Token Authentication** - Laravel Sanctum for mobile/SPA auth
 - **Email Verification** - Built-in email verification flow with signed URLs
 - **Password Reset** - Secure password reset with token-based flow
@@ -25,7 +26,7 @@ A production-ready, API-only Laravel 12 starter kit following the 2024-2025 REST
 ## Requirements
 
 - Docker & Docker Compose
-- Or: PHP 8.3+, Composer 2.x
+- Or: PHP 8.3+, Composer 2.x y Node.js 20.19+ o 22.12+
 
 ## Quick Start
 
@@ -45,6 +46,8 @@ docker compose up -d
 
 # Install dependencies
 docker compose run --rm app composer install
+npm ci
+npm run build
 
 # Generate application key
 docker compose run --rm app php artisan key:generate
@@ -63,6 +66,7 @@ docker compose run --rm app ./vendor/bin/pest
 git clone https://github.com/grazulex/laravel-api-kit.git
 cd laravel-api-kit
 composer install
+npm ci
 
 # Configure
 cp .env.example .env
@@ -72,9 +76,16 @@ php artisan key:generate
 touch database/database.sqlite
 php artisan migrate
 
+# Desarrollo web (en otra terminal)
+npm run dev
+
 # Verify
 ./vendor/bin/pest
+npm run typecheck
+npm run build
 ```
+
+En producción se ejecuta `npm ci && npm run build` durante la construcción o el despliegue. El servidor solo necesita publicar el directorio `public` de Laravel; no se ejecuta `npm start` ni un segundo servidor web.
 
 ## API Documentation
 
@@ -697,6 +708,8 @@ API_DOCS_URL=http://localhost:8080/docs/api
 - [ ] Configure caching (Redis recommended)
 - [ ] Set up queue worker for background jobs
 - [ ] Enable HTTPS and update URLs
+- [ ] Run `npm ci && npm run build` before activating the release
+- [ ] Confirm that `public/build/manifest.json` exists in the release
 
 ### Docker Production
 

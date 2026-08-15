@@ -77,7 +77,6 @@ erDiagram
 | id | bigint PK | |
 | name | string | nombre común, por ejemplo "Arroz Extra" |
 | description | text nullable | descripción compartida |
-| default_price | decimal(12,4) nullable | referencia del precio de la variante principal |
 | is_active | boolean default true | activa/desactiva toda la familia |
 | is_pos_visible | boolean default true | permite mostrar sus variantes en POS |
 | deleted_at | soft delete | |
@@ -96,6 +95,7 @@ erDiagram
 | id | bigint PK | |
 | product_template_id | FK → product_templates (restrict) | familia comercial |
 | sku | string unique | |
+| barcode | string unique | se autogenera con seis dígitos si no se proporciona uno |
 | name | string | nombre materializado para compatibilidad e histórico |
 | variant_name | string nullable | "Granel", "Bolsa 100 g", "Bolsa 250 g" |
 | description | text nullable | |

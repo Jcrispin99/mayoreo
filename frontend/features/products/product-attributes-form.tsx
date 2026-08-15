@@ -51,7 +51,6 @@ type ProductTemplateResponse = {
   id: number;
   name: string;
   description: string | null;
-  default_price: string | number | null;
   is_active: boolean;
   is_pos_visible: boolean;
   attributes: Array<{
@@ -504,7 +503,6 @@ export function ProductAttributesForm({ templateId }: { templateId?: string }) {
       const response = await api.put(`/product-templates/${templateId}`, {
         name: template.name,
         description: template.description,
-        default_price: template.default_price,
         is_active: template.is_active,
         is_pos_visible: template.is_pos_visible,
         attributes: attributes.map((attribute) => ({

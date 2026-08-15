@@ -84,8 +84,14 @@ export function resolvePriceTier(
     : null;
 }
 
-function baseUnitStep(baseUnit: UnitOfMeasure | null) {
-  if (baseUnit?.type === 'weight' || baseUnit?.type === 'volume') return 1;
+function baseUnitStep(product: PosMeasuredProduct) {
+  if (product.sale_mode === 'unit') return 1;
+
+  const code = normalizedBaseCode(product.base_unit);
+  if (code === 'g' || code === 'gr' || code === 'ml') return 1;
+  if (code === 'kg' || code === 'l' || code === 'lt') return 0.001;
+  if (product.base_unit?.type === 'weight' || product.base_unit?.type === 'volume') return 0.001;
+
   return 0.000001;
 }
 
@@ -104,7 +110,7 @@ export function resolveAmountToQuantity(
   const tiers = [...product.price_tiers]
     .filter((tier) => tier.is_active !== false)
     .sort((left, right) => Number(right.min_quantity) - Number(left.min_quantity));
-  const step = baseUnitStep(product.base_unit);
+  const step = baseUnitStep(product);
 
   for (const tier of tiers) {
     const unitPrice = Number(tier.unit_price);

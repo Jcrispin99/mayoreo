@@ -43,7 +43,7 @@ it('seeds the reviewed spreadsheet catalog with products prices and purchase uni
         'label' => 'Por kilo',
         'min_quantity' => 1,
         'max_quantity' => 49.999999,
-        'unit_price' => 5.005,
+        'unit_price' => 5.01,
         'is_active' => true,
     ]);
     $this->assertDatabaseHas('price_tiers', [
@@ -51,6 +51,30 @@ it('seeds the reviewed spreadsheet catalog with products prices and purchase uni
         'label' => 'Cliente / saco 50 kg (total S/ 227.50)',
         'min_quantity' => 50,
         'unit_price' => 4.55,
+        'is_active' => true,
+    ]);
+
+    $bicarbonate = Product::query()
+        ->with('template')
+        ->where('sku', 'A049')
+        ->firstOrFail();
+
+    $this->assertDatabaseHas('price_tiers', [
+        'product_id' => $bicarbonate->id,
+        'label' => 'Menudeo',
+        'unit_price' => 6,
+        'is_active' => true,
+    ]);
+    $this->assertDatabaseHas('price_tiers', [
+        'product_id' => $bicarbonate->id,
+        'label' => 'Por kilo',
+        'unit_price' => 5,
+        'is_active' => true,
+    ]);
+    $this->assertDatabaseHas('price_tiers', [
+        'product_id' => $bicarbonate->id,
+        'label' => 'Cliente / saco 25 kg (total S/ 122.50)',
+        'unit_price' => 4.9,
         'is_active' => true,
     ]);
     $this->assertDatabaseHas('product_purchase_units', [

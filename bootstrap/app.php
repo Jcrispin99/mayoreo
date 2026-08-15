@@ -9,6 +9,7 @@ use App\Exceptions\StalePosSupplyRequestException;
 use App\Exceptions\WholesaleSaleTotalChangedException;
 use App\Http\Middleware\EnsureEmailVerified;
 use App\Http\Middleware\ForceJsonResponse;
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogApiRequests;
 use App\Http\Resources\PosOrderResource;
 use Illuminate\Foundation\Application;
@@ -24,6 +25,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->web(append: [
+            HandleInertiaRequests::class,
+        ]);
+
         $middleware->alias([
             'force.json' => ForceJsonResponse::class,
             'log.api' => LogApiRequests::class,

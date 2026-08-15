@@ -368,7 +368,20 @@ final class ProductTemplateController extends ApiController
 
     private function syncBasePrice(Product $variant, string $basePrice): void
     {
-        $tier = $variant->priceTiers()->orderBy('min_quantity')->first();
+        $tier = $variant->priceTiers()
+            ->where('is_active', true)
+            ->where('min_quantity', '<=', 1)
+            ->where(function ($query): void {
+                $query->whereNull('max_quantity')
+                    ->orWhere('max_quantity', '>=', 1);
+            })
+            ->orderByDesc('min_quantity')
+            ->first();
+
+        $tier ??= $variant->priceTiers()
+            ->where('is_active', true)
+            ->orderBy('min_quantity')
+            ->first();
 
         if ($tier instanceof PriceTier) {
             $tier->update(['unit_price' => $basePrice]);

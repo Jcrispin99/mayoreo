@@ -6,7 +6,9 @@ namespace App\Providers;
 
 use App\Contracts\SunatBillSender;
 use App\Models\PriceTier;
+use App\Models\Product;
 use App\Observers\PriceTierObserver;
+use App\Observers\ProductObserver;
 use App\Services\GreenterSunatBillSender;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -29,6 +31,7 @@ final class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         PriceTier::observe(PriceTierObserver::class);
+        Product::observe(ProductObserver::class);
         $this->configureRateLimiting();
     }
 

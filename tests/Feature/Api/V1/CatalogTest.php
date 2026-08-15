@@ -76,7 +76,8 @@ describe('Products', function (): void {
             'base_unit_id' => $grams->id,
         ])->assertCreated()->json('data');
 
-        expect($product['base_unit_id'])->toBe($grams->id);
+        expect($product['base_unit_id'])->toBe($grams->id)
+            ->and($product['barcode'])->toMatch('/^\d{6}$/D');
 
         // 1 saco de 50kg = 50000 g
         $purchaseUnit = $this->withHeaders($this->headers)

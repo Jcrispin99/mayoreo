@@ -52,7 +52,6 @@ final class ProductTemplateResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'description' => $this->description,
-            'default_price' => $this->default_price,
             'image_url' => $this->image_url,
             'is_active' => $this->is_active,
             'is_pos_visible' => $this->is_pos_visible,

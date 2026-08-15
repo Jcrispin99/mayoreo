@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\Storage;
  * @property int $id
  * @property string $name
  * @property string|null $description
- * @property string|null $default_price
  * @property string|null $image_path
  * @property bool $is_active
  * @property bool $is_pos_visible
@@ -29,7 +28,6 @@ final class ProductTemplate extends Model
     protected $fillable = [
         'name',
         'description',
-        'default_price',
         'image_path',
         'is_active',
         'is_pos_visible',
@@ -75,7 +73,6 @@ final class ProductTemplate extends Model
     protected function casts(): array
     {
         return [
-            'default_price' => 'decimal:4',
             'is_active' => 'boolean',
             'is_pos_visible' => 'boolean',
         ];

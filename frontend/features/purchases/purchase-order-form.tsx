@@ -25,11 +25,11 @@ function localDate() {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-function requestErrorMessage(error: any) {
+function requestErrorMessage(error: any, fallback = 'No se pudo guardar la compra.') {
   const validationErrors = error?.response?.data?.errors;
   const firstValidationError = validationErrors ? Object.values(validationErrors).flat()[0] : null;
   if (typeof firstValidationError === 'string') return firstValidationError;
-  return error?.response?.data?.message ?? 'No se pudo guardar la compra.';
+  return error?.response?.data?.message ?? fallback;
 }
 
 export function PurchaseOrderForm({ purchaseId }: PurchaseOrderFormProps) {
@@ -52,6 +52,8 @@ export function PurchaseOrderForm({ purchaseId }: PurchaseOrderFormProps) {
   const [selectedLine, setSelectedLine] = useState<PurchaseProductableDraft | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [confirmingApproval, setConfirmingApproval] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -142,38 +144,44 @@ export function PurchaseOrderForm({ purchaseId }: PurchaseOrderFormProps) {
     setItems((current) => current.filter((item) => item.key !== key));
   }
 
-  async function save() {
+  function buildPayload() {
     const incompleteItem = items.some((item) => !item.productId || Number(item.quantity) <= 0 || Number(item.unitCost) <= 0);
     if (items.length === 0 || incompleteItem) {
       setError('Agrega al menos un producto con cantidad y costo válidos.');
-      return;
+      return null;
     }
     if (!supplierId || !warehouseId || !orderedAt.trim()) {
       setError('Completa el proveedor, almacén y fecha de la compra.');
-      return;
+      return null;
     }
     if (Boolean(invoiceSeries.trim()) !== Boolean(invoiceNumber.trim())) {
       setError('Completa tanto la serie como el correlativo de la factura, o deja ambos vacíos.');
-      return;
+      return null;
     }
+
+    return {
+      supplier_id: supplierId,
+      warehouse_id: warehouseId,
+      ordered_at: orderedAt.trim(),
+      invoice_series: invoiceSeries.trim().toUpperCase() || null,
+      invoice_number: invoiceNumber.trim() || null,
+      notes: notes.trim() || null,
+      items: items.map((item) => ({
+        product_id: item.productId,
+        product_purchase_unit_id: item.purchaseUnitId,
+        quantity_purchased: Number(item.quantity),
+        unit_cost: Number(item.unitCost),
+      })),
+    };
+  }
+
+  async function save() {
+    const payload = buildPayload();
+    if (!payload) return;
 
     setSaving(true);
     setError('');
     try {
-      const payload = {
-        supplier_id: supplierId,
-        warehouse_id: warehouseId,
-        ordered_at: orderedAt.trim(),
-        invoice_series: invoiceSeries.trim().toUpperCase() || null,
-        invoice_number: invoiceNumber.trim() || null,
-        notes: notes.trim() || null,
-        items: items.map((item) => ({
-          product_id: item.productId,
-          product_purchase_unit_id: item.purchaseUnitId,
-          quantity_purchased: Number(item.quantity),
-          unit_cost: Number(item.unitCost),
-        })),
-      };
       if (editing) {
         await api.put(`/purchase-orders/${purchaseId}`, payload);
       } else {
@@ -187,6 +195,29 @@ export function PurchaseOrderForm({ purchaseId }: PurchaseOrderFormProps) {
     }
   }
 
+  async function approve() {
+    if (!purchaseId || status !== 'draft') return;
+
+    const payload = buildPayload();
+    if (!payload) {
+      setConfirmingApproval(false);
+      return;
+    }
+
+    setApproving(true);
+    setError('');
+    try {
+      await api.put(`/purchase-orders/${purchaseId}`, payload);
+      await api.post(`/purchase-orders/${purchaseId}/confirm`);
+      setConfirmingApproval(false);
+      router.back();
+    } catch (requestError) {
+      setError(requestErrorMessage(requestError, 'No se pudo aprobar la compra.'));
+    } finally {
+      setApproving(false);
+    }
+  }
+
   if (!PURCHASES_MODULE) return null;
 
   return (
@@ -197,9 +228,16 @@ export function PurchaseOrderForm({ purchaseId }: PurchaseOrderFormProps) {
             <View style={styles.header}>
               <Button compact icon="arrow-left" mode="text" onPress={() => router.back()}>Volver</Button>
               {!readOnly ? (
-                <Button buttonColor="#FF4D4D" disabled={saving} loading={saving} mode="contained" onPress={() => void save()}>
-                  {editing ? 'Guardar cambios' : 'Guardar borrador'}
-                </Button>
+                <View style={styles.headerActions}>
+                  {editing && status === 'draft' ? (
+                    <Button disabled={saving || approving} icon="check-circle-outline" mode="outlined" onPress={() => setConfirmingApproval(true)} textColor="#26705D">
+                      Aprobar compra
+                    </Button>
+                  ) : null}
+                  <Button buttonColor="#FF4D4D" disabled={saving || approving} loading={saving} mode="contained" onPress={() => void save()}>
+                    {editing ? 'Guardar cambios' : 'Guardar borrador'}
+                  </Button>
+                </View>
               ) : null}
             </View>
 
@@ -212,6 +250,21 @@ export function PurchaseOrderForm({ purchaseId }: PurchaseOrderFormProps) {
                   : 'La compra se guardará como borrador y todavía no modificará el stock.'}
             </Text>
             {error ? <Text style={styles.error}>{error}</Text> : null}
+
+            {confirmingApproval ? (
+              <View style={styles.approvalBox}>
+                <Text style={styles.approvalTitle}>¿Aprobar esta compra?</Text>
+                <Text style={styles.approvalText}>
+                  Se guardarán los cambios, los productos ingresarán al stock de {selectedWarehouse?.name ?? 'este almacén'} y la compra ya no podrá editarse.
+                </Text>
+                <View style={styles.approvalActions}>
+                  <Button disabled={approving} onPress={() => setConfirmingApproval(false)}>Cancelar</Button>
+                  <Button buttonColor="#26705D" loading={approving} mode="contained" onPress={() => void approve()} textColor="#FFFFFF">
+                    Aprobar e ingresar stock
+                  </Button>
+                </View>
+              </View>
+            ) : null}
 
             <View style={styles.generalFields}>
               <Text style={styles.fieldLabel}>Proveedor *</Text>
@@ -267,10 +320,15 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F3F6F5' },
   loader: { flex: 1 },
   content: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 20, paddingBottom: 56 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  header: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  headerActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
   title: { marginTop: 20, color: '#172423', fontSize: 24, fontWeight: '800' },
   subtitle: { marginTop: 6, color: '#60706E', fontSize: 12, lineHeight: 18 },
   error: { marginTop: 16, padding: 12, borderRadius: 8, color: '#8F1D2C', backgroundColor: '#FCE8EA' },
+  approvalBox: { marginTop: 16, padding: 16, borderWidth: 1, borderColor: '#A9D7C9', borderRadius: 12, backgroundColor: '#EAF7F2' },
+  approvalTitle: { color: '#175848', fontSize: 15, fontWeight: '800' },
+  approvalText: { marginTop: 6, color: '#47635C', fontSize: 11, lineHeight: 17 },
+  approvalActions: { marginTop: 12, flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
   generalFields: { marginTop: 24, gap: 18 },
   productsHeader: { marginTop: 30, minHeight: 42, paddingHorizontal: 17, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D5D2D6', borderTopColor: '#B4232D', borderBottomWidth: 0, backgroundColor: '#FFFFFF' },
   productsHeaderText: { color: '#172423', fontSize: 13, fontWeight: '800' },

@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int|null $fiscal_issuer_id
  * @property string $document_type
+ * @property string $purpose
  * @property string $series_code
  * @property int $current_number
  * @property bool $is_active
@@ -34,6 +35,7 @@ final class DocumentSeries extends Model
     protected $fillable = [
         'fiscal_issuer_id',
         'document_type',
+        'purpose',
         'series_code',
         'current_number',
         'is_active',

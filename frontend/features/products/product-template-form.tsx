@@ -46,7 +46,6 @@ type ProductTemplateResponse = {
   id: number;
   name: string;
   description: string | null;
-  default_price: string | number | null;
   image_url: string | null;
   is_active: boolean;
   is_pos_visible: boolean;
@@ -68,11 +67,6 @@ type ProductTemplateResponse = {
     is_principal: boolean;
     attribute_values: AttributeValueSelection[];
     image_url: string | null;
-    price_tiers: Array<{
-      min_quantity: string | number;
-      unit_price: string | number;
-      is_active: boolean;
-    }>;
   }>;
 };
 
@@ -89,17 +83,10 @@ function slug(value: string) {
     .slice(0, 90);
 }
 
-function decimal(value: string | number | null | undefined) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return '';
-  return parsed.toFixed(4).replace(/\.?0+$/, '');
-}
-
 function variantPayload(
   variant: ProductVariant,
   fallbackSku: string,
   principalBarcode: string,
-  principalBasePrice: string,
   principalBaseUnitId: number,
   principalSaleMode: 'unit' | 'measured',
 ) {
@@ -118,9 +105,6 @@ function variantPayload(
     is_favorite: variant.is_favorite,
     is_principal: variant.is_principal,
     attribute_values: variant.attribute_values,
-    ...(variant.is_principal && principalBasePrice.trim()
-      ? { base_price: principalBasePrice.trim() }
-      : {}),
   };
 }
 
@@ -134,7 +118,6 @@ export function ProductTemplateForm({ templateId }: { templateId?: string }) {
   const [baseUnitId, setBaseUnitId] = useState<number | null>(null);
   const [unitMenuVisible, setUnitMenuVisible] = useState(false);
   const [barcode, setBarcode] = useState('');
-  const [basePrice, setBasePrice] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
@@ -182,11 +165,7 @@ export function ProductTemplateForm({ templateId }: { templateId?: string }) {
         setImageUrl(template.image_url ?? null);
         const principal = template.variants.find((variant) => variant.is_principal) ?? template.variants[0];
         setBaseUnitId(principal?.base_unit_id ?? countUnit?.id ?? null);
-        const principalPrice = principal?.price_tiers
-          ?.filter((tier) => tier.is_active)
-          .sort((first, second) => Number(first.min_quantity) - Number(second.min_quantity))[0];
         setBarcode(principal?.barcode ?? '');
-        setBasePrice(decimal(principalPrice?.unit_price ?? template.default_price));
         setAttributes((template.attributes ?? []).map((attribute) => ({
           name: attribute.name,
           values: attribute.values.map((value) => value.value),
@@ -274,11 +253,6 @@ export function ProductTemplateForm({ templateId }: { templateId?: string }) {
       setError('No se encontró una unidad válida para el producto.');
       return;
     }
-    if (basePrice.trim() && (!Number.isFinite(Number(basePrice)) || Number(basePrice) <= 0)) {
-      setError('El precio base debe ser mayor que cero.');
-      return;
-    }
-
     setSaving(true);
     setError('');
 
@@ -286,7 +260,6 @@ export function ProductTemplateForm({ templateId }: { templateId?: string }) {
       const payload = {
         name: productName,
         description: description.trim() || null,
-        default_price: basePrice.trim() || null,
         is_active: active,
         is_pos_visible: posVisible,
         attributes,
@@ -295,7 +268,6 @@ export function ProductTemplateForm({ templateId }: { templateId?: string }) {
             variant,
             `${slug(productName) || 'PRODUCTO'}${index > 0 ? `-${index + 1}` : ''}`,
             barcode,
-            basePrice,
             baseUnitId,
             selectedUnit?.type === 'count' ? 'unit' : 'measured',
           )
@@ -418,27 +390,16 @@ export function ProductTemplateForm({ templateId }: { templateId?: string }) {
                   ))}
                 </Menu>
               </View>
-              <View style={styles.twoColumns}>
-                <TextInput
-                  keyboardType="numeric"
-                  label="Código de barras"
-                  mode="flat"
-                  onChangeText={setBarcode}
-                  style={[styles.input, styles.column]}
-                  value={barcode}
-                />
-                <TextInput
-                  keyboardType="decimal-pad"
-                  label="Precio base"
-                  left={<TextInput.Affix text="S/" />}
-                  mode="flat"
-                  onChangeText={setBasePrice}
-                  style={[styles.input, styles.column]}
-                  value={basePrice}
-                />
-              </View>
+              <TextInput
+                keyboardType="numeric"
+                label="Código de barras"
+                mode="flat"
+                onChangeText={setBarcode}
+                style={styles.input}
+                value={barcode}
+              />
               <Text style={styles.help}>
-                Estos datos pertenecen a la variante principal del producto.
+                Este código pertenece a la variante principal del producto.
               </Text>
               <TextInput
                 label="Descripción"
@@ -481,8 +442,6 @@ const styles = StyleSheet.create({
   section: { marginTop: 28, gap: 18 },
   sectionTitle: { color: '#172423', fontSize: 13, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
   input: { backgroundColor: 'transparent' },
-  twoColumns: { flexDirection: 'row', gap: 14 },
-  column: { flex: 1, minWidth: 0 },
   help: { marginTop: -12, color: '#60706E', fontSize: 10 },
   fieldLabel: { marginBottom: 2, color: '#60706E', fontSize: 11 },
   selector: { minHeight: 48, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#879692' },

@@ -48,7 +48,6 @@ final class ProductCatalogSeeder extends Seeder
         $template = $this->template(
             'Arroz Extra',
             'Arroz vendido a granel, por kilo o en saco de 50 kg.',
-            '5.0000',
         );
         $oneKilogram = $this->attributeValue($presentation, '1 kg');
         $sack50Kilograms = $this->attributeValue($presentation, 'Saco 50 kg');
@@ -121,7 +120,6 @@ final class ProductCatalogSeeder extends Seeder
         $template = $this->template(
             'Aceite Vegetal',
             'Aceite vendido a granel, en botella de 1 L o bidón de 20 L.',
-            '12.0000',
         );
         $oneLiter = $this->attributeValue($presentation, '1 L');
         $drum20Liters = $this->attributeValue($presentation, 'Bidón 20 L');
@@ -194,7 +192,6 @@ final class ProductCatalogSeeder extends Seeder
         $template = $this->template(
             'Azúcar Rubia',
             'Azúcar vendida a granel, por kilo o en saco de 50 kg.',
-            '4.8000',
         );
         $oneKilogram = $this->attributeValue($presentation, '1 kg');
         $sack50Kilograms = $this->attributeValue($presentation, 'Saco 50 kg');
@@ -264,7 +261,6 @@ final class ProductCatalogSeeder extends Seeder
         $template = $this->template(
             'Gaseosa Cola 500 ml',
             'Producto unitario de prueba para ventas POS.',
-            '3.5000',
         );
         $template->attributeValues()->sync([]);
 
@@ -288,13 +284,12 @@ final class ProductCatalogSeeder extends Seeder
         ]);
     }
 
-    private function template(string $name, string $description, string $defaultPrice): ProductTemplate
+    private function template(string $name, string $description): ProductTemplate
     {
         return ProductTemplate::query()->updateOrCreate(
             ['name' => $name],
             [
                 'description' => $description,
-                'default_price' => $defaultPrice,
                 'is_active' => true,
                 'is_pos_visible' => true,
             ],
@@ -317,14 +312,19 @@ final class ProductCatalogSeeder extends Seeder
      */
     private function product(ProductTemplate $template, array $values): Product
     {
+        $productValues = [
+            ...$values,
+            'product_template_id' => $template->id,
+            'description' => $template->description,
+            'is_active' => true,
+        ];
+        if ($values['barcode'] === null) {
+            unset($productValues['barcode']);
+        }
+
         return Product::query()->updateOrCreate(
             ['sku' => $values['sku']],
-            [
-                ...$values,
-                'product_template_id' => $template->id,
-                'description' => $template->description,
-                'is_active' => true,
-            ],
+            $productValues,
         );
     }
 

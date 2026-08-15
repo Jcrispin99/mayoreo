@@ -21,7 +21,6 @@ final class StoreProductTemplateRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'default_price' => ['nullable', 'numeric', 'gt:0'],
             'is_active' => ['sometimes', 'boolean'],
             'is_pos_visible' => ['sometimes', 'boolean'],
             'attributes' => ['sometimes', 'array'],
