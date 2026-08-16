@@ -35,7 +35,8 @@ it('seeds repeatable standalone supplier prices without purchases or stock movem
         '20900000003',
     ])->count())->toBe(3)
         ->and(SupplierProductPrice::query()->count())->toBe(14)
-        ->and($andinaFlour->unit_cost)->toBe('225.0000')
+        ->and($andinaFlour->unit_cost)->toBe('4.5000')
+        ->and($andinaFlour->product_purchase_unit_id)->toBeNull()
         ->and($andinaFlour->quoted_at->toDateString())->toBe('2026-08-11')
         ->and(PurchaseOrder::query()->count())->toBe($purchasesBefore)
         ->and(InventoryMovement::query()->count())->toBe($movementsBefore);

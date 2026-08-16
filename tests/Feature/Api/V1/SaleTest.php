@@ -113,7 +113,7 @@ it('rejects a sale for a quantity with no matching price tier', function (): voi
 });
 
 it('sells mixed packaged variants and discounts their proportional quantity from granel', function (): void {
-    $grams = UnitOfMeasure::query()->where('code', 'g')->firstOrFail();
+    $kilograms = UnitOfMeasure::query()->where('code', 'kg')->firstOrFail();
     $units = UnitOfMeasure::factory()->units()->create(['code' => 'NIU']);
     $template = ProductTemplate::query()->create([
         'name' => 'Arroz Extra',
@@ -125,7 +125,7 @@ it('sells mixed packaged variants and discounts their proportional quantity from
         'name' => 'Arroz Extra - Granel',
         'variant_name' => 'Granel',
         'sku' => 'ARROZ-MIX-GRANEL',
-        'base_unit_id' => $grams->id,
+        'base_unit_id' => $kilograms->id,
         'sale_mode' => 'measured',
         'is_principal' => true,
     ]);
@@ -136,8 +136,8 @@ it('sells mixed packaged variants and discounts their proportional quantity from
         'sku' => 'ARROZ-MIX-250',
         'base_unit_id' => $units->id,
         'sale_mode' => 'unit',
-        'content_quantity' => 250,
-        'content_unit_id' => $grams->id,
+        'content_quantity' => '0.25',
+        'content_unit_id' => $kilograms->id,
         'is_principal' => false,
     ]);
     $bag1000 = Product::factory()->create([
@@ -147,8 +147,8 @@ it('sells mixed packaged variants and discounts their proportional quantity from
         'sku' => 'ARROZ-MIX-1000',
         'base_unit_id' => $units->id,
         'sale_mode' => 'unit',
-        'content_quantity' => 1000,
-        'content_unit_id' => $grams->id,
+        'content_quantity' => 1,
+        'content_unit_id' => $kilograms->id,
         'is_principal' => false,
     ]);
     PriceTier::factory()->for($bag250)->create([
@@ -164,8 +164,8 @@ it('sells mixed packaged variants and discounts their proportional quantity from
     app(StockLedgerService::class)->registerIn(
         $principal,
         $this->pos,
-        '10000',
-        '0.0040',
+        '10',
+        '4.0000',
     );
 
     $response = $this->withHeaders($this->headers)->postJson('/api/v1/sales', [
@@ -180,14 +180,14 @@ it('sells mixed packaged variants and discounts their proportional quantity from
     $response->assertCreated()
         ->assertJsonPath('data.payable_total', '32.00')
         ->assertJsonPath('data.items.0.stock_product_id', $principal->id)
-        ->assertJsonPath('data.items.0.stock_quantity', '1000.000000')
+        ->assertJsonPath('data.items.0.stock_quantity', '1.000000')
         ->assertJsonPath('data.items.1.stock_product_id', $principal->id)
-        ->assertJsonPath('data.items.1.stock_quantity', '2000.000000');
+        ->assertJsonPath('data.items.1.stock_quantity', '2.000000');
 
     $this->assertDatabaseHas('stocks', [
         'warehouse_id' => $this->pos->id,
         'product_id' => $principal->id,
-        'quantity' => '7000.000000',
+        'quantity' => '7.000000',
     ]);
     $this->assertDatabaseMissing('stocks', ['product_id' => $bag250->id]);
     $this->assertDatabaseMissing('stocks', ['product_id' => $bag1000->id]);
@@ -196,12 +196,12 @@ it('sells mixed packaged variants and discounts their proportional quantity from
         'reference_type' => App\Models\Sale::class,
         'reference_id' => $saleId,
         'product_id' => $principal->id,
-        'quantity' => '1000.000000',
+        'quantity' => '1.000000',
     ]);
     $this->assertDatabaseHas('inventory_movements', [
         'reference_type' => App\Models\Sale::class,
         'reference_id' => $saleId,
         'product_id' => $principal->id,
-        'quantity' => '2000.000000',
+        'quantity' => '2.000000',
     ]);
 });

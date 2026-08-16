@@ -565,8 +565,8 @@ it('keeps a measured product in its base quantity through sale and stock movemen
     ]);
 });
 
-it('sells a fractional packaged variant and consumes its proportional content from principal stock', function (): void {
-    $grams = UnitOfMeasure::query()->where('code', 'g')->firstOrFail();
+it('sells a packaged variant by unit and consumes its content from principal stock', function (): void {
+    $kilograms = UnitOfMeasure::query()->where('code', 'kg')->firstOrFail();
     $units = UnitOfMeasure::factory()->units()->create();
     $template = ProductTemplate::query()->create([
         'name' => 'Arroz POS',
@@ -578,7 +578,7 @@ it('sells a fractional packaged variant and consumes its proportional content fr
         'name' => 'Arroz POS - Granel',
         'variant_name' => 'Granel',
         'sku' => 'ARROZ-POS-GRANEL',
-        'base_unit_id' => $grams->id,
+        'base_unit_id' => $kilograms->id,
         'sale_mode' => 'measured',
         'is_principal' => true,
     ]);
@@ -589,16 +589,16 @@ it('sells a fractional packaged variant and consumes its proportional content fr
         'sku' => 'ARROZ-POS-250',
         'base_unit_id' => $units->id,
         'sale_mode' => 'unit',
-        'content_quantity' => 250,
-        'content_unit_id' => $grams->id,
+        'content_quantity' => '0.25',
+        'content_unit_id' => $kilograms->id,
         'is_principal' => false,
     ]);
     Stock::factory()
         ->for($principal)
         ->for($this->warehouse)
         ->create([
-            'quantity' => '5000.000000',
-            'average_cost' => '0.0040',
+            'quantity' => '5.000000',
+            'average_cost' => '4.0000',
             'total_cost' => '20.0000',
         ]);
     PriceTier::factory()->for($bag250)->create([
@@ -612,34 +612,34 @@ it('sells a fractional packaged variant and consumes its proportional content fr
     $this->withHeaders($this->headers)
         ->postJson(
             "/api/v1/cash-register-sessions/{$this->session->id}/orders/{$order->id}/items",
-            ['product_id' => $bag250->id, 'quantity' => '0.25', 'unit_code' => 'unit'],
+            ['product_id' => $bag250->id, 'quantity' => '1', 'unit_code' => 'NIU'],
         )
         ->assertCreated()
-        ->assertJsonPath('data.items.0.quantity', '0.250000')
-        ->assertJsonPath('data.total', '0.5000');
+        ->assertJsonPath('data.items.0.quantity', '1.000000')
+        ->assertJsonPath('data.total', '2.0000');
 
     $response = $this->withHeaders($this->headers)
         ->postJson(
             posCheckoutUrl($this->session, $order),
-            posCheckoutPayload('0.50', 'cash', '0.50'),
+            posCheckoutPayload('2.00', 'cash', '2.00'),
         )
         ->assertCreated()
         ->assertJsonPath('data.sale.items.0.product_id', $bag250->id)
         ->assertJsonPath('data.sale.items.0.stock_product_id', $principal->id)
-        ->assertJsonPath('data.sale.items.0.quantity', '0.250000')
-        ->assertJsonPath('data.sale.items.0.stock_quantity', '62.500000');
+        ->assertJsonPath('data.sale.items.0.quantity', '1.000000')
+        ->assertJsonPath('data.sale.items.0.stock_quantity', '0.250000');
 
     $saleId = $response->json('data.sale.id');
     $this->assertDatabaseHas('inventory_movements', [
         'reference_type' => Sale::class,
         'reference_id' => $saleId,
         'product_id' => $principal->id,
-        'quantity' => '62.500000',
+        'quantity' => '0.250000',
     ]);
     $this->assertDatabaseHas('stocks', [
         'warehouse_id' => $this->warehouse->id,
         'product_id' => $principal->id,
-        'quantity' => '4937.500000',
+        'quantity' => '4.750000',
     ]);
     $this->assertDatabaseMissing('stocks', [
         'warehouse_id' => $this->warehouse->id,

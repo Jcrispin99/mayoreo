@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -8,18 +10,12 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { ActivityIndicator, Button, Checkbox, Icon, Menu, Modal, Portal, Text, TextInput } from 'react-native-paper';
+import { ActivityIndicator, Button, Checkbox, Icon, Modal, Portal, Snackbar, Text, TextInput } from 'react-native-paper';
 import { ListSearch } from '../../components/data/list-search';
 import { api, apiErrorMessage } from '../../lib/api';
+import { useAuth } from '../../lib/auth-context';
 import { COLORS, MODULE_COLORS } from '../../theme/colors';
 import type { Supplier } from './purchase-types';
-
-type PurchaseUnit = {
-  id: number;
-  name: string;
-  conversion_factor: string | number;
-  is_default_purchase?: boolean;
-};
 
 type ProductVariant = {
   id: number;
@@ -29,7 +25,6 @@ type ProductVariant = {
   is_active: boolean;
   is_principal: boolean;
   base_unit?: { id: number; code: string; name: string } | null;
-  purchase_units?: PurchaseUnit[];
 };
 
 type ProductTemplate = {
@@ -43,9 +38,6 @@ type SupplierOffer = {
   id: number;
   supplierId: number;
   variantId: number;
-  productPurchaseUnitId: number | null;
-  originalPrice: number;
-  originalUnit: string;
   comparisonPrice: number;
   comparisonUnit: string;
   orderedAt: string;
@@ -58,13 +50,9 @@ type SupplierPriceProduct = {
   variant_name: string | null;
   sku: string;
   base_unit: { id: number; code: string; name: string } | null;
-  purchase_units: PurchaseUnit[];
   prices: Array<{
     id: number;
     supplier_id: number;
-    unit_cost: string | number;
-    original_unit: string;
-    product_purchase_unit_id: number | null;
     comparison_price: number;
     comparison_unit: string;
     quoted_at: string;
@@ -98,11 +86,9 @@ function moneyAmount(value: number) {
   return moneyFormatter.format(value);
 }
 
-function comparisonUnit(variant: ProductVariant) {
+function comparisonUnitLabel(variant: ProductVariant) {
   const code = variant.base_unit?.code.trim().toLocaleLowerCase('es') ?? 'un.';
-  if (code === 'g' || code === 'gr') return { factor: 1000, label: 'kg' };
-  if (code === 'ml') return { factor: 1000, label: 'L' };
-  return { factor: 1, label: variant.base_unit?.code || 'un.' };
+  return code === 'kg' ? 'kg' : 'unidad';
 }
 
 function freshnessLabel(dateValue: string) {
@@ -132,9 +118,18 @@ function supplierInitials(name: string) {
   return `${words[0][0]}${words[1][0]}`.toLocaleUpperCase('es');
 }
 
+function supplierRequestErrorMessage(error: any) {
+  const validationErrors = error?.response?.data?.errors;
+  const firstValidationError = validationErrors ? Object.values(validationErrors).flat()[0] : null;
+  if (typeof firstValidationError === 'string') return firstValidationError;
+  return error?.response?.data?.message ?? 'No se pudo registrar el proveedor.';
+}
+
 export function SupplierPriceComparison() {
+  const { user } = useAuth();
   const { width } = useWindowDimensions();
   const compact = width < 760;
+  const canManageSuppliers = Boolean(user?.permissions?.includes('suppliers.manage'));
   const [templates, setTemplates] = useState<ProductTemplate[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [offers, setOffers] = useState<Map<string, SupplierOffer>>(new Map());
@@ -142,16 +137,22 @@ export function SupplierPriceComparison() {
   const [draftSupplierIds, setDraftSupplierIds] = useState<number[]>([]);
   const [inspectedSupplierId, setInspectedSupplierId] = useState<number | null>(null);
   const [supplierSelectionVisible, setSupplierSelectionVisible] = useState(false);
+  const [supplierCreateVisible, setSupplierCreateVisible] = useState(false);
+  const [supplierName, setSupplierName] = useState('');
+  const [supplierDocumentNumber, setSupplierDocumentNumber] = useState('');
+  const [supplierPhone, setSupplierPhone] = useState('');
+  const [supplierEmail, setSupplierEmail] = useState('');
+  const [savingSupplier, setSavingSupplier] = useState(false);
+  const [supplierCreateError, setSupplierCreateError] = useState('');
+  const [message, setMessage] = useState('');
   const [editingPrice, setEditingPrice] = useState<{
     variant: ProductVariant;
     supplier: Supplier;
     offer?: SupplierOffer;
   } | null>(null);
   const [priceCost, setPriceCost] = useState('');
-  const [pricePurchaseUnitId, setPricePurchaseUnitId] = useState<number | null>(null);
   const [priceQuotedAt, setPriceQuotedAt] = useState('');
   const [priceNotes, setPriceNotes] = useState('');
-  const [priceUnitMenuVisible, setPriceUnitMenuVisible] = useState(false);
   const [savingPrice, setSavingPrice] = useState(false);
   const [priceError, setPriceError] = useState('');
   const [filter, setFilter] = useState<ComparisonFilter>('priced');
@@ -206,9 +207,6 @@ export function SupplierPriceComparison() {
           id: price.id,
           supplierId: price.supplier_id,
           variantId: item.id,
-          productPurchaseUnitId: price.product_purchase_unit_id,
-          originalPrice: Number(price.unit_cost),
-          originalUnit: price.original_unit,
           comparisonPrice: Number(price.comparison_price),
           comparisonUnit: price.comparison_unit,
           orderedAt: price.quoted_at,
@@ -227,7 +225,6 @@ export function SupplierPriceComparison() {
             is_principal: false,
             base_unit: item.base_unit,
             display_name: item.template_name,
-            purchase_units: item.purchase_units,
           }],
         };
       });
@@ -318,12 +315,56 @@ export function SupplierPriceComparison() {
     };
   }, [inspectedSupplierId, offers]);
 
+  function openSupplierCreator() {
+    setSupplierName('');
+    setSupplierDocumentNumber('');
+    setSupplierPhone('');
+    setSupplierEmail('');
+    setSupplierCreateError('');
+    setSupplierCreateVisible(true);
+  }
+
+  async function saveSupplier() {
+    if (savingSupplier) return;
+    if (!supplierName.trim()) {
+      setSupplierCreateError('Completa el nombre del proveedor.');
+      return;
+    }
+
+    setSavingSupplier(true);
+    setSupplierCreateError('');
+    try {
+      const response = await api.post('/suppliers', {
+        name: supplierName.trim(),
+        document_number: supplierDocumentNumber.trim() || null,
+        phone: supplierPhone.trim() || null,
+        email: supplierEmail.trim().toLocaleLowerCase('es') || null,
+        is_active: true,
+      });
+      const createdSupplier = response.data.data as Supplier;
+
+      setSuppliers((current) => [...current.filter((supplier) => supplier.id !== createdSupplier.id), createdSupplier]
+        .sort((first, second) => first.name.localeCompare(second.name, 'es')));
+      setSelectedSupplierIds((current) => current.includes(createdSupplier.id)
+        ? current
+        : [...current, createdSupplier.id]);
+      setDraftSupplierIds((current) => current.includes(createdSupplier.id)
+        ? current
+        : [...current, createdSupplier.id]);
+      setFilter('all');
+      setSupplierCreateVisible(false);
+      setMessage(`${createdSupplier.name} fue registrado y seleccionado.`);
+    } catch (requestError) {
+      setSupplierCreateError(supplierRequestErrorMessage(requestError));
+    } finally {
+      setSavingSupplier(false);
+    }
+  }
+
   function openPriceEditor(variant: ProductVariant, supplierId: number, offer?: SupplierOffer) {
     const supplier = suppliers.find((item) => item.id === supplierId);
     if (!supplier) return;
 
-    const defaultUnit = variant.purchase_units?.find((unit) => unit.is_default_purchase)
-      ?? variant.purchase_units?.[0];
     const now = new Date();
     const today = [
       now.getFullYear(),
@@ -332,8 +373,7 @@ export function SupplierPriceComparison() {
     ].join('-');
 
     setEditingPrice({ variant, supplier, offer });
-    setPriceCost(offer ? String(offer.originalPrice) : '');
-    setPricePurchaseUnitId(offer?.productPurchaseUnitId ?? defaultUnit?.id ?? null);
+    setPriceCost(offer ? String(offer.comparisonPrice) : '');
     setPriceQuotedAt(offer?.orderedAt ?? today);
     setPriceNotes(offer?.notes ?? '');
     setPriceError('');
@@ -357,7 +397,6 @@ export function SupplierPriceComparison() {
       await api.post('/supplier-product-prices', {
         supplier_id: editingPrice.supplier.id,
         product_id: editingPrice.variant.id,
-        product_purchase_unit_id: pricePurchaseUnitId,
         unit_cost: numericCost,
         quoted_at: priceQuotedAt,
         notes: priceNotes.trim() || null,
@@ -399,11 +438,10 @@ export function SupplierPriceComparison() {
           style={[styles.matrixPriceSlot, { width: supplierColumnWidth }]}
         >
           <Pressable
-            accessibilityHint="Mantén presionado un segundo para editar el precio"
+            accessibilityHint="Abre el formulario para registrar o editar el precio base"
             accessibilityLabel={offer ? `Precio ${moneyAmount(offer.comparisonPrice)}` : 'Sin precio registrado'}
             accessibilityRole="button"
-            delayLongPress={1000}
-            onLongPress={() => {
+            onPress={() => {
               if (editableSupplierId !== undefined) openPriceEditor(variant, editableSupplierId, offer);
             }}
             style={({ pressed }) => [
@@ -476,7 +514,7 @@ export function SupplierPriceComparison() {
                   {variant.variant_name ? ` · ${variant.variant_name}` : ''}
                 </Text>
                 <Text numberOfLines={1} style={styles.matrixVariantMeta}>
-                  {variant.sku} · {comparisonUnit(variant).label}
+                  {variant.sku} · {comparisonUnitLabel(variant)}
                 </Text>
               </View>
             ))}
@@ -566,10 +604,6 @@ export function SupplierPriceComparison() {
     );
   }
 
-  const editingPurchaseUnit = editingPrice?.variant.purchase_units?.find(
-    (unit) => unit.id === pricePurchaseUnitId,
-  );
-
   if (loading) {
     return (
       <View style={styles.centerState}>
@@ -596,30 +630,45 @@ export function SupplierPriceComparison() {
       ListHeaderComponent={(
         <View style={styles.headerContent}>
           <View style={styles.searchPanel}>
-            <ScrollView
-              contentContainerStyle={styles.filters}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-            >
-              {FILTERS.map((item) => {
-                const active = filter === item.id;
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    key={item.id}
-                    onPress={() => setFilter(item.id)}
-                    style={({ pressed }) => [
-                      styles.filterButton,
-                      active && styles.filterButtonActive,
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Icon color={active ? COLORS.onPrimaryContainer : COLORS.textMuted} size={16} source={item.icon} />
-                    <Text style={[styles.filterText, active && styles.filterTextActive]}>{item.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+            <View style={styles.filterBar}>
+              <ScrollView
+                contentContainerStyle={styles.filters}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.filterScroll}
+              >
+                {FILTERS.map((item) => {
+                  const active = filter === item.id;
+                  return (
+                    <Pressable
+                      accessibilityRole="button"
+                      key={item.id}
+                      onPress={() => setFilter(item.id)}
+                      style={({ pressed }) => [
+                        styles.filterButton,
+                        active && styles.filterButtonActive,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Icon color={active ? COLORS.onPrimaryContainer : COLORS.textMuted} size={16} source={item.icon} />
+                      <Text style={[styles.filterText, active && styles.filterTextActive]}>{item.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              {canManageSuppliers ? (
+                <Button
+                  compact
+                  icon="plus"
+                  mode="outlined"
+                  onPress={openSupplierCreator}
+                  style={styles.createSupplierButton}
+                  textColor={MODULE_COLORS.purchases.color}
+                >
+                  Proveedor
+                </Button>
+              ) : null}
+            </View>
           </View>
 
           <View style={styles.resultsHeader}>
@@ -741,6 +790,77 @@ export function SupplierPriceComparison() {
       />
       <Portal>
         <Modal
+          contentContainerStyle={styles.quickSupplierModal}
+          dismissable={!savingSupplier}
+          onDismiss={() => setSupplierCreateVisible(false)}
+          visible={supplierCreateVisible}
+        >
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <View style={styles.quickSupplierContent}>
+                <View>
+                  <Text style={styles.supplierModalEyebrow}>NUEVO PROVEEDOR</Text>
+                  <Text style={styles.supplierModalTitle}>Registro rápido</Text>
+                  <Text style={styles.supplierSelectionHelp}>
+                    Quedará activo y seleccionado para que puedas registrar sus precios.
+                  </Text>
+                </View>
+                <View style={styles.quickSupplierFields}>
+                  <TextInput
+                    autoFocus
+                    label="Nombre *"
+                    mode="outlined"
+                    onChangeText={setSupplierName}
+                    value={supplierName}
+                  />
+                  <TextInput
+                    autoCapitalize="characters"
+                    label="RUC / documento"
+                    maxLength={20}
+                    mode="outlined"
+                    onChangeText={setSupplierDocumentNumber}
+                    value={supplierDocumentNumber}
+                  />
+                  <TextInput
+                    keyboardType="phone-pad"
+                    label="Teléfono"
+                    maxLength={30}
+                    mode="outlined"
+                    onChangeText={setSupplierPhone}
+                    value={supplierPhone}
+                  />
+                  <TextInput
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    label="Correo electrónico"
+                    mode="outlined"
+                    onChangeText={setSupplierEmail}
+                    value={supplierEmail}
+                  />
+                </View>
+                {supplierCreateError ? <Text style={styles.priceError}>{supplierCreateError}</Text> : null}
+                <View style={styles.priceModalActions}>
+                  <Button
+                    disabled={savingSupplier}
+                    mode="text"
+                    onPress={() => setSupplierCreateVisible(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    disabled={savingSupplier}
+                    loading={savingSupplier}
+                    mode="contained"
+                    onPress={() => void saveSupplier()}
+                  >
+                    Registrar proveedor
+                  </Button>
+                </View>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </Modal>
+        <Modal
           contentContainerStyle={styles.priceModal}
           dismissable={!savingPrice}
           onDismiss={() => setEditingPrice(null)}
@@ -757,42 +877,23 @@ export function SupplierPriceComparison() {
               </View>
 
               <View style={styles.priceModalFields}>
-                <Menu
-                  anchor={(
-                    <Pressable
-                      accessibilityLabel="Seleccionar presentación de compra"
-                      accessibilityRole="button"
-                      onPress={() => setPriceUnitMenuVisible(true)}
-                      style={({ pressed }) => [styles.priceUnitSelector, pressed && styles.pressed]}
-                    >
-                      <View style={styles.priceUnitSelectorText}>
-                        <Text style={styles.priceFieldLabel}>PRESENTACIÓN DE COMPRA</Text>
-                        <Text numberOfLines={1} style={styles.priceUnitValue}>
-                          {editingPurchaseUnit?.name ?? 'Unidad base'}
-                        </Text>
-                      </View>
-                      <Icon color={COLORS.textMuted} size={20} source="chevron-down" />
-                    </Pressable>
-                  )}
-                  onDismiss={() => setPriceUnitMenuVisible(false)}
-                  visible={priceUnitMenuVisible}
-                >
-                  {editingPrice.variant.purchase_units?.map((unit) => (
-                    <Menu.Item
-                      key={unit.id}
-                      leadingIcon={unit.id === pricePurchaseUnitId ? 'check' : 'package-variant'}
-                      onPress={() => {
-                        setPricePurchaseUnitId(unit.id);
-                        setPriceUnitMenuVisible(false);
-                      }}
-                      title={unit.name}
-                    />
-                  ))}
-                </Menu>
+                <View style={styles.priceBasis}>
+                  <Icon
+                    color={MODULE_COLORS.purchases.color}
+                    size={21}
+                    source={comparisonUnitLabel(editingPrice.variant) === 'kg' ? 'scale-balance' : 'cube-outline'}
+                  />
+                  <View style={styles.priceBasisText}>
+                    <Text style={styles.priceFieldLabel}>UNIDAD DE COMPARACIÓN</Text>
+                    <Text style={styles.priceBasisValue}>
+                      Precio por {comparisonUnitLabel(editingPrice.variant)}
+                    </Text>
+                  </View>
+                </View>
 
                 <TextInput
                   keyboardType="decimal-pad"
-                  label="Precio de la presentación (S/)"
+                  label={`Precio por ${comparisonUnitLabel(editingPrice.variant)} (S/)`}
                   mode="outlined"
                   onChangeText={setPriceCost}
                   value={priceCost}
@@ -917,6 +1018,9 @@ export function SupplierPriceComparison() {
           ) : null}
         </Modal>
       </Portal>
+      <Snackbar duration={2600} onDismiss={() => setMessage('')} visible={Boolean(message)}>
+        {message}
+      </Snackbar>
     </>
   );
 }
@@ -925,17 +1029,20 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: 1180, alignSelf: 'center', padding: 20, paddingBottom: 64 },
   headerContent: { gap: 18 },
   searchPanel: { gap: 11 },
-  filters: { gap: 7 },
+  filterBar: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  filterScroll: { flex: 1, minWidth: 0 },
+  filters: { paddingRight: 4, gap: 7 },
   filterButton: { minHeight: 34, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: COLORS.border, borderRadius: 18, backgroundColor: COLORS.surface },
   filterButtonActive: { borderColor: '#F1B7B7', backgroundColor: COLORS.primaryContainer },
   filterText: { color: COLORS.textMuted, fontSize: 10, fontWeight: '800' },
   filterTextActive: { color: COLORS.onPrimaryContainer },
-  resultsHeader: { marginTop: 4, paddingBottom: 3, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  resultsHeader: { marginTop: 4, paddingBottom: 3, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   resultsTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   resultsTitle: { color: COLORS.text, fontSize: 16, fontWeight: '900' },
   supplierIconButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 11, backgroundColor: COLORS.surface },
   supplierIconButtonActive: { borderColor: '#E5B77E', backgroundColor: MODULE_COLORS.purchases.softColor },
   resultsActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 9 },
+  createSupplierButton: { borderColor: MODULE_COLORS.purchases.color },
   resultsSearchButton: { width: 40, height: 36, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DFE2E7', borderRadius: 4, backgroundColor: '#EAEFEE' },
   resultsSearchButtonActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryContainer },
   expandedSearch: { marginTop: -7 },
@@ -984,13 +1091,16 @@ const styles = StyleSheet.create({
   matrixMissingPrice: { alignItems: 'center', gap: 4 },
   matrixMissingText: { color: COLORS.textSubtle, fontSize: 8, fontWeight: '700' },
   priceModal: { width: '90%', maxWidth: 500, maxHeight: '88%', alignSelf: 'center', padding: 20, borderRadius: 16, backgroundColor: COLORS.surface },
+  quickSupplierModal: { width: '90%', maxWidth: 520, maxHeight: '90%', alignSelf: 'center', padding: 20, borderRadius: 16, backgroundColor: COLORS.surface },
+  quickSupplierContent: { gap: 18 },
+  quickSupplierFields: { gap: 12 },
   priceModalContent: { gap: 18 },
   priceModalSupplier: { marginTop: 5, color: COLORS.textMuted, fontSize: 11, fontWeight: '700' },
   priceModalFields: { gap: 12 },
-  priceUnitSelector: { minHeight: 54, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, backgroundColor: COLORS.surface },
-  priceUnitSelectorText: { flex: 1, minWidth: 0 },
+  priceBasis: { minHeight: 54, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: COLORS.warning, borderRadius: 8, backgroundColor: MODULE_COLORS.purchases.softColor },
+  priceBasisText: { flex: 1, minWidth: 0 },
   priceFieldLabel: { color: COLORS.textMuted, fontSize: 8, fontWeight: '900', letterSpacing: 0.35 },
-  priceUnitValue: { marginTop: 3, color: COLORS.text, fontSize: 12, fontWeight: '800' },
+  priceBasisValue: { marginTop: 3, color: COLORS.text, fontSize: 12, fontWeight: '800' },
   priceError: { color: COLORS.error, fontSize: 10, lineHeight: 15, fontWeight: '700' },
   priceModalActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
   supplierSelectionModal: { width: '90%', maxWidth: 500, maxHeight: '82%', alignSelf: 'center', padding: 20, borderRadius: 16, backgroundColor: COLORS.surface },

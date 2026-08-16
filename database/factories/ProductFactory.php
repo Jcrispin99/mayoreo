@@ -26,8 +26,8 @@ final class ProductFactory extends Factory
             'name' => fake()->words(3, true),
             'description' => fake()->optional()->sentence(),
             'base_unit_id' => fn () => UnitOfMeasure::query()->firstOrCreate(
-                ['code' => 'g'],
-                ['name' => 'Gramos', 'type' => 'weight'],
+                ['code' => 'kg'],
+                ['name' => 'Kilogramos', 'type' => 'weight'],
             )->id,
             'sale_mode' => 'measured',
             'is_active' => true,

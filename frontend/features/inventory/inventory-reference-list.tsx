@@ -124,7 +124,7 @@ export function InventoryReferenceList({ kind }: InventoryReferenceListProps) {
       key: 'action',
       title: '',
       style: styles.actionColumn,
-      renderCell: () => <Icon source="chevron-right" color="#60706E" size={22} />,
+      renderCell: () => kind === 'units' ? null : <Icon source="chevron-right" color="#60706E" size={22} />,
     },
   ], [kind]);
 
@@ -160,7 +160,7 @@ export function InventoryReferenceList({ kind }: InventoryReferenceListProps) {
       <ListToolbar
         activeFilterIds={activeFilterIds}
         filterOptions={kind === 'units' ? [] : STATUS_FILTERS}
-        onCreate={openCreate}
+        onCreate={kind === 'units' ? undefined : openCreate}
         onPageChange={setPage}
         onQueryChange={changeQuery}
         onToggleFilter={toggleFilter}
@@ -174,16 +174,24 @@ export function InventoryReferenceList({ kind }: InventoryReferenceListProps) {
         columns={columns}
         data={visibleItems}
         emptyIcon={config.icon}
-        emptyText={query.trim() || activeFilterIds.length > 0 ? 'Prueba con otro texto o cambia los filtros.' : 'Usa “Nuevo” para crear el primer registro.'}
-        emptyTitle={query.trim() || activeFilterIds.length > 0 ? 'Sin resultados' : `Aún no hay ${config.title.toLocaleLowerCase('es')}`}
+        emptyText={kind === 'units'
+          ? 'Unidad y kg son las unidades fijas del sistema.'
+          : query.trim() || activeFilterIds.length > 0
+            ? 'Prueba con otro texto o cambia los filtros.'
+            : 'Usa “Nuevo” para crear el primer registro.'}
+        emptyTitle={kind === 'units'
+          ? 'Sin unidades configuradas'
+          : query.trim() || activeFilterIds.length > 0
+            ? 'Sin resultados'
+            : `Aún no hay ${config.title.toLocaleLowerCase('es')}`}
         error={error}
         keyExtractor={(item) => String(item.id)}
         loading={loading}
         onRefresh={() => void loadItems(true)}
         onRetry={() => void loadItems()}
-        onRowPress={openEdit}
+        onRowPress={kind === 'units' ? undefined : openEdit}
         refreshing={refreshing}
-        rowAccessibilityLabel={(item) => `Editar ${item.name}`}
+        rowAccessibilityLabel={kind === 'units' ? undefined : (item) => `Editar ${item.name}`}
         rowStyle={styles.compactRow}
         showHeader={false}
       />

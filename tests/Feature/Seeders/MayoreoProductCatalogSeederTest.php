@@ -6,6 +6,7 @@ use App\Models\PriceTier;
 use App\Models\Product;
 use App\Models\ProductPurchaseUnit;
 use App\Models\ProductTemplate;
+use App\Models\UnitOfMeasure;
 use Database\Seeders\MayoreoProductCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -16,7 +17,12 @@ it('seeds the reviewed spreadsheet catalog with products prices and purchase uni
 
     expect(ProductTemplate::query()->count())->toBe(441)
         ->and(Product::query()->count())->toBe(441)
-        ->and(PriceTier::query()->where('is_active', true)->count())->toBe(594);
+        ->and(PriceTier::query()->where('is_active', true)->count())->toBe(594)
+        ->and(UnitOfMeasure::query()->orderBy('code')->pluck('code')->all())->toBe(['NIU', 'kg'])
+        ->and(UnitOfMeasure::query()->orderBy('code')->pluck('name', 'code')->all())->toBe([
+            'NIU' => 'Unidad',
+            'kg' => 'Kilogramos',
+        ]);
 
     $flour = Product::query()
         ->with(['template', 'baseUnit', 'priceTiers', 'purchaseUnits'])
@@ -83,6 +89,11 @@ it('seeds the reviewed spreadsheet catalog with products prices and purchase uni
         'conversion_factor' => 50,
         'is_default_purchase' => true,
     ]);
+
+    $liquid = Product::query()->with('baseUnit')->where('sku', 'A254')->firstOrFail();
+    expect($liquid->baseUnit?->code)->toBe('NIU')
+        ->and($liquid->sale_mode)->toBe('unit')
+        ->and($liquid->content_quantity)->toBeNull();
 });
 
 it('keeps incomplete products outside the POS and preserves review notes', function (): void {
@@ -97,8 +108,8 @@ it('keeps incomplete products outside the POS and preserves review notes', funct
         ->and($textPrice->template?->description)->toContain('30 - 25')
         ->and($oliveOil->sale_mode)->toBe('unit')
         ->and($oliveOil->baseUnit?->code)->toBe('NIU')
-        ->and($oliveOil->content_quantity)->toBe('0.500000')
-        ->and($oliveOil->contentUnit?->code)->toBe('L');
+        ->and($oliveOil->content_quantity)->toBeNull()
+        ->and($oliveOil->contentUnit)->toBeNull();
 });
 
 it('only expands the explicit H abbreviation as harina', function (): void {

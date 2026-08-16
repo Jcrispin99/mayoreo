@@ -160,15 +160,15 @@ it('sells packaged variants with fractional quantities and exposes their total c
         'name' => 'Unidad',
         'type' => 'count',
     ]);
-    $grams = UnitOfMeasure::query()->where('code', 'g')->firstOrFail();
+    $kilograms = UnitOfMeasure::query()->where('code', 'kg')->firstOrFail();
     $packaged = Product::factory()->create([
         'name' => 'Arroz Extra - Bolsa 100 g',
         'variant_name' => 'Bolsa 100 g',
         'sku' => 'ARROZ-100G',
         'base_unit_id' => $units->id,
         'sale_mode' => 'unit',
-        'content_quantity' => 100,
-        'content_unit_id' => $grams->id,
+        'content_quantity' => '0.1',
+        'content_unit_id' => $kilograms->id,
     ]);
     Stock::factory()->for($packaged)->for($this->warehouse)->create(['quantity' => '20.000000']);
     PriceTier::factory()->for($packaged)->create([
@@ -187,8 +187,8 @@ it('sells packaged variants with fractional quantities and exposes their total c
         ->assertCreated()
         ->assertJsonPath('data.items.0.quantity', '1.500000')
         ->assertJsonPath('data.items.0.line_total', '3.0000')
-        ->assertJsonPath('data.items.0.product.content_quantity', '100.000000')
-        ->assertJsonPath('data.items.0.product.content_unit.code', 'g');
+        ->assertJsonPath('data.items.0.product.content_quantity', '0.100000')
+        ->assertJsonPath('data.items.0.product.content_unit.code', 'kg');
 
     $this->withHeaders($this->headers)
         ->postJson($itemsUrl, ['product_id' => $packaged->id, 'quantity' => '0.5'])
@@ -208,11 +208,11 @@ it('keeps free weight entry on the measured variant', function (): void {
             ['product_id' => $this->product->id, 'quantity' => 300, 'unit_code' => 'g'],
         )
         ->assertCreated()
-        ->assertJsonPath('data.items.0.quantity', '300.000000')
+        ->assertJsonPath('data.items.0.quantity', '0.300000')
         ->assertJsonPath('data.items.0.product.sale_mode', 'measured');
 });
 
-it('converts kilograms to the weight base unit before resolving the price tier', function (): void {
+it('keeps kilograms as the canonical weight unit before resolving the price tier', function (): void {
     PriceTier::factory()->for($this->product)->create([
         'min_quantity' => 0,
         'max_quantity' => null,
@@ -232,12 +232,12 @@ it('converts kilograms to the weight base unit before resolving the price tier',
             'unit_code' => ' KG ',
         ])
         ->assertCreated()
-        ->assertJsonPath('data.items.0.quantity', '1000.000000')
-        ->assertJsonPath('data.items.0.input_quantity', '1000.000000')
+        ->assertJsonPath('data.items.0.quantity', '1.000000')
+        ->assertJsonPath('data.items.0.input_quantity', '1.000000')
         ->assertJsonPath('data.items.0.input_unit_id', $this->product->base_unit_id)
-        ->assertJsonPath('data.items.0.unit_price', '8.0000')
-        ->assertJsonPath('data.items.0.line_total', '8000.0000')
-        ->assertJsonPath('data.total', '8000.0000')
+        ->assertJsonPath('data.items.0.unit_price', '10.0000')
+        ->assertJsonPath('data.items.0.line_total', '10.0000')
+        ->assertJsonPath('data.total', '10.0000')
         ->assertJsonCount(2, 'data.items.0.product.price_tiers')
         ->assertJsonPath('data.items.0.product.price_tiers.0.min_quantity', '0.000000')
         ->assertJsonPath('data.items.0.product.price_tiers.1.min_quantity', '2.000000');
@@ -328,11 +328,11 @@ it('converts the entry unit when updating an order line', function (): void {
     $this->withHeaders($this->headers)
         ->patchJson($lineUrl, ['quantity' => '0.5', 'unit_code' => 'kg'])
         ->assertOk()
-        ->assertJsonPath('data.items.0.quantity', '500.000000')
-        ->assertJsonPath('data.items.0.input_quantity', '500.000000')
+        ->assertJsonPath('data.items.0.quantity', '0.500000')
+        ->assertJsonPath('data.items.0.input_quantity', '0.500000')
         ->assertJsonPath('data.items.0.input_unit_id', $this->product->base_unit_id)
-        ->assertJsonPath('data.items.0.unit_price', '8.0000')
-        ->assertJsonPath('data.items.0.line_total', '4000.0000');
+        ->assertJsonPath('data.items.0.unit_price', '10.0000')
+        ->assertJsonPath('data.items.0.line_total', '5.0000');
 });
 
 it('rejects entry units that are incompatible with the product base unit type', function (): void {

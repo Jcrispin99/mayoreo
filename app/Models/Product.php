@@ -36,6 +36,8 @@ use Illuminate\Support\Facades\Storage;
  * @property-read string $display_name
  * @property-read string|null $image_url
  * @property-read ProductTemplate|null $template
+ * @property-read UnitOfMeasure $baseUnit
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, SupplierProductPrice> $supplierPrices
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at

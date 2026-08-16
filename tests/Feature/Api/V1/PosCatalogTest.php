@@ -123,14 +123,14 @@ it('reports zero or negative stock independently for the session warehouse', fun
 });
 
 it('reports template stock in the catalog and packaged availability in its variant selector', function (): void {
-    $grams = UnitOfMeasure::factory()->grams()->create();
+    $kilograms = UnitOfMeasure::factory()->kilograms()->create();
     $units = UnitOfMeasure::factory()->units()->create();
     $template = ProductTemplate::query()->create([
         'name' => 'Azúcar',
         'is_active' => true,
         'is_pos_visible' => true,
     ]);
-    $principal = Product::factory()->for($grams, 'baseUnit')->create([
+    $principal = Product::factory()->for($kilograms, 'baseUnit')->create([
         'product_template_id' => $template->id,
         'name' => 'Azúcar - Granel',
         'variant_name' => 'Granel',
@@ -142,12 +142,12 @@ it('reports template stock in the catalog and packaged availability in its varia
         'name' => 'Azúcar - Bolsa 250 g',
         'variant_name' => 'Bolsa 250 g',
         'sale_mode' => 'unit',
-        'content_quantity' => '250',
-        'content_unit_id' => $grams->id,
+        'content_quantity' => '0.25',
+        'content_unit_id' => $kilograms->id,
         'is_principal' => false,
     ]);
     Stock::factory()->for($principal)->for($this->warehouse)->create([
-        'quantity' => '10000.000000',
+        'quantity' => '10.000000',
     ]);
     PriceTier::factory()->for($bag250)->create([
         'min_quantity' => 1,
@@ -160,7 +160,7 @@ it('reports template stock in the catalog and packaged availability in its varia
         ->assertOk()
         ->assertJsonCount(1, 'data.items')
         ->assertJsonPath('data.items.0.id', $principal->id)
-        ->assertJsonPath('data.items.0.stock_available', '10000.000000');
+        ->assertJsonPath('data.items.0.stock_available', '10.000000');
 
     $variants = $this->withHeaders($this->headers)
         ->getJson("/api/v1/cash-register-sessions/{$this->session->id}/catalog/templates/{$template->id}/variants")

@@ -11,6 +11,7 @@ use App\Http\Requests\Api\V1\UploadProductImageRequest;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use App\Models\ProductTemplate;
+use App\Models\UnitOfMeasure;
 use App\Services\ProductVariantIdentityGuard;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\JsonResponse;
@@ -50,7 +51,7 @@ final class ProductController extends ApiController
     public function store(StoreProductRequest $request): JsonResponse
     {
         $product = DB::transaction(function () use ($request): Product {
-            $values = $request->validated();
+            $values = $this->withUnitSemantics($request->validated());
 
             if (! isset($values['product_template_id'])) {
                 $template = ProductTemplate::query()->create([
@@ -95,7 +96,7 @@ final class ProductController extends ApiController
 
     public function update(UpdateProductRequest $request, Product $product): JsonResponse
     {
-        $values = $request->validated();
+        $values = $this->withUnitSemantics($request->validated(), $product);
 
         if (array_key_exists('product_template_id', $values)) {
             $requestedTemplateId = is_numeric($values['product_template_id'])
@@ -159,5 +160,45 @@ final class ProductController extends ApiController
         $product->load(['baseUnit', 'contentUnit', 'template']);
 
         return $this->success(new ProductResource($product), 'Product image uploaded successfully');
+    }
+
+    /**
+     * @param  array<string, mixed>  $values
+     * @return array<string, mixed>
+     */
+    private function withUnitSemantics(array $values, ?Product $product = null): array
+    {
+        $baseUnitId = $values['base_unit_id'] ?? $product?->base_unit_id;
+        $baseUnit = is_numeric($baseUnitId) ? UnitOfMeasure::query()->find((int) $baseUnitId) : null;
+        if (! $baseUnit instanceof UnitOfMeasure) {
+            return $values;
+        }
+
+        $expectedSaleMode = $baseUnit->code === 'kg' ? 'measured' : 'unit';
+        if (isset($values['sale_mode']) && $values['sale_mode'] !== $expectedSaleMode) {
+            throw ValidationException::withMessages([
+                'sale_mode' => $expectedSaleMode === 'measured'
+                    ? 'Los productos en kg deben venderse por peso.'
+                    : 'Los productos en Unidad deben venderse por unidad.',
+            ]);
+        }
+
+        if ($product === null || array_key_exists('base_unit_id', $values)) {
+            $values['sale_mode'] = $expectedSaleMode;
+        }
+
+        if ($expectedSaleMode === 'measured') {
+            if (! empty($values['content_quantity']) || ! empty($values['content_unit_id'])) {
+                throw ValidationException::withMessages([
+                    'content_quantity' => 'Los productos a granel en kg no llevan contenido de empaque.',
+                ]);
+            }
+            if ($product === null || array_key_exists('base_unit_id', $values)) {
+                $values['content_quantity'] = null;
+                $values['content_unit_id'] = null;
+            }
+        }
+
+        return $values;
     }
 }

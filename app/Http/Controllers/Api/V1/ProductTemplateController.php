@@ -13,6 +13,7 @@ use App\Models\Product;
 use App\Models\ProductAttribute;
 use App\Models\ProductAttributeValue;
 use App\Models\ProductTemplate;
+use App\Models\UnitOfMeasure;
 use App\Services\ProductVariantIdentityGuard;
 use Closure;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -146,6 +147,24 @@ final class ProductTemplateController extends ApiController
                 ? $variantId === $existingPrincipalId
                 : ! $principalAssigned && ($requestedPrincipal || $index === 0);
             $principalAssigned = $principalAssigned || $isPrincipal;
+
+            $baseUnit = UnitOfMeasure::query()->find($this->nullableInt($variantData['base_unit_id'] ?? null));
+            $expectedSaleMode = $baseUnit?->code === 'kg' ? 'measured' : 'unit';
+            if (($variantData['sale_mode'] ?? null) !== $expectedSaleMode) {
+                throw ValidationException::withMessages([
+                    "variants.{$index}.sale_mode" => $expectedSaleMode === 'measured'
+                        ? 'Las variantes en kg deben venderse por peso.'
+                        : 'Las variantes en Unidad deben venderse por unidad.',
+                ]);
+            }
+            if (
+                $expectedSaleMode === 'measured'
+                && (! empty($variantData['content_quantity']) || ! empty($variantData['content_unit_id']))
+            ) {
+                throw ValidationException::withMessages([
+                    "variants.{$index}.content_quantity" => 'Las variantes a granel en kg no llevan contenido de empaque.',
+                ]);
+            }
 
             $this->productVariantIdentityGuard->assertMeasurementIdentityCanChange(
                 $variant,

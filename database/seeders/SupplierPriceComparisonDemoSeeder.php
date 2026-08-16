@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Models\Product;
-use App\Models\ProductPurchaseUnit;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
 use App\Models\SupplierProductPrice;
@@ -36,7 +35,7 @@ final class SupplierPriceComparisonDemoSeeder extends Seeder
                         'supplier_id' => $suppliers[$quote['supplier']]->id,
                         'product_id' => $line['product']->id,
                     ], [
-                        'product_purchase_unit_id' => $line['purchase_unit']->id,
+                        'product_purchase_unit_id' => null,
                         'unit_cost' => $line['unit_cost'],
                         'quoted_at' => today()->subDays($quote['days_ago'])->toDateString(),
                         'notes' => "Precio demo ({$quote['label']}).",
@@ -83,8 +82,8 @@ final class SupplierPriceComparisonDemoSeeder extends Seeder
     }
 
     /**
-     * @param  list<array{sku: non-empty-string, unit: 'base'|'package', quantity: numeric-string, unit_cost: numeric-string}>  $lines
-     * @return list<array{product: Product, purchase_unit: ProductPurchaseUnit, quantity: numeric-string, unit_cost: numeric-string}>
+     * @param  list<array{sku: non-empty-string, unit_cost: numeric-string}>  $lines
+     * @return list<array{product: Product, unit_cost: numeric-string}>
      */
     private function resolveLines(array $lines): array
     {
@@ -95,21 +94,8 @@ final class SupplierPriceComparisonDemoSeeder extends Seeder
                 throw new RuntimeException("No se encontró el producto [{$line['sku']}] para las cotizaciones demo.");
             }
 
-            $purchaseUnitQuery = $product->purchaseUnits();
-            $purchaseUnit = $line['unit'] === 'package'
-                ? $purchaseUnitQuery->where('conversion_factor', '>', 1)->orderByDesc('is_default_purchase')->first()
-                : $purchaseUnitQuery->where('conversion_factor', 1)->first();
-
-            if (! $purchaseUnit instanceof ProductPurchaseUnit) {
-                throw new RuntimeException(
-                    "No se encontró la presentación [{$line['unit']}] para el producto [{$line['sku']}].",
-                );
-            }
-
             return [
                 'product' => $product,
-                'purchase_unit' => $purchaseUnit,
-                'quantity' => $line['quantity'],
                 'unit_cost' => $line['unit_cost'],
             ];
         }, $lines);
@@ -121,7 +107,7 @@ final class SupplierPriceComparisonDemoSeeder extends Seeder
      *     supplier: 'andina'|'santa_rosa'|'norte',
      *     label: non-empty-string,
      *     days_ago: int,
-     *     lines: list<array{sku: non-empty-string, unit: 'base'|'package', quantity: numeric-string, unit_cost: numeric-string}>
+     *     lines: list<array{sku: non-empty-string, unit_cost: numeric-string}>
      * }>
      */
     private function quotes(): array
@@ -133,9 +119,9 @@ final class SupplierPriceComparisonDemoSeeder extends Seeder
                 'label' => 'Andina anterior',
                 'days_ago' => 10,
                 'lines' => [
-                    ['sku' => 'A001', 'unit' => 'package', 'quantity' => '2', 'unit_cost' => '240.0000'],
-                    ['sku' => 'A041', 'unit' => 'package', 'quantity' => '2', 'unit_cost' => '128.0000'],
-                    ['sku' => 'A055', 'unit' => 'package', 'quantity' => '1', 'unit_cost' => '211.5000'],
+                    ['sku' => 'A001', 'unit_cost' => '4.8000'],
+                    ['sku' => 'A041', 'unit_cost' => '5.1200'],
+                    ['sku' => 'A055', 'unit_cost' => '4.7000'],
                 ],
             ],
             [
@@ -144,10 +130,10 @@ final class SupplierPriceComparisonDemoSeeder extends Seeder
                 'label' => 'Santa Rosa vigente',
                 'days_ago' => 1,
                 'lines' => [
-                    ['sku' => 'A001', 'unit' => 'base', 'quantity' => '100', 'unit_cost' => '4.6000'],
-                    ['sku' => 'A041', 'unit' => 'package', 'quantity' => '4', 'unit_cost' => '119.5000'],
-                    ['sku' => 'A055', 'unit' => 'package', 'quantity' => '2', 'unit_cost' => '198.0000'],
-                    ['sku' => 'A105', 'unit' => 'package', 'quantity' => '1', 'unit_cost' => '420.0000'],
+                    ['sku' => 'A001', 'unit_cost' => '4.6000'],
+                    ['sku' => 'A041', 'unit_cost' => '4.7800'],
+                    ['sku' => 'A055', 'unit_cost' => '4.4000'],
+                    ['sku' => 'A105', 'unit_cost' => '8.4000'],
                 ],
             ],
             [
@@ -156,11 +142,11 @@ final class SupplierPriceComparisonDemoSeeder extends Seeder
                 'label' => 'Norte vigente',
                 'days_ago' => 2,
                 'lines' => [
-                    ['sku' => 'A001', 'unit' => 'package', 'quantity' => '2', 'unit_cost' => '220.0000'],
-                    ['sku' => 'A041', 'unit' => 'base', 'quantity' => '50', 'unit_cost' => '5.0500'],
-                    ['sku' => 'A049', 'unit' => 'package', 'quantity' => '2', 'unit_cost' => '121.2500'],
-                    ['sku' => 'A092', 'unit' => 'package', 'quantity' => '1', 'unit_cost' => '365.0000'],
-                    ['sku' => 'A105', 'unit' => 'base', 'quantity' => '50', 'unit_cost' => '8.2000'],
+                    ['sku' => 'A001', 'unit_cost' => '4.4000'],
+                    ['sku' => 'A041', 'unit_cost' => '5.0500'],
+                    ['sku' => 'A049', 'unit_cost' => '4.8500'],
+                    ['sku' => 'A092', 'unit_cost' => '7.3000'],
+                    ['sku' => 'A105', 'unit_cost' => '8.2000'],
                 ],
             ],
             [
@@ -169,9 +155,9 @@ final class SupplierPriceComparisonDemoSeeder extends Seeder
                 'label' => 'Andina vigente',
                 'days_ago' => 0,
                 'lines' => [
-                    ['sku' => 'A001', 'unit' => 'package', 'quantity' => '2', 'unit_cost' => '225.0000'],
-                    ['sku' => 'A049', 'unit' => 'package', 'quantity' => '2', 'unit_cost' => '118.7500'],
-                    ['sku' => 'A092', 'unit' => 'base', 'quantity' => '25', 'unit_cost' => '7.5500'],
+                    ['sku' => 'A001', 'unit_cost' => '4.5000'],
+                    ['sku' => 'A049', 'unit_cost' => '4.7500'],
+                    ['sku' => 'A092', 'unit_cost' => '7.5500'],
                 ],
             ],
         ];

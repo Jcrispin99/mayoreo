@@ -17,6 +17,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $quoted_at
  * @property string|null $notes
  * @property int|null $updated_by
+ * @property-read ProductPurchaseUnit|null $purchaseUnit
  */
 final class SupplierProductPrice extends Model
 {

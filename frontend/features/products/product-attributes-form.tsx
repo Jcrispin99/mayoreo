@@ -136,17 +136,13 @@ function cartesianProduct(attributes: AttributeRow[]): AttributeValueSelection[]
 }
 
 function suggestedFactor(value: string, baseUnit?: Unit) {
-  if (!baseUnit || baseUnit.type === 'count') return '';
-  const match = value.trim().match(/^(\d+(?:[.,]\d+)?)\s*(kg|g|gr|l|lt|ml)$/i);
+  if (!baseUnit || baseUnit.code.trim().toLocaleLowerCase('es') !== 'kg') return '';
+  const match = value.trim().match(/^(\d+(?:[.,]\d+)?)\s*(kg|g|gr)$/i);
   if (!match) return '';
 
   const amount = Number(match[1].replace(',', '.'));
   const code = match[2].toLocaleLowerCase('es');
-  const weight = code === 'kg' || code === 'g' || code === 'gr';
-  if ((baseUnit.type === 'weight') !== weight) return '';
-
-  const factor = code === 'kg' || code === 'l' || code === 'lt' ? 1000 : 1;
-  return String(amount * factor);
+  return String(code === 'kg' ? amount : amount / 1000);
 }
 
 function contentFromSelections(
@@ -170,19 +166,16 @@ function contentFromSelections(
   }
 
   for (const selection of selections) {
-    const match = selection.value.trim().match(/^(\d+(?:[.,]\d+)?)\s*(kg|g|gr|l|lt|ml)$/i);
+    const match = selection.value.trim().match(/^(\d+(?:[.,]\d+)?)\s*(kg|g|gr)$/i);
     if (!match) continue;
 
     const amount = Number(match[1].replace(',', '.'));
     const code = match[2].toLocaleLowerCase('es');
-    const weight = code === 'kg' || code === 'g' || code === 'gr';
-    const targetCode = weight ? 'g' : 'ml';
-    const factor = code === 'kg' || code === 'l' || code === 'lt' ? 1000 : 1;
-    const unit = units.find((candidate) => normalized(candidate.code) === targetCode);
+    const unit = units.find((candidate) => normalized(candidate.code) === 'kg');
 
     if (unit && Number.isFinite(amount)) {
       return {
-        content_quantity: String(amount * factor),
+        content_quantity: String(code === 'kg' ? amount : amount / 1000),
         content_unit_id: unit.id,
       };
     }
@@ -563,8 +556,10 @@ export function ProductAttributesForm({ templateId }: { templateId?: string }) {
             <Text style={styles.title}>Atributos</Text>
             <Text style={styles.subtitle}>{template?.name ?? 'Producto'}</Text>
             <Text style={styles.factorHelp}>
-              {principalUnit
-                ? `La variante principal Granel se conserva aparte. Escribe cuánto contiene cada variante. Ejemplo: Contenido: 12 ${contentUnitLabel(principalUnit, '12')}.`
+              {principalUnit?.code.trim().toLocaleLowerCase('es') === 'kg'
+                ? 'La variante principal a granel se conserva aparte. El contenido de los empaques se expresa en kg; por ejemplo, 500 g equivale a 0.5 kg.'
+                : principalUnit
+                  ? 'Las presentaciones se controlan como unidades completas.'
                 : 'Selecciona primero la unidad de medida del producto.'}
             </Text>
             {error ? <Text style={styles.error}>{error}</Text> : null}

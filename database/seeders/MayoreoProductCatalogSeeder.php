@@ -28,7 +28,7 @@ final class MayoreoProductCatalogSeeder extends Seeder
     }
 
     /**
-     * @return array{kg: UnitOfMeasure, L: UnitOfMeasure, unidad: UnitOfMeasure}
+     * @return array{kg: UnitOfMeasure, unidad: UnitOfMeasure}
      */
     private function units(): array
     {
@@ -37,20 +37,16 @@ final class MayoreoProductCatalogSeeder extends Seeder
                 ['code' => 'kg'],
                 ['name' => 'Kilogramos', 'type' => 'weight'],
             ),
-            'L' => UnitOfMeasure::query()->updateOrCreate(
-                ['code' => 'L'],
-                ['name' => 'Litros', 'type' => 'volume'],
-            ),
             'unidad' => UnitOfMeasure::query()->updateOrCreate(
                 ['code' => 'NIU'],
-                ['name' => 'Unidad SUNAT', 'type' => 'count'],
+                ['name' => 'Unidad', 'type' => 'count'],
             ),
         ];
     }
 
     /**
      * @param  array<string, mixed>  $item
-     * @param  array{kg: UnitOfMeasure, L: UnitOfMeasure, unidad: UnitOfMeasure}  $units
+     * @param  array{kg: UnitOfMeasure, unidad: UnitOfMeasure}  $units
      */
     private function seedProduct(array $item, array $units): void
     {
@@ -116,7 +112,7 @@ final class MayoreoProductCatalogSeeder extends Seeder
 
     /**
      * @param  array<string, mixed>  $item
-     * @param  array{kg: UnitOfMeasure, L: UnitOfMeasure, unidad: UnitOfMeasure}  $units
+     * @param  array{kg: UnitOfMeasure, unidad: UnitOfMeasure}  $units
      * @return array{0: numeric-string|null, 1: int|null}
      */
     private function content(array $item, array $units): array
@@ -124,7 +120,7 @@ final class MayoreoProductCatalogSeeder extends Seeder
         $quantity = $this->nullableNumericString($item['content_quantity'] ?? null);
         $unit = $this->optionalString($item['content_unit'] ?? null);
 
-        if ($quantity === null || ! in_array($unit, ['kg', 'L'], true)) {
+        if ($quantity === null || $unit !== 'kg') {
             return [null, null];
         }
 
@@ -174,7 +170,7 @@ final class MayoreoProductCatalogSeeder extends Seeder
 
         if ($regularPrice !== null && (! $hasWholesale || bccomp($quantity, '1', 6) > 0)) {
             $tiers[] = [
-                'label' => $unit === 'kg' ? 'Por kilo' : 'Por litro',
+                'label' => 'Por kilo',
                 'min' => '1.000000',
                 'max' => $hasWholesale ? bcsub($quantity, '0.000001', 6) : null,
                 'price' => $regularPrice,
@@ -247,7 +243,6 @@ final class MayoreoProductCatalogSeeder extends Seeder
     {
         $label = match ($unit) {
             'kg' => "Cliente / saco {$this->quantityLabel($quantity)} kg",
-            'L' => "Cliente / contenedor {$this->quantityLabel($quantity)} L",
             default => "Cliente / paquete x {$this->quantityLabel($quantity)}",
         };
 
@@ -295,7 +290,6 @@ final class MayoreoProductCatalogSeeder extends Seeder
     {
         $definitions = match ($unit) {
             'kg' => $this->measuredPurchaseUnits('Kilogramo', 'Saco', 'kg', $quantity),
-            'L' => $this->measuredPurchaseUnits('Litro', 'Contenedor', 'L', $quantity),
             default => $this->countPurchaseUnits($quantity),
         };
         $processedIds = [];
@@ -446,7 +440,7 @@ final class MayoreoProductCatalogSeeder extends Seeder
     {
         $unit = $this->optionalString($value);
 
-        return in_array($unit, ['kg', 'L', 'unidad'], true) ? $unit : 'unidad';
+        return $unit === 'kg' ? 'kg' : 'unidad';
     }
 
     /** @param numeric-string $quantity */

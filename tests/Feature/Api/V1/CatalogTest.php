@@ -24,18 +24,45 @@ beforeEach(function (): void {
 
 describe('Units of measure', function (): void {
     it('creates and lists units of measure', function (): void {
-        $response = $this->withHeaders($this->headers)->postJson('/api/v1/units-of-measure', [
-            'code' => 'g',
-            'name' => 'Gramos',
+        $kilograms = $this->withHeaders($this->headers)->postJson('/api/v1/units-of-measure', [
+            'code' => 'kg',
+            'name' => 'Kilogramos',
             'type' => 'weight',
         ]);
+        $units = $this->withHeaders($this->headers)->postJson('/api/v1/units-of-measure', [
+            'code' => 'NIU',
+            'name' => 'Unidad',
+            'type' => 'count',
+        ]);
 
-        $response->assertCreated()->assertJson([
-            'data' => ['code' => 'g', 'type' => 'weight'],
+        $kilograms->assertCreated()->assertJson([
+            'data' => ['code' => 'kg', 'type' => 'weight'],
+        ]);
+        $units->assertCreated()->assertJson([
+            'data' => ['code' => 'NIU', 'type' => 'count'],
         ]);
 
         $this->withHeaders($this->headers)->getJson('/api/v1/units-of-measure')
-            ->assertOk()->assertJsonCount(1, 'data');
+            ->assertOk()->assertJsonCount(2, 'data');
+    });
+
+    it('rejects units outside Unidad and kg', function (): void {
+        $this->withHeaders($this->headers)->postJson('/api/v1/units-of-measure', [
+            'code' => 'L',
+            'name' => 'Litros',
+            'type' => 'volume',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['code', 'type']);
+    });
+
+    it('does not modify or delete the fixed units', function (): void {
+        $kilograms = UnitOfMeasure::factory()->kilograms()->create();
+
+        $this->withHeaders($this->headers)
+            ->putJson("/api/v1/units-of-measure/{$kilograms->id}", ['name' => 'Otra etiqueta'])
+            ->assertUnprocessable();
+        $this->withHeaders($this->headers)
+            ->deleteJson("/api/v1/units-of-measure/{$kilograms->id}")
+            ->assertUnprocessable();
     });
 
     it('fails with an invalid type', function (): void {
@@ -68,7 +95,7 @@ describe('Units of measure', function (): void {
 
 describe('Products', function (): void {
     it('creates a product with its base unit and converts a purchase presentation', function (): void {
-        $grams = UnitOfMeasure::factory()->grams()->create();
+        $grams = UnitOfMeasure::factory()->kilograms()->create();
 
         $product = $this->withHeaders($this->headers)->postJson('/api/v1/products', [
             'sku' => 'PECANAS-001',
@@ -96,7 +123,7 @@ describe('Products', function (): void {
     });
 
     it('filters products by search term', function (): void {
-        $grams = UnitOfMeasure::factory()->grams()->create();
+        $grams = UnitOfMeasure::factory()->kilograms()->create();
         Product::factory()->create(['name' => 'Harina de trigo', 'sku' => 'HAR-001', 'base_unit_id' => $grams->id]);
         Product::factory()->create(['name' => 'Pecanas', 'sku' => 'PEC-001', 'base_unit_id' => $grams->id]);
 
@@ -140,7 +167,7 @@ describe('Products', function (): void {
     });
 
     it('does not allow bypassing the historical unit protection through the product endpoint', function (): void {
-        $grams = UnitOfMeasure::factory()->grams()->create();
+        $grams = UnitOfMeasure::factory()->kilograms()->create();
         $units = UnitOfMeasure::factory()->create([
             'code' => 'NIU',
             'name' => 'Unidad',
@@ -179,7 +206,7 @@ describe('Products', function (): void {
     });
 
     it('fails with a duplicate sku', function (): void {
-        $grams = UnitOfMeasure::factory()->grams()->create();
+        $grams = UnitOfMeasure::factory()->kilograms()->create();
         Product::factory()->create(['sku' => 'DUP-001', 'base_unit_id' => $grams->id]);
 
         $this->withHeaders($this->headers)->postJson('/api/v1/products', [
@@ -190,7 +217,7 @@ describe('Products', function (): void {
     });
 
     it('creates a product with a barcode and fails on duplicates', function (): void {
-        $grams = UnitOfMeasure::factory()->grams()->create();
+        $grams = UnitOfMeasure::factory()->kilograms()->create();
 
         $product = $this->withHeaders($this->headers)->postJson('/api/v1/products', [
             'sku' => 'PECANAS-002',

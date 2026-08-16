@@ -6,10 +6,11 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Api\ApiController;
 use App\Models\Product;
-use App\Models\ProductPurchaseUnit;
+use App\Models\ProductTemplate;
 use App\Models\Supplier;
 use App\Models\SupplierProductPrice;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -17,6 +18,7 @@ final class SupplierProductPriceController extends ApiController
 {
     public function index(Request $request): JsonResponse
     {
+        /** @var array{search?: string|null, filter?: string|null, supplier_ids?: string|null, page?: int|null, per_page?: int|null} $validated */
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'filter' => ['nullable', 'in:all,priced,missing'],
@@ -33,9 +35,9 @@ final class SupplierProductPriceController extends ApiController
             ->with([
                 'template:id,name',
                 'baseUnit:id,code,name',
-                'purchaseUnits:id,product_id,name,conversion_factor,is_default_purchase',
-                'supplierPrices' => fn ($query) => $query
-                    ->with('purchaseUnit:id,product_id,name,conversion_factor'),
+                'supplierPrices' => function (Relation $relation): void {
+                    $relation->getQuery()->with('purchaseUnit:id,product_id,name,conversion_factor');
+                },
             ])
             ->where('is_active', true)
             ->when($search !== '', function (Builder $query) use ($search): void {
@@ -66,26 +68,24 @@ final class SupplierProductPriceController extends ApiController
             ->orderBy('id')
             ->paginate($perPage);
 
-        $items = $products->getCollection()->map(fn (Product $product): array => [
-            'id' => $product->id,
-            'template_name' => $product->template?->name ?? $product->name,
-            'variant_name' => $product->variant_name,
-            'sku' => $product->sku,
-            'base_unit' => $product->baseUnit ? [
-                'id' => $product->baseUnit->id,
-                'code' => $product->baseUnit->code,
-                'name' => $product->baseUnit->name,
-            ] : null,
-            'purchase_units' => $product->purchaseUnits->map(fn (ProductPurchaseUnit $unit): array => [
-                'id' => $unit->id,
-                'name' => $unit->name,
-                'conversion_factor' => $unit->conversion_factor,
-                'is_default_purchase' => $unit->is_default_purchase,
-            ])->values(),
-            'prices' => $product->supplierPrices->map(
-                fn (SupplierProductPrice $price): array => $this->priceData($product, $price),
-            )->values(),
-        ])->values();
+        $items = $products->getCollection()->map(function (Product $product): array {
+            $template = $product->template;
+
+            return [
+                'id' => $product->id,
+                'template_name' => $template instanceof ProductTemplate ? $template->name : $product->name,
+                'variant_name' => $product->variant_name,
+                'sku' => $product->sku,
+                'base_unit' => [
+                    'id' => $product->baseUnit->id,
+                    'code' => $product->baseUnit->code,
+                    'name' => $product->baseUnit->name,
+                ],
+                'prices' => $product->supplierPrices->map(
+                    fn (SupplierProductPrice $price): array => $this->priceData($product, $price),
+                )->values(),
+            ];
+        })->values();
 
         return $this->success([
             'items' => $items,
@@ -102,30 +102,24 @@ final class SupplierProductPriceController extends ApiController
 
     public function store(Request $request): JsonResponse
     {
+        /** @var array{supplier_id: int, product_id: int, unit_cost: int|float|numeric-string, quoted_at: string, notes?: string|null} $validated */
         $validated = $request->validate([
             'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
             'product_id' => ['required', 'integer', 'exists:products,id'],
-            'product_purchase_unit_id' => ['nullable', 'integer', 'exists:product_purchase_units,id'],
+            'product_purchase_unit_id' => ['prohibited'],
             'unit_cost' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
             'quoted_at' => ['required', 'date'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
         $product = Product::query()
-            ->with(['baseUnit:id,code,name', 'purchaseUnits:id,product_id,name,conversion_factor,is_default_purchase'])
+            ->with('baseUnit:id,code,name')
             ->findOrFail($validated['product_id']);
-        $purchaseUnitId = $validated['product_purchase_unit_id'] ?? null;
-
-        if ($purchaseUnitId !== null && ! $product->purchaseUnits->contains('id', $purchaseUnitId)) {
-            return $this->validationError([
-                'product_purchase_unit_id' => ['La presentación de compra no pertenece al producto seleccionado.'],
-            ]);
-        }
 
         $price = SupplierProductPrice::query()->updateOrCreate([
             'supplier_id' => $validated['supplier_id'],
             'product_id' => $product->id,
         ], [
-            'product_purchase_unit_id' => $purchaseUnitId,
+            'product_purchase_unit_id' => null,
             'unit_cost' => $validated['unit_cost'],
             'quoted_at' => $validated['quoted_at'],
             'notes' => $validated['notes'] ?? null,
@@ -163,25 +157,20 @@ final class SupplierProductPriceController extends ApiController
     /** @return array<string, mixed> */
     private function priceData(Product $product, SupplierProductPrice $price): array
     {
-        $purchaseUnit = $price->purchaseUnit;
-        $conversionFactor = (float) ($purchaseUnit?->conversion_factor ?? 1);
+        $purchaseUnit = $price->product_purchase_unit_id === null ? null : $price->purchaseUnit;
+        $conversionFactor = $purchaseUnit === null ? 1 : (float) $purchaseUnit->conversion_factor;
         $unitCost = (float) $price->unit_cost;
-        $baseCode = mb_strtolower($product->baseUnit?->code ?? 'un.');
-        $comparisonFactor = in_array($baseCode, ['g', 'gr', 'ml'], true) ? 1000 : 1;
-        $comparisonUnit = match ($baseCode) {
-            'g', 'gr' => 'kg',
-            'ml' => 'L',
-            default => $product->baseUnit?->code ?? 'un.',
-        };
+        $baseCode = mb_strtolower($product->baseUnit->code);
+        $comparisonUnit = $baseCode === 'kg' ? 'kg' : 'unidad';
 
         return [
             'id' => $price->id,
             'supplier_id' => $price->supplier_id,
             'product_purchase_unit_id' => $price->product_purchase_unit_id,
             'unit_cost' => $price->unit_cost,
-            'original_unit' => $purchaseUnit?->name ?? $comparisonUnit,
+            'original_unit' => $purchaseUnit === null ? $comparisonUnit : $purchaseUnit->name,
             'comparison_price' => $conversionFactor > 0
-                ? round(($unitCost / $conversionFactor) * $comparisonFactor, 4)
+                ? round($unitCost / $conversionFactor, 4)
                 : null,
             'comparison_unit' => $comparisonUnit,
             'quoted_at' => $price->quoted_at->toDateString(),

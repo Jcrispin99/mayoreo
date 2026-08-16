@@ -19,7 +19,7 @@ beforeEach(function (): void {
     $this->headers = ['Authorization' => 'Bearer '.$user->createToken('test')->plainTextToken];
 });
 
-it('lists supplier prices with server pagination and normalized package costs', function (): void {
+it('lists supplier prices by kilogram or base unit', function (): void {
     $andina = Supplier::query()->where('document_number', '20900000001')->firstOrFail();
 
     $response = $this->withHeaders($this->headers)->getJson(
@@ -55,21 +55,46 @@ it('searches products and exposes suppliers without the inventory placeholder', 
 it('creates or updates a standalone supplier price without creating a purchase', function (): void {
     $supplier = Supplier::query()->where('document_number', '20900000001')->firstOrFail();
     $product = App\Models\Product::query()->where('sku', 'A001')->firstOrFail();
-    $purchaseUnit = $product->purchaseUnits()->where('conversion_factor', '>', 1)->firstOrFail();
     $purchasesBefore = App\Models\PurchaseOrder::query()->count();
     $pricesBefore = SupplierProductPrice::query()->count();
 
     $this->withHeaders($this->headers)->postJson('/api/v1/supplier-product-prices', [
         'supplier_id' => $supplier->id,
         'product_id' => $product->id,
-        'product_purchase_unit_id' => $purchaseUnit->id,
-        'unit_cost' => 215.50,
+        'unit_cost' => 4.31,
         'quoted_at' => '2026-08-11',
         'notes' => 'Precio actualizado desde el comparador.',
     ])->assertOk()
-        ->assertJsonPath('data.unit_cost', '215.5000')
-        ->assertJsonPath('data.comparison_price', 4.31);
+        ->assertJsonPath('data.product_purchase_unit_id', null)
+        ->assertJsonPath('data.unit_cost', '4.3100')
+        ->assertJsonPath('data.comparison_price', 4.31)
+        ->assertJsonPath('data.comparison_unit', 'kg');
 
     expect(SupplierProductPrice::query()->count())->toBe($pricesBefore)
         ->and(App\Models\PurchaseOrder::query()->count())->toBe($purchasesBefore);
+});
+
+it('stores unit products directly by their base unit and rejects package prices', function (): void {
+    $supplier = Supplier::query()->where('document_number', '20900000001')->firstOrFail();
+    $product = App\Models\Product::query()->where('sku', 'A254')->firstOrFail();
+    $purchaseUnit = $product->purchaseUnits()->where('conversion_factor', '>', 1)->firstOrFail();
+
+    $this->withHeaders($this->headers)->postJson('/api/v1/supplier-product-prices', [
+        'supplier_id' => $supplier->id,
+        'product_id' => $product->id,
+        'unit_cost' => 8.50,
+        'quoted_at' => '2026-08-11',
+    ])->assertOk()
+        ->assertJsonPath('data.unit_cost', '8.5000')
+        ->assertJsonPath('data.comparison_price', 8.5)
+        ->assertJsonPath('data.comparison_unit', 'unidad');
+
+    $this->withHeaders($this->headers)->postJson('/api/v1/supplier-product-prices', [
+        'supplier_id' => $supplier->id,
+        'product_id' => $product->id,
+        'product_purchase_unit_id' => $purchaseUnit->id,
+        'unit_cost' => 102,
+        'quoted_at' => '2026-08-11',
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors('product_purchase_unit_id');
 });

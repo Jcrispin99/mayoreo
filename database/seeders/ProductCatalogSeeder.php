@@ -17,32 +17,28 @@ final class ProductCatalogSeeder extends Seeder
 {
     public function run(): void
     {
-        $grams = UnitOfMeasure::query()->updateOrCreate(
-            ['code' => 'g'],
-            ['name' => 'Gramos', 'type' => 'weight'],
-        );
-        $milliliters = UnitOfMeasure::query()->updateOrCreate(
-            ['code' => 'ml'],
-            ['name' => 'Mililitros', 'type' => 'volume'],
+        $kilograms = UnitOfMeasure::query()->updateOrCreate(
+            ['code' => 'kg'],
+            ['name' => 'Kilogramos', 'type' => 'weight'],
         );
         $units = UnitOfMeasure::query()->updateOrCreate(
             ['code' => 'NIU'],
-            ['name' => 'Unidad SUNAT', 'type' => 'count'],
+            ['name' => 'Unidad', 'type' => 'count'],
         );
         $presentation = ProductAttribute::query()->updateOrCreate(
             ['name' => 'Presentación'],
             ['is_active' => true],
         );
 
-        $this->seedArrozExtra($presentation, $grams, $units);
-        $this->seedAceiteVegetal($presentation, $milliliters, $units);
-        $this->seedAzucarRubia($presentation, $grams, $units);
+        $this->seedArrozExtra($presentation, $kilograms, $units);
+        $this->seedAceiteVegetal($presentation, $units);
+        $this->seedAzucarRubia($presentation, $kilograms, $units);
         $this->seedGaseosa($units);
     }
 
     private function seedArrozExtra(
         ProductAttribute $presentation,
-        UnitOfMeasure $grams,
+        UnitOfMeasure $kilograms,
         UnitOfMeasure $units,
     ): void {
         $template = $this->template(
@@ -52,8 +48,8 @@ final class ProductCatalogSeeder extends Seeder
         $oneKilogram = $this->attributeValue($presentation, '1 kg');
         $sack50Kilograms = $this->attributeValue($presentation, 'Saco 50 kg');
         $this->syncTemplateValues($template, [
-            [$oneKilogram, 0, '5.0000', '1000.000000'],
-            [$sack50Kilograms, 1, '210.0000', '50000.000000'],
+            [$oneKilogram, 0, '5.0000', '1.000000'],
+            [$sack50Kilograms, 1, '210.0000', '50.000000'],
         ]);
 
         $principal = $this->product($template, [
@@ -61,7 +57,7 @@ final class ProductCatalogSeeder extends Seeder
             'barcode' => null,
             'name' => 'Arroz Extra - Granel',
             'variant_name' => 'Granel (stock)',
-            'base_unit_id' => $grams->id,
+            'base_unit_id' => $kilograms->id,
             'sale_mode' => 'measured',
             'content_quantity' => null,
             'content_unit_id' => null,
@@ -69,12 +65,12 @@ final class ProductCatalogSeeder extends Seeder
             'is_favorite' => true,
         ]);
         $this->priceTiers($principal, [
-            ['label' => 'Menudeo', 'min' => '1', 'max' => '999.999999', 'price' => '0.0055'],
-            ['label' => 'Desde 1 kg', 'min' => '1000', 'max' => null, 'price' => '0.0048'],
+            ['label' => 'Menudeo', 'min' => '0.001', 'max' => '0.999999', 'price' => '5.5000'],
+            ['label' => 'Desde 1 kg', 'min' => '1', 'max' => null, 'price' => '4.8000'],
         ]);
         $this->purchaseUnits($principal, [
-            ['name' => 'Kilogramo', 'factor' => '1000', 'default' => false],
-            ['name' => 'Saco 50 kg', 'factor' => '50000', 'default' => true],
+            ['name' => 'Kilogramo', 'factor' => '1', 'default' => false],
+            ['name' => 'Saco 50 kg', 'factor' => '50', 'default' => true],
         ]);
 
         $kilogram = $this->product($template, [
@@ -84,14 +80,14 @@ final class ProductCatalogSeeder extends Seeder
             'variant_name' => '1 kg',
             'base_unit_id' => $units->id,
             'sale_mode' => 'unit',
-            'content_quantity' => '1000',
-            'content_unit_id' => $grams->id,
+            'content_quantity' => '1',
+            'content_unit_id' => $kilograms->id,
             'is_principal' => false,
             'is_favorite' => true,
         ]);
         $kilogram->attributeValues()->sync([$oneKilogram->id]);
         $this->priceTiers($kilogram, [
-            ['label' => 'Precio por kilo', 'min' => '0.000001', 'max' => null, 'price' => '5.0000'],
+            ['label' => 'Precio por bolsa', 'min' => '1', 'max' => null, 'price' => '5.0000'],
         ]);
 
         $sack = $this->product($template, [
@@ -101,69 +97,52 @@ final class ProductCatalogSeeder extends Seeder
             'variant_name' => 'Saco 50 kg',
             'base_unit_id' => $units->id,
             'sale_mode' => 'unit',
-            'content_quantity' => '50000',
-            'content_unit_id' => $grams->id,
+            'content_quantity' => '50',
+            'content_unit_id' => $kilograms->id,
             'is_principal' => false,
             'is_favorite' => false,
         ]);
         $sack->attributeValues()->sync([$sack50Kilograms->id]);
         $this->priceTiers($sack, [
-            ['label' => 'Precio por saco', 'min' => '0.000001', 'max' => null, 'price' => '210.0000'],
+            ['label' => 'Precio por saco', 'min' => '1', 'max' => null, 'price' => '210.0000'],
         ]);
     }
 
     private function seedAceiteVegetal(
         ProductAttribute $presentation,
-        UnitOfMeasure $milliliters,
         UnitOfMeasure $units,
     ): void {
+        Product::query()
+            ->where('sku', 'ACEITE-VEGETAL-GRANEL')
+            ->update(['is_active' => false, 'is_principal' => false]);
+
         $template = $this->template(
             'Aceite Vegetal',
-            'Aceite vendido a granel, en botella de 1 L o bidón de 20 L.',
+            'Aceite controlado por botella de 1 L o bidón de 20 L.',
         );
-        $oneLiter = $this->attributeValue($presentation, '1 L');
         $drum20Liters = $this->attributeValue($presentation, 'Bidón 20 L');
         $this->syncTemplateValues($template, [
-            [$oneLiter, 0, '12.0000', '1000.000000'],
-            [$drum20Liters, 1, '200.0000', '20000.000000'],
+            [$drum20Liters, 0, '200.0000', '1.000000'],
         ]);
 
         $principal = $this->product($template, [
-            'sku' => 'ACEITE-VEGETAL-GRANEL',
-            'barcode' => null,
-            'name' => 'Aceite Vegetal - Granel',
-            'variant_name' => 'Granel (stock)',
-            'base_unit_id' => $milliliters->id,
-            'sale_mode' => 'measured',
-            'content_quantity' => null,
-            'content_unit_id' => null,
-            'is_principal' => true,
-            'is_favorite' => false,
-        ]);
-        $this->priceTiers($principal, [
-            ['label' => 'Menudeo', 'min' => '1', 'max' => '999.999999', 'price' => '0.0120'],
-            ['label' => 'Desde 1 L', 'min' => '1000', 'max' => null, 'price' => '0.0100'],
-        ]);
-        $this->purchaseUnits($principal, [
-            ['name' => 'Litro', 'factor' => '1000', 'default' => false],
-            ['name' => 'Bidón 20 L', 'factor' => '20000', 'default' => true],
-        ]);
-
-        $bottle = $this->product($template, [
             'sku' => 'ACEITE-VEGETAL-1L',
             'barcode' => '7750000000035',
             'name' => 'Aceite Vegetal - 1 L',
             'variant_name' => '1 L',
             'base_unit_id' => $units->id,
             'sale_mode' => 'unit',
-            'content_quantity' => '1000',
-            'content_unit_id' => $milliliters->id,
-            'is_principal' => false,
+            'content_quantity' => null,
+            'content_unit_id' => null,
+            'is_principal' => true,
             'is_favorite' => true,
         ]);
-        $bottle->attributeValues()->sync([$oneLiter->id]);
-        $this->priceTiers($bottle, [
-            ['label' => 'Precio por botella', 'min' => '0.000001', 'max' => null, 'price' => '12.0000'],
+        $principal->attributeValues()->sync([]);
+        $this->priceTiers($principal, [
+            ['label' => 'Precio por botella', 'min' => '1', 'max' => null, 'price' => '12.0000'],
+        ]);
+        $this->purchaseUnits($principal, [
+            ['name' => 'Unidad', 'factor' => '1', 'default' => true],
         ]);
 
         $drum = $this->product($template, [
@@ -173,20 +152,23 @@ final class ProductCatalogSeeder extends Seeder
             'variant_name' => 'Bidón 20 L',
             'base_unit_id' => $units->id,
             'sale_mode' => 'unit',
-            'content_quantity' => '20000',
-            'content_unit_id' => $milliliters->id,
+            'content_quantity' => null,
+            'content_unit_id' => null,
             'is_principal' => false,
             'is_favorite' => false,
         ]);
         $drum->attributeValues()->sync([$drum20Liters->id]);
         $this->priceTiers($drum, [
-            ['label' => 'Precio por bidón', 'min' => '0.000001', 'max' => null, 'price' => '200.0000'],
+            ['label' => 'Precio por bidón', 'min' => '1', 'max' => null, 'price' => '200.0000'],
+        ]);
+        $this->purchaseUnits($drum, [
+            ['name' => 'Unidad', 'factor' => '1', 'default' => true],
         ]);
     }
 
     private function seedAzucarRubia(
         ProductAttribute $presentation,
-        UnitOfMeasure $grams,
+        UnitOfMeasure $kilograms,
         UnitOfMeasure $units,
     ): void {
         $template = $this->template(
@@ -196,8 +178,8 @@ final class ProductCatalogSeeder extends Seeder
         $oneKilogram = $this->attributeValue($presentation, '1 kg');
         $sack50Kilograms = $this->attributeValue($presentation, 'Saco 50 kg');
         $this->syncTemplateValues($template, [
-            [$oneKilogram, 0, '4.8000', '1000.000000'],
-            [$sack50Kilograms, 1, '195.0000', '50000.000000'],
+            [$oneKilogram, 0, '4.8000', '1.000000'],
+            [$sack50Kilograms, 1, '195.0000', '50.000000'],
         ]);
 
         $principal = $this->product($template, [
@@ -205,7 +187,7 @@ final class ProductCatalogSeeder extends Seeder
             'barcode' => null,
             'name' => 'Azúcar Rubia - Granel',
             'variant_name' => 'Granel (stock)',
-            'base_unit_id' => $grams->id,
+            'base_unit_id' => $kilograms->id,
             'sale_mode' => 'measured',
             'content_quantity' => null,
             'content_unit_id' => null,
@@ -213,12 +195,12 @@ final class ProductCatalogSeeder extends Seeder
             'is_favorite' => false,
         ]);
         $this->priceTiers($principal, [
-            ['label' => 'Menudeo', 'min' => '1', 'max' => '999.999999', 'price' => '0.0052'],
-            ['label' => 'Desde 1 kg', 'min' => '1000', 'max' => null, 'price' => '0.0045'],
+            ['label' => 'Menudeo', 'min' => '0.001', 'max' => '0.999999', 'price' => '5.2000'],
+            ['label' => 'Desde 1 kg', 'min' => '1', 'max' => null, 'price' => '4.5000'],
         ]);
         $this->purchaseUnits($principal, [
-            ['name' => 'Kilogramo', 'factor' => '1000', 'default' => false],
-            ['name' => 'Saco 50 kg', 'factor' => '50000', 'default' => true],
+            ['name' => 'Kilogramo', 'factor' => '1', 'default' => false],
+            ['name' => 'Saco 50 kg', 'factor' => '50', 'default' => true],
         ]);
 
         $kilogram = $this->product($template, [
@@ -228,14 +210,14 @@ final class ProductCatalogSeeder extends Seeder
             'variant_name' => '1 kg',
             'base_unit_id' => $units->id,
             'sale_mode' => 'unit',
-            'content_quantity' => '1000',
-            'content_unit_id' => $grams->id,
+            'content_quantity' => '1',
+            'content_unit_id' => $kilograms->id,
             'is_principal' => false,
             'is_favorite' => false,
         ]);
         $kilogram->attributeValues()->sync([$oneKilogram->id]);
         $this->priceTiers($kilogram, [
-            ['label' => 'Precio por kilo', 'min' => '0.000001', 'max' => null, 'price' => '4.8000'],
+            ['label' => 'Precio por bolsa', 'min' => '1', 'max' => null, 'price' => '4.8000'],
         ]);
 
         $sack = $this->product($template, [
@@ -245,14 +227,14 @@ final class ProductCatalogSeeder extends Seeder
             'variant_name' => 'Saco 50 kg',
             'base_unit_id' => $units->id,
             'sale_mode' => 'unit',
-            'content_quantity' => '50000',
-            'content_unit_id' => $grams->id,
+            'content_quantity' => '50',
+            'content_unit_id' => $kilograms->id,
             'is_principal' => false,
             'is_favorite' => false,
         ]);
         $sack->attributeValues()->sync([$sack50Kilograms->id]);
         $this->priceTiers($sack, [
-            ['label' => 'Precio por saco', 'min' => '0.000001', 'max' => null, 'price' => '195.0000'],
+            ['label' => 'Precio por saco', 'min' => '1', 'max' => null, 'price' => '195.0000'],
         ]);
     }
 
@@ -277,7 +259,7 @@ final class ProductCatalogSeeder extends Seeder
             'is_favorite' => true,
         ]);
         $this->priceTiers($product, [
-            ['label' => 'Precio por unidad', 'min' => '0.000001', 'max' => null, 'price' => '3.5000'],
+            ['label' => 'Precio por unidad', 'min' => '1', 'max' => null, 'price' => '3.5000'],
         ]);
         $this->purchaseUnits($product, [
             ['name' => 'Caja x 24', 'factor' => '24', 'default' => true],

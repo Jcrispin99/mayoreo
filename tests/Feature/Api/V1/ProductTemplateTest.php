@@ -16,7 +16,7 @@ beforeEach(function (): void {
     $user = User::factory()->create();
     grantApiPermissions($user, 'products.view', 'products.manage');
     $this->headers = ['Authorization' => 'Bearer '.$user->createToken('templates')->plainTextToken];
-    $this->grams = UnitOfMeasure::factory()->grams()->create();
+    $this->kilograms = UnitOfMeasure::factory()->kilograms()->create();
     $this->units = UnitOfMeasure::factory()->create([
         'code' => 'NIU',
         'name' => 'Unidad',
@@ -34,10 +34,10 @@ it('creates a product template with packaged and measured variants and variant p
             [
                 'variant_name' => 'Granel',
                 'sku' => 'ARROZ-GRANEL',
-                'base_unit_id' => $this->grams->id,
+                'base_unit_id' => $this->kilograms->id,
                 'sale_mode' => 'measured',
                 'is_principal' => true,
-                'base_price' => 0.01,
+                'base_price' => 10,
             ],
             [
                 'variant_name' => 'Bolsa 100 g',
@@ -45,8 +45,8 @@ it('creates a product template with packaged and measured variants and variant p
                 'barcode' => '7750000000100',
                 'base_unit_id' => $this->units->id,
                 'sale_mode' => 'unit',
-                'content_quantity' => 100,
-                'content_unit_id' => $this->grams->id,
+                'content_quantity' => '0.1',
+                'content_unit_id' => $this->kilograms->id,
                 'base_price' => 2,
             ],
         ],
@@ -59,15 +59,15 @@ it('creates a product template with packaged and measured variants and variant p
         ->assertJsonPath('data.variants.0.display_name', 'Arroz Extra - Granel')
         ->assertJsonPath('data.variants.0.barcode', fn (mixed $barcode): bool => is_string($barcode) && preg_match('/^\d{6}$/D', $barcode) === 1)
         ->assertJsonPath('data.variants.0.sale_mode', 'measured')
-        ->assertJsonPath('data.variants.0.price_tiers.0.unit_price', '0.0100')
+        ->assertJsonPath('data.variants.0.price_tiers.0.unit_price', '10.0000')
         ->assertJsonPath('data.variants.1.sale_mode', 'unit')
-        ->assertJsonPath('data.variants.1.content_quantity', '100.000000')
+        ->assertJsonPath('data.variants.1.content_quantity', '0.100000')
         ->assertJsonPath('data.variants.1.price_tiers.0.unit_price', '2.0000');
 
     $this->assertDatabaseHas('products', [
         'sku' => 'ARROZ-100G',
         'sale_mode' => 'unit',
-        'content_quantity' => 100,
+        'content_quantity' => '0.1',
     ]);
     $this->assertDatabaseHas('products', [
         'sku' => 'ARROZ-GRANEL',
@@ -84,8 +84,8 @@ it('lists one template instead of duplicating the family for every variant', fun
                 'sku' => 'PEC-100',
                 'base_unit_id' => $this->units->id,
                 'sale_mode' => 'unit',
-                'content_quantity' => 100,
-                'content_unit_id' => $this->grams->id,
+                'content_quantity' => '0.1',
+                'content_unit_id' => $this->kilograms->id,
                 'base_price' => 3,
             ],
             [
@@ -93,8 +93,8 @@ it('lists one template instead of duplicating the family for every variant', fun
                 'sku' => 'PEC-250',
                 'base_unit_id' => $this->units->id,
                 'sale_mode' => 'unit',
-                'content_quantity' => 250,
-                'content_unit_id' => $this->grams->id,
+                'content_quantity' => '0.25',
+                'content_unit_id' => $this->kilograms->id,
                 'base_price' => 6,
             ],
         ],
@@ -115,20 +115,20 @@ it('updates the base price without destroying the existing quantity ranges', fun
             [
                 'variant_name' => 'Granel',
                 'sku' => 'ARROZ-GRANEL',
-                'base_unit_id' => $this->grams->id,
+                'base_unit_id' => $this->kilograms->id,
                 'sale_mode' => 'measured',
                 'price_tiers' => [
                     [
                         'label' => 'Menudeo',
-                        'min_quantity' => 250,
-                        'max_quantity' => 999,
-                        'unit_price' => 0.01,
+                        'min_quantity' => 0.25,
+                        'max_quantity' => 0.999999,
+                        'unit_price' => 10,
                     ],
                     [
                         'label' => 'Kilo',
-                        'min_quantity' => 1000,
-                        'max_quantity' => 50000,
-                        'unit_price' => 0.008,
+                        'min_quantity' => 1,
+                        'max_quantity' => 50,
+                        'unit_price' => 8,
                     ],
                 ],
             ],
@@ -144,9 +144,9 @@ it('updates the base price without destroying the existing quantity ranges', fun
                 'id' => $variant['id'],
                 'variant_name' => 'Granel',
                 'sku' => 'ARROZ-GRANEL',
-                'base_unit_id' => $this->grams->id,
+                'base_unit_id' => $this->kilograms->id,
                 'sale_mode' => 'measured',
-                'base_price' => 0.012,
+                'base_price' => 12,
             ],
         ],
     ])->assertOk();
@@ -154,25 +154,21 @@ it('updates the base price without destroying the existing quantity ranges', fun
     $this->assertDatabaseHas('price_tiers', [
         'product_id' => $variant['id'],
         'label' => 'Menudeo',
-        'min_quantity' => 250,
-        'max_quantity' => 999,
-        'unit_price' => 0.012,
+        'min_quantity' => 0.25,
+        'max_quantity' => 0.999999,
+        'unit_price' => 10,
     ]);
     $this->assertDatabaseHas('price_tiers', [
         'product_id' => $variant['id'],
         'label' => 'Kilo',
-        'min_quantity' => 1000,
-        'max_quantity' => 50000,
-        'unit_price' => 0.008,
+        'min_quantity' => 1,
+        'max_quantity' => 50,
+        'unit_price' => 12,
     ]);
 });
 
 it('updates the price tier that applies to one base unit', function (): void {
-    $kilograms = UnitOfMeasure::factory()->create([
-        'code' => 'kg',
-        'name' => 'Kilogramos',
-        'type' => 'weight',
-    ]);
+    $kilograms = $this->kilograms;
     $template = $this->withHeaders($this->headers)->postJson('/api/v1/product-templates', [
         'name' => 'Bicarbonato',
         'variants' => [[
@@ -237,7 +233,7 @@ it('creates the cartesian product of two attributes as independently priced prod
                 'name' => 'Peso',
                 'values' => ['250 g', '1 kg'],
                 'value_prices' => ['250 g' => 2.5, '1 kg' => 8.5],
-                'value_factors' => ['250 g' => 250, '1 kg' => 1000],
+                'value_factors' => ['250 g' => 0.25, '1 kg' => 1],
             ],
             [
                 'name' => 'Color',
@@ -249,10 +245,10 @@ it('creates the cartesian product of two attributes as independently priced prod
             [
                 'variant_name' => 'Granel',
                 'sku' => 'ARR-GRANEL',
-                'base_unit_id' => $this->grams->id,
+                'base_unit_id' => $this->kilograms->id,
                 'sale_mode' => 'measured',
                 'is_principal' => true,
-                'base_price' => 0.01,
+                'base_price' => 10,
                 'attribute_values' => [],
             ],
             ...array_map(
@@ -281,9 +277,9 @@ it('creates the cartesian product of two attributes as independently priced prod
         ->assertJsonCount(0, 'data.variants.0.attribute_values')
         ->assertJsonPath('data.attributes.0.name', 'Peso')
         ->assertJsonPath('data.attributes.0.values.0.price', '2.5000')
-        ->assertJsonPath('data.attributes.0.values.0.factor', '250.000000')
+        ->assertJsonPath('data.attributes.0.values.0.factor', '0.250000')
         ->assertJsonPath('data.attributes.0.values.1.price', '8.5000')
-        ->assertJsonPath('data.attributes.0.values.1.factor', '1000.000000')
+        ->assertJsonPath('data.attributes.0.values.1.factor', '1.000000')
         ->assertJsonPath('data.attributes.1.name', 'Color')
         ->assertJsonPath('data.attributes.1.values.1.price', '0.3000')
         ->assertJsonPath('data.variants.4.sku', 'ARR-1K-A')
@@ -303,10 +299,10 @@ it('rejects changing the unit of a variant that already has operational history'
             [
                 'variant_name' => 'Granel',
                 'sku' => 'AZUCAR-GRANEL',
-                'base_unit_id' => $this->grams->id,
+                'base_unit_id' => $this->kilograms->id,
                 'sale_mode' => 'measured',
                 'is_principal' => true,
-                'base_price' => 0.005,
+                'base_price' => 5,
             ],
         ],
     ])->assertCreated()->json('data');
@@ -325,7 +321,7 @@ it('rejects changing the unit of a variant that already has operational history'
                     'base_unit_id' => $this->units->id,
                     'sale_mode' => 'unit',
                     'is_principal' => true,
-                    'base_price' => 0.005,
+                    'base_price' => 5,
                 ],
             ],
         ],
@@ -334,7 +330,7 @@ it('rejects changing the unit of a variant that already has operational history'
     $response->assertUnprocessable()->assertJsonValidationErrors('variants.0.base_unit_id');
     $this->assertDatabaseHas('products', [
         'id' => $variant['id'],
-        'base_unit_id' => $this->grams->id,
+        'base_unit_id' => $this->kilograms->id,
         'sale_mode' => 'measured',
     ]);
 });
@@ -349,10 +345,10 @@ it('rejects reusing a historical variant for a different attribute combination',
             [
                 'variant_name' => 'Granel',
                 'sku' => 'CAFE-GRANEL',
-                'base_unit_id' => $this->grams->id,
+                'base_unit_id' => $this->kilograms->id,
                 'sale_mode' => 'measured',
                 'is_principal' => true,
-                'base_price' => 0.04,
+                'base_price' => 40,
                 'attribute_values' => [],
             ],
             [
@@ -360,8 +356,8 @@ it('rejects reusing a historical variant for a different attribute combination',
                 'sku' => 'CAFE-250',
                 'base_unit_id' => $this->units->id,
                 'sale_mode' => 'unit',
-                'content_quantity' => 250,
-                'content_unit_id' => $this->grams->id,
+                'content_quantity' => '0.25',
+                'content_unit_id' => $this->kilograms->id,
                 'base_price' => 10,
                 'attribute_values' => [
                     ['attribute' => 'Peso', 'value' => '250 g'],
@@ -385,10 +381,10 @@ it('rejects reusing a historical variant for a different attribute combination',
                     'id' => $principal['id'],
                     'variant_name' => 'Granel',
                     'sku' => 'CAFE-GRANEL',
-                    'base_unit_id' => $this->grams->id,
+                    'base_unit_id' => $this->kilograms->id,
                     'sale_mode' => 'measured',
                     'is_principal' => true,
-                    'base_price' => 0.04,
+                    'base_price' => 40,
                     'attribute_values' => [],
                 ],
                 [
@@ -397,8 +393,8 @@ it('rejects reusing a historical variant for a different attribute combination',
                     'sku' => 'CAFE-250',
                     'base_unit_id' => $this->units->id,
                     'sale_mode' => 'unit',
-                    'content_quantity' => 250,
-                    'content_unit_id' => $this->grams->id,
+                    'content_quantity' => '0.25',
+                    'content_unit_id' => $this->kilograms->id,
                     'base_price' => 30,
                     'attribute_values' => [
                         ['attribute' => 'Peso', 'value' => '1 kg'],
@@ -412,7 +408,7 @@ it('rejects reusing a historical variant for a different attribute combination',
     $this->assertDatabaseHas('products', [
         'id' => $packaged['id'],
         'variant_name' => '250 g',
-        'content_quantity' => 250,
+        'content_quantity' => '0.25',
     ]);
 });
 
@@ -426,7 +422,7 @@ it('normalizes legacy principal attributes back to granel without moving its his
         'product_template_id' => $template->id,
         'variant_name' => '1 L',
         'sku' => 'ACEITE-GRANEL',
-        'base_unit_id' => $this->grams->id,
+        'base_unit_id' => $this->kilograms->id,
         'sale_mode' => 'measured',
         'is_principal' => true,
     ]);
@@ -448,7 +444,7 @@ it('normalizes legacy principal attributes back to granel without moving its his
                     'id' => $principal->id,
                     'variant_name' => 'Granel',
                     'sku' => 'ACEITE-GRANEL',
-                    'base_unit_id' => $this->grams->id,
+                    'base_unit_id' => $this->kilograms->id,
                     'sale_mode' => 'measured',
                     'is_principal' => true,
                     'attribute_values' => [],
@@ -474,10 +470,10 @@ it('does not allow omitting the protected principal variant', function (): void 
             [
                 'variant_name' => 'Granel',
                 'sku' => 'QUINUA-GRANEL',
-                'base_unit_id' => $this->grams->id,
+                'base_unit_id' => $this->kilograms->id,
                 'sale_mode' => 'measured',
                 'is_principal' => true,
-                'base_price' => 0.02,
+                'base_price' => 20,
             ],
         ],
     ])->assertCreated()->json('data');
@@ -492,8 +488,8 @@ it('does not allow omitting the protected principal variant', function (): void 
                     'sku' => 'QUINUA-BOLSA',
                     'base_unit_id' => $this->units->id,
                     'sale_mode' => 'unit',
-                    'content_quantity' => 1000,
-                    'content_unit_id' => $this->grams->id,
+                    'content_quantity' => 1,
+                    'content_unit_id' => $this->kilograms->id,
                     'base_price' => 10,
                 ],
             ],

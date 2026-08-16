@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Api\V1;
 
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -35,10 +36,23 @@ final class StoreProductTemplateRequest extends FormRequest
             'variants.*.sku' => ['required', 'string', 'max:100', 'distinct', 'unique:products,sku'],
             'variants.*.barcode' => ['nullable', 'string', 'max:100', 'distinct', 'unique:products,barcode'],
             'variants.*.variant_name' => ['nullable', 'string', 'max:120'],
-            'variants.*.base_unit_id' => ['required', 'integer', 'exists:units_of_measure,id'],
+            'variants.*.base_unit_id' => [
+                'required',
+                'integer',
+                Rule::exists('units_of_measure', 'id')->where(
+                    fn (Builder $query): Builder => $query->whereIn('code', ['NIU', 'kg']),
+                ),
+            ],
             'variants.*.sale_mode' => ['required', Rule::in(['unit', 'measured'])],
             'variants.*.content_quantity' => ['nullable', 'numeric', 'gt:0', 'required_with:variants.*.content_unit_id'],
-            'variants.*.content_unit_id' => ['nullable', 'integer', 'exists:units_of_measure,id', 'required_with:variants.*.content_quantity'],
+            'variants.*.content_unit_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('units_of_measure', 'id')->where(
+                    fn (Builder $query): Builder => $query->where('code', 'kg'),
+                ),
+                'required_with:variants.*.content_quantity',
+            ],
             'variants.*.is_active' => ['sometimes', 'boolean'],
             'variants.*.is_favorite' => ['sometimes', 'boolean'],
             'variants.*.is_principal' => ['sometimes', 'boolean'],

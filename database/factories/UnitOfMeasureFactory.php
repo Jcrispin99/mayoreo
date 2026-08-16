@@ -35,6 +35,15 @@ final class UnitOfMeasureFactory extends Factory
         ]);
     }
 
+    public function kilograms(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'code' => 'kg',
+            'name' => 'Kilogramos',
+            'type' => 'weight',
+        ]);
+    }
+
     public function milliliters(): static
     {
         return $this->state(fn (array $attributes): array => [
@@ -47,7 +56,7 @@ final class UnitOfMeasureFactory extends Factory
     public function units(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'code' => 'unit',
+            'code' => 'NIU',
             'name' => 'Unidad',
             'type' => 'count',
         ]);

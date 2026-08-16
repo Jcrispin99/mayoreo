@@ -11,12 +11,16 @@ use App\Http\Requests\Api\V1\UpdateUnitOfMeasureRequest;
 use App\Http\Resources\UnitOfMeasureResource;
 use App\Models\UnitOfMeasure;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
 
 final class UnitOfMeasureController extends ApiController
 {
     public function index(): JsonResponse
     {
-        $units = UnitOfMeasure::query()->orderBy('code')->get();
+        $units = UnitOfMeasure::query()
+            ->whereIn('code', ['NIU', 'kg'])
+            ->orderByRaw("CASE WHEN code = 'NIU' THEN 0 ELSE 1 END")
+            ->get();
 
         return $this->success(UnitOfMeasureResource::collection($units));
     }
@@ -35,6 +39,12 @@ final class UnitOfMeasureController extends ApiController
 
     public function update(UpdateUnitOfMeasureRequest $request, UnitOfMeasure $unitOfMeasure): JsonResponse
     {
+        if (in_array($unitOfMeasure->code, ['NIU', 'kg'], true)) {
+            throw ValidationException::withMessages([
+                'unit' => 'Unidad y kg son unidades fijas del sistema y no pueden modificarse.',
+            ]);
+        }
+
         $unitOfMeasure->update($request->validated());
 
         return $this->success(new UnitOfMeasureResource($unitOfMeasure), 'Unit of measure updated successfully');
@@ -42,6 +52,12 @@ final class UnitOfMeasureController extends ApiController
 
     public function destroy(UnitOfMeasure $unitOfMeasure): JsonResponse
     {
+        if (in_array($unitOfMeasure->code, ['NIU', 'kg'], true)) {
+            throw ValidationException::withMessages([
+                'unit' => 'Unidad y kg son unidades fijas del sistema y no pueden eliminarse.',
+            ]);
+        }
+
         if ($unitOfMeasure->products()->exists() || $unitOfMeasure->saleItems()->exists()) {
             throw LocationOperationException::unitInUse();
         }
