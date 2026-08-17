@@ -108,9 +108,7 @@ function decrementedUnitQuantity(quantity: number) {
 }
 
 function orderLineName(item: PosOrderItem) {
-  if (!isMeasuredProduct(item.product)) return item.product.name;
-
-  return item.product.name.replace(/\s*-\s*Granel\s*\(stock\)\s*$/i, ' - A granel');
+  return item.product.name;
 }
 
 function imageUrlForDevice(url: string) {

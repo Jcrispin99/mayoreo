@@ -14,7 +14,7 @@ type ImportSummary = {
   warehouse: string
   store: string | null
   series_code: string
-  document_type: "sales_ticket" | "receipt"
+  document_type: "receipt"
   total_rows: number
   imported_rows: number
   failed_rows: number
@@ -32,16 +32,16 @@ const statusLabels: Record<string, string> = {
 
 export default function HistoricalSalesIndex({ imports }: { imports: ImportSummary[] }) {
   return (
-    <AppLayout title="Ventas históricas">
-      <Head title="Ventas históricas" />
+    <AppLayout title="Boletas desde Yape">
+      <Head title="Boletas desde Yape" />
 
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-sm text-muted-foreground">Importaciones</p>
-            <h1 className="text-2xl font-semibold tracking-tight">Ventas históricas</h1>
+            <p className="text-sm text-muted-foreground">Importaciones Yape</p>
+            <h1 className="text-2xl font-semibold tracking-tight">Boletas desde Yape</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Reconstruye ventas desde Excel usando una serie configurada de nota de venta o boleta.
+              Crea ventas, pagos Yape y boletas nuevas desde las operaciones TE PAGÓ del Excel.
             </p>
           </div>
           <Button nativeButton={false} render={<Link href="/historical-sales/create" />}>
@@ -70,7 +70,7 @@ export default function HistoricalSalesIndex({ imports }: { imports: ImportSumma
                     <TableHead>Archivo</TableHead>
                     <TableHead>Almacén</TableHead>
                     <TableHead>Serie</TableHead>
-                    <TableHead>Filas</TableHead>
+                    <TableHead>TE PAGÓ</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead />
@@ -87,7 +87,7 @@ export default function HistoricalSalesIndex({ imports }: { imports: ImportSumma
                       </TableCell>
                       <TableCell>{item.store} · {item.warehouse}</TableCell>
                       <TableCell>
-                        <p>{item.document_type === "receipt" ? "Boleta" : "Nota de venta"}</p>
+                        <p>Boleta</p>
                         <p className="font-mono text-xs text-muted-foreground">{item.series_code}</p>
                       </TableCell>
                       <TableCell>{item.imported_rows}/{item.total_rows}</TableCell>

@@ -31,6 +31,7 @@ it('seeds the reviewed spreadsheet catalog with products prices and purchase uni
 
     expect($flour->template?->name)->toBe('Harina 7 semillas')
         ->and($flour->baseUnit?->code)->toBe('kg')
+        ->and($flour->variant_name)->toBe('Kilogramos')
         ->and($flour->sale_mode)->toBe('measured')
         ->and($flour->is_principal)->toBeTrue()
         ->and($flour->priceTiers)->toHaveCount(3)

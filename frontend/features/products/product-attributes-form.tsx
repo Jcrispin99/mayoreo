@@ -220,14 +220,14 @@ function reconcileVariants(
   const protectedPrincipal = principal
     ? {
       ...principal,
-      variant_name: principal.sale_mode === 'measured' ? 'Granel' : principal.variant_name,
+      variant_name: principal.sale_mode === 'measured' ? 'Kilogramos' : principal.variant_name,
       attribute_values: [],
       is_active: true,
       is_principal: true,
     }
     : {
       ...newVariant(units, productName, [], attributes, baseContentUnitId),
-      variant_name: 'Granel',
+      variant_name: 'Kilogramos',
       base_unit_id: baseContentUnitId,
       sale_mode: 'measured' as const,
       is_principal: true,
@@ -236,7 +236,7 @@ function reconcileVariants(
   if (attributes.length === 0) {
     return [{
       ...protectedPrincipal,
-        variant_name: '',
+        variant_name: protectedPrincipal.sale_mode === 'measured' ? 'Kilogramos' : '',
         attribute_values: [],
         is_principal: true,
     }];
@@ -557,7 +557,7 @@ export function ProductAttributesForm({ templateId }: { templateId?: string }) {
             <Text style={styles.subtitle}>{template?.name ?? 'Producto'}</Text>
             <Text style={styles.factorHelp}>
               {principalUnit?.code.trim().toLocaleLowerCase('es') === 'kg'
-                ? 'La variante principal a granel se conserva aparte. El contenido de los empaques se expresa en kg; por ejemplo, 500 g equivale a 0.5 kg.'
+                ? 'La variante principal en kilogramos se conserva aparte. El contenido de los empaques se expresa en kg; por ejemplo, 500 g equivale a 0.5 kg.'
                 : principalUnit
                   ? 'Las presentaciones se controlan como unidades completas.'
                 : 'Selecciona primero la unidad de medida del producto.'}
@@ -676,7 +676,7 @@ export function ProductAttributesForm({ templateId }: { templateId?: string }) {
             <Text style={styles.summary}>
               {attributes.length === 0
                 ? 'Producto sin atributos'
-                : `${attributes.length} atributo(s) · Principal Granel + ${combinationCount} combinación(es)`}
+                : `${attributes.length} atributo(s) · Principal Kilogramos + ${combinationCount} combinación(es)`}
             </Text>
           </ScrollView>
         )}

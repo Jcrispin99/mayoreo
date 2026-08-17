@@ -7,13 +7,12 @@ import { ModuleLayout } from '../../components/module/module-layout';
 import { getVisibleMenu } from '../../config/menu';
 import { api } from '../../lib/api';
 import { ProductImageField } from './product-image-field';
+import { useProductImagePicker } from './use-product-image-picker';
 
 type Unit = { id: number; code: string; name: string };
 type ProductFormProps = { productId?: string };
 
 const PRODUCTS_MODULE = getVisibleMenu().find((module) => module.id === 'inventory');
-const MAX_IMAGE_SIZE = 4 * 1024 * 1024;
-
 export function ProductForm({ productId }: ProductFormProps) {
   const editing = Boolean(productId);
   const [sku, setSku] = useState('');
@@ -24,13 +23,18 @@ export function ProductForm({ productId }: ProductFormProps) {
   const [active, setActive] = useState(true);
   const [favorite, setFavorite] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [selectedImage, setSelectedImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
   const [unitMenuVisible, setUnitMenuVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const {
+    chooseFromLibrary,
+    selectedImage,
+    setSelectedImage,
+    takePhoto,
+  } = useProductImagePicker({ onError: setError });
 
   const selectedUnit = units.find((unit) => unit.id === baseUnitId);
   const displayedImage = selectedImage?.uri ?? imageUrl;
@@ -69,26 +73,6 @@ export function ProductForm({ productId }: ProductFormProps) {
 
     void loadForm();
   }, [productId]);
-
-  async function pickImage() {
-    setError('');
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (result.canceled) return;
-
-    const image = result.assets[0];
-    if (image.fileSize && image.fileSize > MAX_IMAGE_SIZE) {
-      setError('La imagen debe pesar como máximo 4 MB.');
-      return;
-    }
-
-    setSelectedImage(image);
-  }
 
   async function uploadImage(savedProductId: number, image: ImagePicker.ImagePickerAsset) {
     const formData = new FormData();
@@ -222,7 +206,12 @@ export function ProductForm({ productId }: ProductFormProps) {
                 </View>
                 <Text style={styles.imageHelp}>Toca la imagen para agregarla o cambiarla.</Text>
               </View>
-              <ProductImageField disabled={saving} imageUri={displayedImage} onPress={() => void pickImage()} />
+              <ProductImageField
+                disabled={saving}
+                imageUri={displayedImage}
+                onChooseFromLibrary={() => void chooseFromLibrary()}
+                onTakePhoto={() => void takePhoto()}
+              />
             </View>
 
             <View style={styles.section}>

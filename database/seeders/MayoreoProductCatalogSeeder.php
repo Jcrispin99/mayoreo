@@ -84,7 +84,7 @@ final class MayoreoProductCatalogSeeder extends Seeder
         $product ??= new Product();
         $saleMode = $unitCode === 'unidad' ? 'unit' : 'measured';
         [$contentQuantity, $contentUnitId] = $this->content($item, $units);
-        $variantName = $saleMode === 'measured' ? 'Granel' : 'Unidad';
+        $variantName = $saleMode === 'measured' ? 'Kilogramos' : 'Unidad';
 
         $product->fill([
             'product_template_id' => $template->id,

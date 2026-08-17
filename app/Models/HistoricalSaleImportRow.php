@@ -12,6 +12,10 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $historical_sale_import_id
  * @property int $row_number
+ * @property string|null $transaction_type
+ * @property string|null $origin
+ * @property string|null $destination
+ * @property string|null $message
  * @property Carbon|null $sold_at
  * @property string|null $expected_total
  * @property string $status
@@ -24,6 +28,10 @@ final class HistoricalSaleImportRow extends Model
     protected $fillable = [
         'historical_sale_import_id',
         'row_number',
+        'transaction_type',
+        'origin',
+        'destination',
+        'message',
         'sold_at',
         'expected_total',
         'status',

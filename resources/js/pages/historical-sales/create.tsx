@@ -21,17 +21,12 @@ type WarehouseOption = {
 type SeriesOption = {
   id: number
   fiscal_issuer_id: number | null
-  document_type: "sales_ticket" | "receipt"
+  document_type: "receipt"
   series_code: string
   current_number: number
   next_number: number
   purpose: string
   assigned_to_pos: boolean
-}
-
-const documentLabels = {
-  sales_ticket: "Nota de venta",
-  receipt: "Boleta SUNAT",
 }
 
 function formattedNumber(number: number) {
@@ -54,16 +49,16 @@ export default function CreateHistoricalSaleImport({ warehouses, series }: { war
   }
 
   return (
-    <AppLayout title="Nueva importación">
-      <Head title="Nueva importación histórica" />
+    <AppLayout title="Nueva importación Yape">
+      <Head title="Nueva importación Yape" />
 
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-sm text-muted-foreground">Ventas históricas</p>
-            <h1 className="text-2xl font-semibold tracking-tight">Cargar archivo Excel</h1>
+            <p className="text-sm text-muted-foreground">Boletas desde Yape</p>
+            <h1 className="text-2xl font-semibold tracking-tight">Cargar exportación de Yape</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Primero se generará una vista previa. Los correlativos todavía no se consumirán.
+              Primero se generará una vista previa con boletas nuevas. Los correlativos todavía no se consumirán.
             </p>
           </div>
           <Button nativeButton={false} variant="outline" render={<Link href="/historical-sales" />}>
@@ -75,7 +70,8 @@ export default function CreateHistoricalSaleImport({ warehouses, series }: { war
           <FileSpreadsheetIcon />
           <AlertTitle>Formato esperado</AlertTitle>
           <AlertDescription>
-            La primera hoja debe contener las columnas fecha, hora y total. La hora es opcional si está incluida en fecha.
+            La fila 5 debe contener Tipo de Transacción, Origen, Destino, Monto, Mensaje y Fecha de operación.
+            Solo se cargarán operaciones TE PAGÓ menores a S/ 700.00; PAGASTE será ignorado.
             <a className="ml-1" href="/historical-sales/template">Descargar plantilla</a>.
           </AlertDescription>
         </Alert>
@@ -114,27 +110,27 @@ export default function CreateHistoricalSaleImport({ warehouses, series }: { war
                 </Field>
 
                 <Field data-invalid={Boolean(form.errors.document_series_id)}>
-                  <FieldLabel>Tipo de documento y serie</FieldLabel>
+                  <FieldLabel>Serie de boleta</FieldLabel>
                   <Select
                     value={form.data.document_series_id}
                     onValueChange={(value) => form.setData("document_series_id", value ?? "")}
                     disabled={!selectedWarehouse || form.processing}
                   >
                     <SelectTrigger className="w-full" aria-invalid={Boolean(form.errors.document_series_id)}>
-                      <SelectValue placeholder={selectedWarehouse ? "Selecciona una serie" : "Primero selecciona un almacén"} />
+                      <SelectValue placeholder={selectedWarehouse ? "Selecciona una serie de boleta" : "Primero selecciona un almacén"} />
                     </SelectTrigger>
                     <SelectContent>
                       {availableSeries.map((item) => (
                         <SelectItem key={item.id} value={String(item.id)}>
-                          {documentLabels[item.document_type]} · {item.series_code} · siguiente {formattedNumber(item.next_number)}
+                          Boleta SUNAT · {item.series_code} · siguiente {formattedNumber(item.next_number)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <FieldDescription>
                     {selectedWarehouse && availableSeries.length === 0
-                      ? "Este emisor no tiene series activas de nota de venta o boleta. Configura una antes de importar."
-                      : "Se muestran solamente las series activas del emisor asociado al almacén."}
+                      ? "Este emisor no tiene series activas de boleta. Configura una antes de importar."
+                      : "Se muestran solamente las series activas de boleta del emisor asociado al almacén."}
                   </FieldDescription>
                   <FieldError>{form.errors.document_series_id}</FieldError>
                 </Field>
@@ -148,7 +144,7 @@ export default function CreateHistoricalSaleImport({ warehouses, series }: { war
                   </Alert>
                 ) : null}
 
-                {selectedSeries?.document_type === "receipt" ? (
+                {selectedSeries ? (
                   <Alert variant={selectedWarehouse?.fiscal_issuer_id === null ? "destructive" : "default"}>
                     <AlertTitle>Boletas electrónicas</AlertTitle>
                     <AlertDescription>
@@ -169,7 +165,7 @@ export default function CreateHistoricalSaleImport({ warehouses, series }: { war
                     disabled={form.processing}
                     required
                   />
-                  <FieldDescription>Máximo 10 MB y 1000 filas por lote.</FieldDescription>
+                  <FieldDescription>Excel .xlsx o .xls, máximo 10 MB y 1000 operaciones TE PAGÓ por lote.</FieldDescription>
                   <FieldError>{form.errors.file}</FieldError>
                 </Field>
 

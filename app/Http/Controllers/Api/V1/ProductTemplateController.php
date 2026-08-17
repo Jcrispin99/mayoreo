@@ -150,6 +150,9 @@ final class ProductTemplateController extends ApiController
 
             $baseUnit = UnitOfMeasure::query()->find($this->nullableInt($variantData['base_unit_id'] ?? null));
             $expectedSaleMode = $baseUnit?->code === 'kg' ? 'measured' : 'unit';
+            if ($expectedSaleMode === 'measured') {
+                $variantName = 'Kilogramos';
+            }
             if (($variantData['sale_mode'] ?? null) !== $expectedSaleMode) {
                 throw ValidationException::withMessages([
                     "variants.{$index}.sale_mode" => $expectedSaleMode === 'measured'
@@ -162,7 +165,7 @@ final class ProductTemplateController extends ApiController
                 && (! empty($variantData['content_quantity']) || ! empty($variantData['content_unit_id']))
             ) {
                 throw ValidationException::withMessages([
-                    "variants.{$index}.content_quantity" => 'Las variantes a granel en kg no llevan contenido de empaque.',
+                    "variants.{$index}.content_quantity" => 'Las variantes en kilogramos no llevan contenido de empaque.',
                 ]);
             }
 
@@ -318,7 +321,7 @@ final class ProductTemplateController extends ApiController
 
         if ($isPrincipal && $selected !== []) {
             throw ValidationException::withMessages([
-                "variants.{$variantIndex}.attribute_values" => 'La variante principal representa el producto granel y no lleva atributos.',
+                "variants.{$variantIndex}.attribute_values" => 'La variante principal en kilogramos no lleva atributos.',
             ]);
         }
 

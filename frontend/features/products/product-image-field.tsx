@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { Image, Platform, Pressable, StyleSheet, View } from 'react-native';
-import { Icon, Text } from 'react-native-paper';
+import { Icon, Menu, Text } from 'react-native-paper';
 
 type ProductImageFieldProps = {
   disabled?: boolean;
   imageUri: string | null;
-  onPress: () => void;
+  onChooseFromLibrary: () => void;
+  onTakePhoto: () => void;
 };
 
 function imageUrlForDevice(url: string) {
@@ -12,31 +14,63 @@ function imageUrlForDevice(url: string) {
   return url.replace(/https?:\/\/(localhost|127\.0\.0\.1)/, 'http://10.0.2.2');
 }
 
-export function ProductImageField({ disabled = false, imageUri, onPress }: ProductImageFieldProps) {
-  return (
-    <Pressable
-      accessibilityHint="Seleccionar una imagen de la galería"
-      accessibilityLabel={imageUri ? 'Cambiar imagen del producto' : 'Agregar imagen del producto'}
-      accessibilityRole="button"
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [styles.container, pressed && styles.pressed, disabled && styles.disabled]}
-    >
-      {imageUri ? (
-        <Image resizeMode="cover" source={{ uri: imageUrlForDevice(imageUri) }} style={styles.image} />
-      ) : (
-        <View style={styles.placeholder}>
-          <Icon source="camera-plus-outline" color="#60706E" size={34} />
-          <Text style={styles.placeholderText}>Agregar foto</Text>
-        </View>
-      )}
+export function ProductImageField({
+  disabled = false,
+  imageUri,
+  onChooseFromLibrary,
+  onTakePhoto,
+}: ProductImageFieldProps) {
+  const [menuVisible, setMenuVisible] = useState(false);
 
-      {imageUri ? (
-        <View style={styles.editBadge}>
-          <Icon source="pencil" color="#FFFFFF" size={15} />
-        </View>
+  return (
+    <Menu
+      anchor={(
+        <Pressable
+          accessibilityHint="Elegir entre tomar una foto o seleccionarla de la galería"
+          accessibilityLabel={imageUri ? 'Cambiar imagen del producto' : 'Agregar imagen del producto'}
+          accessibilityRole="button"
+          disabled={disabled}
+          onPress={() => setMenuVisible(true)}
+          style={({ pressed }) => [styles.container, pressed && styles.pressed, disabled && styles.disabled]}
+        >
+          {imageUri ? (
+            <Image resizeMode="cover" source={{ uri: imageUrlForDevice(imageUri) }} style={styles.image} />
+          ) : (
+            <View style={styles.placeholder}>
+              <Icon source="camera-plus-outline" color="#60706E" size={34} />
+              <Text style={styles.placeholderText}>Agregar foto</Text>
+            </View>
+          )}
+
+          {imageUri ? (
+            <View style={styles.editBadge}>
+              <Icon source="pencil" color="#FFFFFF" size={15} />
+            </View>
+          ) : null}
+        </Pressable>
+      )}
+      onDismiss={() => setMenuVisible(false)}
+      visible={menuVisible}
+    >
+      {Platform.OS !== 'web' ? (
+        <Menu.Item
+          leadingIcon="camera-outline"
+          onPress={() => {
+            setMenuVisible(false);
+            onTakePhoto();
+          }}
+          title="Tomar foto"
+        />
       ) : null}
-    </Pressable>
+      <Menu.Item
+        leadingIcon="image-outline"
+        onPress={() => {
+          setMenuVisible(false);
+          onChooseFromLibrary();
+        }}
+        title="Elegir de la galería"
+      />
+    </Menu>
   );
 }
 

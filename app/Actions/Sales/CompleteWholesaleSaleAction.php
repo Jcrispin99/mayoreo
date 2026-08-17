@@ -360,7 +360,7 @@ final readonly class CompleteWholesaleSaleAction
                 && preg_match('/^\d+(?:\.0+)?$/', $inputQuantity) !== 1
             ) {
                 throw ValidationException::withMessages([
-                    'items' => 'Las variantes empacadas se venden en unidades enteras. Usa la variante Granel para registrar un peso libre.',
+                    'items' => 'Las variantes empacadas se venden en unidades enteras. Usa la variante Kilogramos para registrar un peso libre.',
                 ]);
             }
 

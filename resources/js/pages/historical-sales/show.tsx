@@ -21,6 +21,10 @@ type ProposedItem = {
 type ImportRow = {
   id: number
   row_number: number
+  transaction_type: string | null
+  origin: string | null
+  destination: string | null
+  message: string | null
   sold_at: string | null
   expected_total: string | null
   status: string
@@ -37,7 +41,7 @@ type ImportDetail = {
   warehouse: string
   store: string | null
   series_code: string
-  document_type: "sales_ticket" | "receipt"
+  document_type: "receipt"
   series_purpose: string
   series_assigned_to_pos: boolean
   current_number: number
@@ -54,11 +58,10 @@ type ImportDetail = {
 export default function HistoricalSaleImportShow({ import: batch }: { import: ImportDetail }) {
   const [confirming, setConfirming] = useState(false)
   const canConfirm = batch.ready_rows > 0
-  const documentLabel = batch.document_type === "receipt" ? "boleta" : "nota de venta"
   const lastProvisionalNumber = batch.next_number + Math.max(batch.ready_rows - 1, 0)
 
   function confirmImport() {
-    if (!window.confirm(`Se crearán ${batch.ready_rows} ventas como ${documentLabel} y la serie ${batch.series_code} avanzará hasta ${String(lastProvisionalNumber).padStart(8, "0")}. ¿Continuar?`)) return
+    if (!window.confirm(`Se crearán ${batch.ready_rows} ventas, pagos Yape y boletas nuevas. La serie ${batch.series_code} avanzará hasta ${String(lastProvisionalNumber).padStart(8, "0")}. ¿Continuar?`)) return
     setConfirming(true)
     router.post(`/historical-sales/${batch.id}/confirm`, {}, { onFinish: () => setConfirming(false) })
   }
@@ -71,9 +74,9 @@ export default function HistoricalSaleImportShow({ import: batch }: { import: Im
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-sm text-muted-foreground">{batch.store} · {batch.warehouse}</p>
-            <h1 className="text-2xl font-semibold tracking-tight">Vista previa #{batch.id}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Vista previa Yape #{batch.id}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {batch.original_filename} · {documentLabel === "boleta" ? "Boleta" : "Nota de venta"} · Serie {batch.series_code}
+              {batch.original_filename} · Boletas nuevas · Serie {batch.series_code}
             </p>
           </div>
           <div className="flex gap-2">
@@ -108,7 +111,7 @@ export default function HistoricalSaleImportShow({ import: batch }: { import: Im
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            ["Filas", batch.total_rows],
+            ["Operaciones TE PAGÓ", batch.total_rows],
             ["Listas", batch.ready_rows],
             ["Importadas", batch.imported_rows],
             ["Total esperado", `S/ ${batch.expected_total}`],
@@ -132,13 +135,18 @@ export default function HistoricalSaleImportShow({ import: batch }: { import: Im
           </CardHeader>
           <CardContent>
             <Table>
-              <TableHeader><TableRow><TableHead>Fila</TableHead><TableHead>Fecha</TableHead><TableHead>Documento</TableHead><TableHead>Productos propuestos</TableHead><TableHead>Total</TableHead><TableHead>Estado</TableHead><TableHead /></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Fila</TableHead><TableHead>Fecha</TableHead><TableHead>Pago Yape</TableHead><TableHead>Documento</TableHead><TableHead>Productos propuestos</TableHead><TableHead>Total</TableHead><TableHead>Estado</TableHead><TableHead /></TableRow></TableHeader>
               <TableBody>
                 {batch.rows.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell>{row.row_number}</TableCell>
                     <TableCell className="whitespace-nowrap">
                       {row.sold_at ? new Intl.DateTimeFormat("es-PE", { dateStyle: "short", timeStyle: "short" }).format(new Date(row.sold_at)) : "—"}
+                    </TableCell>
+                    <TableCell className="min-w-48">
+                      <p className="font-medium">{row.origin ?? "Origen no indicado"}</p>
+                      <p className="text-xs text-muted-foreground">Destino: {row.destination ?? "—"}</p>
+                      {row.message ? <p className="mt-1 max-w-64 text-xs text-muted-foreground">{row.message}</p> : null}
                     </TableCell>
                     <TableCell className="font-mono text-xs">{row.document_number ?? "—"}</TableCell>
                     <TableCell className="min-w-80">
@@ -156,12 +164,12 @@ export default function HistoricalSaleImportShow({ import: batch }: { import: Im
                     <TableCell className="font-medium">{row.expected_total ? `S/ ${row.expected_total}` : "—"}</TableCell>
                     <TableCell>
                       <Badge variant={row.status === "imported" ? "default" : row.status === "ready" ? "secondary" : "destructive"}>
-                        {row.status === "ready" ? "Lista" : row.status === "imported" ? "Importada" : row.status === "invalid" ? "Inválida" : "Falló"}
+                        {row.status === "ready" ? "Lista" : row.status === "imported" ? "Importada" : row.status === "invalid" ? "Observada" : "Falló"}
                       </Badge>
                       {row.error_message && row.proposed_items.length > 0 ? <p className="mt-1 max-w-56 text-xs text-destructive">{row.error_message}</p> : null}
                     </TableCell>
                     <TableCell className="text-right">
-                      {row.status !== "imported" && row.expected_total ? (
+                      {row.status !== "imported" && row.expected_total && Number(row.expected_total) < 700 ? (
                         <Button size="sm" variant="ghost" onClick={() => router.post(`/historical-sales/${batch.id}/rows/${row.id}/regenerate`)}>
                           <RefreshCwIcon /> Regenerar
                         </Button>

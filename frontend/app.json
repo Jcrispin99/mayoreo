@@ -45,14 +45,14 @@
         "expo-image-picker",
         {
           "photosPermission": "Mayoreo necesita acceso a tus fotos para agregar imágenes a los productos.",
-          "cameraPermission": false,
+          "cameraPermission": "Mayoreo necesita acceso a la cámara para tomar fotos de productos y escanear códigos de barras.",
           "microphonePermission": false
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Mayoreo necesita acceso a la cámara para escanear códigos de barras en el POS.",
+          "cameraPermission": "Mayoreo necesita acceso a la cámara para tomar fotos de productos y escanear códigos de barras.",
           "microphonePermission": false,
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": true

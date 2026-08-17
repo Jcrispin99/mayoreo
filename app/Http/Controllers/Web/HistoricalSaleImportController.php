@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Web;
 
 use App\Actions\Sales\CompleteWholesaleSaleAction;
+use App\Enums\PosPaymentMethod;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\StoreHistoricalSaleImportRequest;
 use App\Models\DocumentSeries;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -29,6 +31,8 @@ use Throwable;
 
 final class HistoricalSaleImportController extends Controller
 {
+    private const string RECEIPT_TOTAL_LIMIT = '700.00';
+
     public function __construct(
         private readonly HistoricalSaleSpreadsheetReader $spreadsheetReader,
         private readonly HistoricalSaleProposalGenerator $proposalGenerator,
@@ -67,7 +71,7 @@ final class HistoricalSaleImportController extends Controller
 
         $series = DocumentSeries::query()
             ->where('is_active', true)
-            ->whereIn('document_type', ['sales_ticket', 'receipt'])
+            ->where('document_type', 'receipt')
             ->with('cashRegisters:id')
             ->orderBy('document_type')
             ->orderBy('series_code')
@@ -97,12 +101,12 @@ final class HistoricalSaleImportController extends Controller
         $series = DocumentSeries::query()
             ->whereKey($request->integer('document_series_id'))
             ->where('is_active', true)
-            ->whereIn('document_type', ['sales_ticket', 'receipt'])
+            ->where('document_type', 'receipt')
             ->first();
 
         if (! $series instanceof DocumentSeries) {
             throw ValidationException::withMessages([
-                'document_series_id' => 'Selecciona una serie activa para nota de venta o boleta.',
+                'document_series_id' => 'Selecciona una serie activa de boleta.',
             ]);
         }
 
@@ -167,6 +171,10 @@ final class HistoricalSaleImportController extends Controller
 
                 $import->rows()->create([
                     'row_number' => $row['row_number'],
+                    'transaction_type' => $row['transaction_type'],
+                    'origin' => $row['origin'],
+                    'destination' => $row['destination'],
+                    'message' => $row['message'],
                     'sold_at' => $row['sold_at'],
                     'expected_total' => $row['total'],
                     'status' => $error === null ? 'ready' : 'invalid',
@@ -216,6 +224,10 @@ final class HistoricalSaleImportController extends Controller
                     return [
                         'id' => $row->id,
                         'row_number' => $row->row_number,
+                        'transaction_type' => $row->transaction_type,
+                        'origin' => $row->origin,
+                        'destination' => $row->destination,
+                        'message' => $row->message,
                         'sold_at' => $row->sold_at?->toIso8601String(),
                         'expected_total' => $row->expected_total,
                         'status' => $row->status,
@@ -233,11 +245,12 @@ final class HistoricalSaleImportController extends Controller
     {
         abort_unless($row->historical_sale_import_id === $historicalSaleImport->id, 404);
         abort_if($row->status === 'imported' || $row->expected_total === null, 409);
+        /** @var numeric-string $expectedTotal */
+        $expectedTotal = $row->expected_total;
+        abort_if(bccomp($expectedTotal, self::RECEIPT_TOTAL_LIMIT, 2) >= 0, 409);
 
         $warehouse = $historicalSaleImport->warehouse;
         assert($warehouse instanceof Warehouse);
-        /** @var numeric-string $expectedTotal */
-        $expectedTotal = $row->expected_total;
         $proposal = $this->proposalGenerator->generate(
             $warehouse,
             $expectedTotal,
@@ -258,12 +271,13 @@ final class HistoricalSaleImportController extends Controller
     {
         $series = $historicalSaleImport->documentSeries;
         assert($series instanceof DocumentSeries);
-        abort_unless($series->is_active && in_array($series->document_type, ['sales_ticket', 'receipt'], true), 409);
+        abort_unless($series->is_active && $series->document_type === 'receipt', 409);
 
         /** @var User $user */
         $user = $request->user();
         $rows = $historicalSaleImport->rows()
             ->where('status', 'ready')
+            ->where('expected_total', '<', self::RECEIPT_TOTAL_LIMIT)
             ->orderBy('sold_at')
             ->orderBy('row_number')
             ->get();
@@ -301,21 +315,25 @@ final class HistoricalSaleImportController extends Controller
                 /** @var numeric-string $expectedTotal */
                 $expectedTotal = $row->expected_total;
                 /** @var list<array{product_id: int, quantity: numeric-string, unit_id: int}> $items */
-                /** @var array{warehouse_id: int, document_series_id: int, sold_at: string, expected_total: numeric-string, notes: string, items: list<array{product_id: int, quantity: numeric-string, unit_id: int}>} $payload */
+                /** @var array{warehouse_id: int, document_series_id: int, sold_at: string, expected_total: numeric-string, notes: string, items: list<array{product_id: int, quantity: numeric-string, unit_id: int}>, payment: array{method: string, reference: string}} $payload */
                 $payload = [
                     'warehouse_id' => $historicalSaleImport->warehouse_id,
                     'document_series_id' => $series->id,
                     'sold_at' => $row->sold_at->toDateTimeString(),
                     'expected_total' => $expectedTotal,
-                    'notes' => "Importación histórica #{$historicalSaleImport->id}, fila {$row->row_number}",
+                    'notes' => "Importación Yape #{$historicalSaleImport->id}, fila {$row->row_number}",
                     'items' => $items,
+                    'payment' => [
+                        'method' => PosPaymentMethod::Yape->value,
+                        'reference' => $this->paymentReference($row),
+                    ],
                 ];
 
                 $sale = $this->completeWholesaleSaleAction->execute(
                     $payload,
                     $user->id,
                     'historical_import',
-                    $series->document_type,
+                    'receipt',
                 );
 
                 $row->update([
@@ -351,15 +369,31 @@ final class HistoricalSaleImportController extends Controller
             $spreadsheet = new Spreadsheet;
             $sheet = $spreadsheet->getActiveSheet();
             $sheet->fromArray([
-                ['fecha', 'hora', 'total'],
-                ['10/08/2026', '11:25', '25.00'],
-                ['11/08/2026', '09:10', '48.50'],
+                ['Reporte de movimientos Yape'],
+                ['Completa o conserva las primeras cuatro filas del archivo exportado.'],
+                [],
+                [],
+                ['Tipo de Transacción', 'Origen', 'Destino', 'Monto', 'Mensaje', 'Fecha de operación'],
+                ['TE PAGÓ', 'Cliente Uno*', 'Mi negocio*', '25.00', '', '10/08/2026 11:25:00'],
+                ['PAGASTE', 'Mi negocio*', 'Proveedor*', '48.50', '', '11/08/2026 09:10:00'],
             ]);
             (new Xlsx($spreadsheet))->save('php://output');
             $spreadsheet->disconnectWorksheets();
-        }, 'plantilla-ventas-historicas.xlsx', [
+        }, 'plantilla-importacion-yape.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+    }
+
+    private function paymentReference(HistoricalSaleImportRow $row): string
+    {
+        $parts = array_filter([
+            'Yape',
+            $row->origin === null ? null : "Origen: {$row->origin}",
+            $row->destination === null ? null : "Destino: {$row->destination}",
+            $row->message === null ? null : "Mensaje: {$row->message}",
+        ]);
+
+        return Str::limit(implode(' | ', $parts), 255, '');
     }
 
     /** @return array<string, mixed> */

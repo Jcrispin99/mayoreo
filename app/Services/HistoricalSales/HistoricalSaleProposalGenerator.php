@@ -7,7 +7,6 @@ namespace App\Services\HistoricalSales;
 use App\Models\PriceTier;
 use App\Models\Product;
 use App\Models\Stock;
-use App\Models\UnitOfMeasure;
 use App\Models\Warehouse;
 use App\Services\MoneyService;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,6 +15,8 @@ use Illuminate\Support\Collection;
 
 final readonly class HistoricalSaleProposalGenerator
 {
+    private const int MAX_PREFIXES = 750;
+
     public function __construct(private MoneyService $moneyService) {}
 
     /**
@@ -47,29 +48,52 @@ final readonly class HistoricalSaleProposalGenerator
 
         $weighted = $products->where('sale_mode', '!=', 'unit')->values();
         $unitOptions = $this->unitOptions($products->where('sale_mode', 'unit')->values(), $targetTotal);
-        /** @var list<list<array{product_id: int, product_name: string, quantity: string, unit_id: int, unit_code: string, unit_price: string, line_total: string}>> $prefixes */
-        $prefixes = [];
 
-        foreach ($unitOptions as $unitOption) {
-            $prefixes[] = [$unitOption];
+        for ($itemCount = $this->desiredItemCount($targetTotal, $products->count()); $itemCount >= 1; $itemCount--) {
+            $proposal = $this->proposalForItemCount($unitOptions, $weighted, $targetTotal, $itemCount);
+
+            if ($proposal !== null) {
+                return $proposal;
+            }
         }
 
-        $prefixes[] = [];
+        return [];
+    }
 
-        foreach ($prefixes as $prefix) {
+    /**
+     * @param  Collection<int, array{product_id: int, product_name: string, quantity: string, unit_id: int, unit_code: string, unit_price: string, line_total: string}>  $unitOptions
+     * @param  Collection<int, Product>  $weighted
+     * @param  numeric-string  $targetTotal
+     * @return list<array{product_id: int, product_name: string, quantity: string, unit_id: int, unit_code: string, unit_price: string, line_total: string}>|null
+     */
+    private function proposalForItemCount(
+        Collection $unitOptions,
+        Collection $weighted,
+        string $targetTotal,
+        int $itemCount,
+    ): ?array {
+        foreach ($this->unitPrefixes($unitOptions, $itemCount, $targetTotal) as $prefix) {
+            if (bccomp($this->moneyService->roundHalfUp($this->subtotal($prefix)), $targetTotal, 2) === 0) {
+                return $prefix;
+            }
+        }
+
+        foreach ($this->unitPrefixes($unitOptions, $itemCount - 1, $targetTotal) as $prefix) {
             $prefixTotal = $this->subtotal($prefix);
             /** @var numeric-string $remaining */
             $remaining = bcsub($targetTotal, $prefixTotal, 4);
-
-            if (bccomp($remaining, '0', 4) === 0 && $prefix !== []) {
-                return $prefix;
-            }
 
             if (bccomp($remaining, '0', 4) <= 0) {
                 continue;
             }
 
+            $usedProductIds = array_column($prefix, 'product_id');
+
             foreach ($weighted as $product) {
+                if (in_array($product->id, $usedProductIds, true)) {
+                    continue;
+                }
+
                 $filler = $this->weightedItem($product, $remaining, $targetTotal, $prefixTotal);
 
                 if ($filler !== null) {
@@ -78,7 +102,69 @@ final readonly class HistoricalSaleProposalGenerator
             }
         }
 
-        return [];
+        return null;
+    }
+
+    /**
+     * @param  Collection<int, array{product_id: int, product_name: string, quantity: string, unit_id: int, unit_code: string, unit_price: string, line_total: string}>  $options
+     * @param  numeric-string  $targetTotal
+     * @return list<list<array{product_id: int, product_name: string, quantity: string, unit_id: int, unit_code: string, unit_price: string, line_total: string}>>
+     */
+    private function unitPrefixes(Collection $options, int $size, string $targetTotal): array
+    {
+        if ($size === 0) {
+            return [[]];
+        }
+
+        $prefixes = [[]];
+
+        for ($slot = 0; $slot < $size; $slot++) {
+            $next = [];
+
+            foreach ($prefixes as $prefix) {
+                $usedProductIds = array_column($prefix, 'product_id');
+
+                foreach ($options as $option) {
+                    if (in_array($option['product_id'], $usedProductIds, true)) {
+                        continue;
+                    }
+
+                    $candidate = [...$prefix, $option];
+
+                    if (bccomp($this->moneyService->roundHalfUp($this->subtotal($candidate)), $targetTotal, 2) > 0) {
+                        continue;
+                    }
+
+                    $next[] = $candidate;
+
+                    if (count($next) >= self::MAX_PREFIXES) {
+                        break 2;
+                    }
+                }
+            }
+
+            $prefixes = $next;
+
+            if ($prefixes === []) {
+                break;
+            }
+        }
+
+        return $prefixes;
+    }
+
+    /** @param numeric-string $targetTotal */
+    private function desiredItemCount(string $targetTotal, int $availableProducts): int
+    {
+        $count = match (true) {
+            bccomp($targetTotal, '20.00', 2) < 0 => 1,
+            bccomp($targetTotal, '50.00', 2) < 0 => 2,
+            bccomp($targetTotal, '150.00', 2) < 0 => 3,
+            bccomp($targetTotal, '350.00', 2) < 0 => 4,
+            default => 5,
+        };
+
+        return min($count, max(1, $availableProducts));
     }
 
     /**
@@ -216,7 +302,6 @@ final readonly class HistoricalSaleProposalGenerator
     private function item(Product $product, string $quantity, string $price, string $lineTotal): array
     {
         $baseUnit = $product->baseUnit;
-        assert($baseUnit instanceof UnitOfMeasure);
 
         return [
             'product_id' => $product->id,

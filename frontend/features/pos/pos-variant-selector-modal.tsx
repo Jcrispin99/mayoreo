@@ -50,6 +50,13 @@ function inputNumber(value: number) {
         : "";
 }
 
+function quickQuantityLabel(value: number) {
+    if (Math.abs(value - 0.25) < 0.000001) return "1/4";
+    if (Math.abs(value - 0.5) < 0.000001) return "1/2";
+
+    return formatPosQuantity(value);
+}
+
 function defaultSaleUnit(product: PosCatalogProduct | null): PosSaleUnitOption | null {
     if (!product) return null;
 
@@ -59,16 +66,19 @@ function defaultSaleUnit(product: PosCatalogProduct | null): PosSaleUnitOption |
     if (product.sale_mode === "unit") {
         return {
             ...option,
-            label: "un.",
+            label: "",
             quickValues: [1, 2, 3, 5, 10],
         };
     }
 
-    return option;
+    return {
+        ...option,
+        quickValues: [0.25, 0.5, 2],
+    };
 }
 
 function variantDisplayName(variant: PosCatalogProduct) {
-    if (variant.sale_mode === "measured") return "A granel";
+    if (variant.sale_mode === "measured") return "Kilogramos";
 
     return variant.variant_name || variant.name;
 }
@@ -181,6 +191,9 @@ export function PosVariantSelectorModal({
         return rows;
     }, [variants]);
     const saleUnit = useMemo(() => defaultSaleUnit(selectedVariant), [selectedVariant]);
+    const displayUnitLabel = selectedVariant?.sale_mode === "unit"
+        ? ""
+        : saleUnit?.label ?? "";
     const numericQuantity = parseQuantity(quantity);
     const numericAmount = parseQuantity(amount);
     const amountResolution = useMemo(
@@ -348,9 +361,55 @@ export function PosVariantSelectorModal({
                                         </Text>
                                         {selectedVariant && saleUnit ? (
                                             <>
-                                                <Text style={styles.selectedVariantName}>
-                                                    {variantDisplayName(selectedVariant)}
-                                                </Text>
+                                                <View style={styles.quantityHeader}>
+                                                    <Text
+                                                        numberOfLines={1}
+                                                        style={styles.selectedVariantName}
+                                                    >
+                                                        {variantDisplayName(selectedVariant)}
+                                                    </Text>
+
+                                                    <View style={styles.quickValues}>
+                                                        {saleUnit.quickValues.map((value) => {
+                                                            const selected = Math.abs(numericQuantity - value) < 0.000001;
+                                                            const quickLabel = quickQuantityLabel(value);
+                                                            const accessibilityUnit = displayUnitLabel
+                                                                ? ` ${displayUnitLabel}`
+                                                                : "";
+
+                                                            return (
+                                                                <Pressable
+                                                                    accessibilityLabel={`Usar ${quickLabel}${accessibilityUnit}`}
+                                                                    accessibilityRole="button"
+                                                                    disabled={saving || busy}
+                                                                    key={value}
+                                                                    onPress={() => {
+                                                                        setQuantity(String(value));
+                                                                        setAmount("");
+                                                                        setSubmitError("");
+                                                                    }}
+                                                                    style={[
+                                                                        styles.quickValue,
+                                                                        saleUnit.quickValues.length <= 3 && styles.quickValueWide,
+                                                                        selected && styles.quickValueSelected,
+                                                                    ]}
+                                                                >
+                                                                    <Text
+                                                                        adjustsFontSizeToFit
+                                                                        minimumFontScale={0.72}
+                                                                        numberOfLines={1}
+                                                                        style={[
+                                                                            styles.quickValueText,
+                                                                            selected && styles.quickValueTextSelected,
+                                                                        ]}
+                                                                    >
+                                                                        {quickLabel}
+                                                                    </Text>
+                                                                </Pressable>
+                                                            );
+                                                        })}
+                                                    </View>
+                                                </View>
                                                 <TextInput
                                                     dense
                                                     disabled={saving || busy}
@@ -360,47 +419,13 @@ export function PosVariantSelectorModal({
                                                     mode="outlined"
                                                     onChangeText={changeQuantity}
                                                     outlineColor="#879692"
-                                                    right={<TextInput.Affix text={saleUnit.label} />}
+                                                    right={displayUnitLabel
+                                                        ? <TextInput.Affix text={displayUnitLabel} />
+                                                        : undefined}
                                                     selectTextOnFocus
                                                     style={styles.quantityInput}
                                                     value={quantity}
                                                 />
-
-                                                <View style={styles.quickValues}>
-                                                    {saleUnit.quickValues.map((value) => {
-                                                        const selected = Math.abs(numericQuantity - value) < 0.000001;
-
-                                                        return (
-                                                            <Pressable
-                                                                accessibilityLabel={`Usar ${formatPosQuantity(value)} ${saleUnit.label}`}
-                                                                accessibilityRole="button"
-                                                                disabled={saving || busy}
-                                                                key={value}
-                                                                onPress={() => {
-                                                                    setQuantity(String(value));
-                                                                    setAmount("");
-                                                                    setSubmitError("");
-                                                                }}
-                                                                style={[
-                                                                    styles.quickValue,
-                                                                    selected && styles.quickValueSelected,
-                                                                ]}
-                                                            >
-                                                                <Text
-                                                                    adjustsFontSizeToFit
-                                                                    minimumFontScale={0.72}
-                                                                    numberOfLines={1}
-                                                                    style={[
-                                                                        styles.quickValueText,
-                                                                        selected && styles.quickValueTextSelected,
-                                                                    ]}
-                                                                >
-                                                                    {formatPosQuantity(value)} {saleUnit.label}
-                                                                </Text>
-                                                            </Pressable>
-                                                        );
-                                                    })}
-                                                </View>
 
                                                 {quantityError || submitError ? (
                                                     <Text style={styles.quantityError}>
@@ -415,7 +440,9 @@ export function PosVariantSelectorModal({
                                                             {tier?.label || "Sin rango"}
                                                         </Text>
                                                         <Text style={styles.summaryPrice}>
-                                                            {tier ? `${money(unitPrice)} / ${saleUnit.label}` : "—"}
+                                                            {tier
+                                                                ? `${money(unitPrice)}${displayUnitLabel ? ` / ${displayUnitLabel}` : ""}`
+                                                                : "—"}
                                                         </Text>
                                                     </View>
                                                     <Pressable
@@ -465,7 +492,8 @@ export function PosVariantSelectorModal({
                                                             <Text style={styles.quantityError}>{amountError}</Text>
                                                         ) : amountResolution ? (
                                                             <Text style={styles.amountResult}>
-                                                                Cantidad: {formatPosQuantity(numericQuantity, 6)} {saleUnit.label}
+                                                                Cantidad: {formatPosQuantity(numericQuantity, 6)}
+                                                                {displayUnitLabel ? ` ${displayUnitLabel}` : ""}
                                                                 {amountDifference >= 0.01
                                                                     ? ` · diferencia ${money(amountDifference)}`
                                                                     : ""}
@@ -598,6 +626,7 @@ export function PosVariantSelectorModal({
                                     </View>
                                 )}
                                 ref={variantListRef}
+                                removeClippedSubviews={false}
                                 showsVerticalScrollIndicator={false}
                             />
                         )}
@@ -677,6 +706,8 @@ const styles = StyleSheet.create({
     variantCard: {
         width: "100%",
         minHeight: 108,
+        borderWidth: 2,
+        borderColor: "transparent",
         borderRadius: 12,
         backgroundColor: "#FFFFFF",
         shadowColor: "#172423",
@@ -687,7 +718,6 @@ const styles = StyleSheet.create({
         overflow: "hidden",
     },
     variantCardSelected: {
-        borderWidth: 2,
         borderColor: "#B4232D",
     },
     variantCardPressed: {
@@ -748,8 +778,16 @@ const styles = StyleSheet.create({
         fontWeight: "800",
         textTransform: "uppercase",
     },
+    quantityHeader: {
+        marginTop: 7,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 8,
+    },
     selectedVariantName: {
-        marginTop: 4,
+        flex: 1,
+        minWidth: 0,
         color: "#172423",
         fontSize: 17,
         fontWeight: "900",
@@ -757,13 +795,12 @@ const styles = StyleSheet.create({
     },
     quantityInput: { marginTop: 14, backgroundColor: "#FFFFFF" },
     quickValues: {
-        marginTop: 12,
+        flexShrink: 0,
         flexDirection: "row",
-        gap: 5,
+        gap: 4,
     },
     quickValue: {
-        flex: 1,
-        minWidth: 0,
+        width: 34,
         minHeight: 34,
         paddingHorizontal: 3,
         alignItems: "center",
@@ -773,6 +810,7 @@ const styles = StyleSheet.create({
         borderRadius: 17,
         backgroundColor: "#FFFFFF",
     },
+    quickValueWide: { width: 42 },
     quickValueSelected: {
         borderColor: "#B4232D",
         backgroundColor: "#FFE8E8",

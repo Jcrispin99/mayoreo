@@ -56,7 +56,7 @@ it('creates a product template with packaged and measured variants and variant p
         ->assertJsonPath('data.name', 'Arroz Extra')
         ->assertJsonMissingPath('data.default_price')
         ->assertJsonCount(2, 'data.variants')
-        ->assertJsonPath('data.variants.0.display_name', 'Arroz Extra - Granel')
+        ->assertJsonPath('data.variants.0.display_name', 'Arroz Extra - Kilogramos')
         ->assertJsonPath('data.variants.0.barcode', fn (mixed $barcode): bool => is_string($barcode) && preg_match('/^\d{6}$/D', $barcode) === 1)
         ->assertJsonPath('data.variants.0.sale_mode', 'measured')
         ->assertJsonPath('data.variants.0.price_tiers.0.unit_price', '10.0000')
@@ -272,7 +272,7 @@ it('creates the cartesian product of two attributes as independently priced prod
     $response->assertCreated()
         ->assertJsonCount(2, 'data.attributes')
         ->assertJsonCount(5, 'data.variants')
-        ->assertJsonPath('data.variants.0.variant_name', 'Granel')
+        ->assertJsonPath('data.variants.0.variant_name', 'Kilogramos')
         ->assertJsonPath('data.variants.0.is_principal', true)
         ->assertJsonCount(0, 'data.variants.0.attribute_values')
         ->assertJsonPath('data.attributes.0.name', 'Peso')
@@ -412,7 +412,7 @@ it('rejects reusing a historical variant for a different attribute combination',
     ]);
 });
 
-it('normalizes legacy principal attributes back to granel without moving its history', function (): void {
+it('normalizes legacy principal attributes back to kilograms without moving its history', function (): void {
     $template = ProductTemplate::query()->create([
         'name' => 'Aceite vegetal',
         'is_active' => true,
@@ -455,7 +455,7 @@ it('normalizes legacy principal attributes back to granel without moving its his
 
     $response->assertOk()
         ->assertJsonPath('data.variants.0.id', $principal->id)
-        ->assertJsonPath('data.variants.0.variant_name', 'Granel')
+        ->assertJsonPath('data.variants.0.variant_name', 'Kilogramos')
         ->assertJsonCount(0, 'data.variants.0.attribute_values');
     $this->assertDatabaseHas('inventory_movements', ['product_id' => $principal->id]);
     $this->assertDatabaseMissing('product_attribute_value_product', [

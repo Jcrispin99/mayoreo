@@ -43,7 +43,7 @@ final class ProductCatalogSeeder extends Seeder
     ): void {
         $template = $this->template(
             'Arroz Extra',
-            'Arroz vendido a granel, por kilo o en saco de 50 kg.',
+            'Arroz vendido por kilogramos o en saco de 50 kg.',
         );
         $oneKilogram = $this->attributeValue($presentation, '1 kg');
         $sack50Kilograms = $this->attributeValue($presentation, 'Saco 50 kg');
@@ -53,10 +53,10 @@ final class ProductCatalogSeeder extends Seeder
         ]);
 
         $principal = $this->product($template, [
-            'sku' => 'ARROZ-EXTRA-GRANEL',
+            'sku' => 'ARROZ-EXTRA-KG',
             'barcode' => null,
-            'name' => 'Arroz Extra - Granel',
-            'variant_name' => 'Granel (stock)',
+            'name' => 'Arroz Extra - Kilogramos',
+            'variant_name' => 'Kilogramos',
             'base_unit_id' => $kilograms->id,
             'sale_mode' => 'measured',
             'content_quantity' => null,
@@ -112,10 +112,6 @@ final class ProductCatalogSeeder extends Seeder
         ProductAttribute $presentation,
         UnitOfMeasure $units,
     ): void {
-        Product::query()
-            ->where('sku', 'ACEITE-VEGETAL-GRANEL')
-            ->update(['is_active' => false, 'is_principal' => false]);
-
         $template = $this->template(
             'Aceite Vegetal',
             'Aceite controlado por botella de 1 L o bidón de 20 L.',
@@ -173,7 +169,7 @@ final class ProductCatalogSeeder extends Seeder
     ): void {
         $template = $this->template(
             'Azúcar Rubia',
-            'Azúcar vendida a granel, por kilo o en saco de 50 kg.',
+            'Azúcar vendida por kilogramos o en saco de 50 kg.',
         );
         $oneKilogram = $this->attributeValue($presentation, '1 kg');
         $sack50Kilograms = $this->attributeValue($presentation, 'Saco 50 kg');
@@ -183,10 +179,10 @@ final class ProductCatalogSeeder extends Seeder
         ]);
 
         $principal = $this->product($template, [
-            'sku' => 'AZUCAR-RUBIA-GRANEL',
+            'sku' => 'AZUCAR-RUBIA-KG',
             'barcode' => null,
-            'name' => 'Azúcar Rubia - Granel',
-            'variant_name' => 'Granel (stock)',
+            'name' => 'Azúcar Rubia - Kilogramos',
+            'variant_name' => 'Kilogramos',
             'base_unit_id' => $kilograms->id,
             'sale_mode' => 'measured',
             'content_quantity' => null,

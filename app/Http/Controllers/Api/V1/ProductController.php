@@ -188,9 +188,10 @@ final class ProductController extends ApiController
         }
 
         if ($expectedSaleMode === 'measured') {
+            $values['variant_name'] = 'Kilogramos';
             if (! empty($values['content_quantity']) || ! empty($values['content_unit_id'])) {
                 throw ValidationException::withMessages([
-                    'content_quantity' => 'Los productos a granel en kg no llevan contenido de empaque.',
+                    'content_quantity' => 'Los productos en kilogramos no llevan contenido de empaque.',
                 ]);
             }
             if ($product === null || array_key_exists('base_unit_id', $values)) {
