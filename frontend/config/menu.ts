@@ -94,6 +94,25 @@ export const MENU_MODULES: MenuModule[] = [
     ],
   },
   {
+    id: 'transfers',
+    title: 'Traslados',
+    subtitle: 'Envíos entre almacenes',
+    icon: 'truck-fast-outline',
+    color: MODULE_COLORS.transfers.color,
+    softColor: MODULE_COLORS.transfers.softColor,
+    order: 15,
+    items: [
+      {
+        id: 'transfer-list',
+        title: 'Traslados',
+        description: 'Envíos y recepciones de stock',
+        icon: 'truck-fast-outline',
+        group: 'Operaciones',
+        permission: 'inventory-transfers.view',
+      },
+    ],
+  },
+  {
     id: 'purchases',
     title: 'Compras',
     subtitle: 'Órdenes de compra y proveedores',

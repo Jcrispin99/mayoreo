@@ -5,6 +5,7 @@ import { Button, Icon, Text, TextInput } from 'react-native-paper';
 import { DataTable, type DataTableColumn } from '../../components/data/data-table';
 import { ListToolbar } from '../../components/data/list-toolbar';
 import { api, apiErrorMessage } from '../../lib/api';
+import { formatBusinessDateTime } from '../../lib/date-time';
 import type { AttendanceShift } from './workforce-types';
 
 const PAGE_SIZE = 25;
@@ -13,11 +14,6 @@ const FILTERS = [
   { id: 'completed', label: 'Completa', group: 'Estado' },
   { id: 'incident', label: 'Incidencia', group: 'Estado' },
 ];
-
-function localDate(value: string | null) {
-  if (!value) return 'Pendiente';
-  return new Intl.DateTimeFormat('es-PE', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
-}
 
 function duration(minutes: number | null) {
   if (minutes === null) return 'En curso';
@@ -77,7 +73,7 @@ export function AttendanceList() {
       <View>
         <View style={styles.nameRow}><Text style={styles.name}>{shift.employee?.user.name ?? 'Trabajador'}</Text><Text style={[styles.badge, styles[shift.status]]}>{shift.status === 'open' ? 'En curso' : shift.status === 'completed' ? 'Completa' : 'Incidencia'}</Text></View>
         <Text style={styles.meta}>{shift.store?.name ?? 'Tienda'} · {duration(shift.worked_minutes)}</Text>
-        <Text style={styles.times}>Entrada: {localDate(shift.clocked_in_at)} · Salida: {localDate(shift.clocked_out_at)}</Text>
+        <Text style={styles.times}>Entrada: {formatBusinessDateTime(shift.clocked_in_at)} · Salida: {formatBusinessDateTime(shift.clocked_out_at)}</Text>
       </View>
     ),
   }, { key: 'action', title: '', style: styles.action, renderCell: () => <Icon source="pencil-outline" color="#60706E" size={20} /> }], []);

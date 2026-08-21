@@ -49,7 +49,7 @@ it('seeds repeatable workforce demo data', function (): void {
         ->and(StoreAttendanceQrToken::query()->count())->toBe(1)
         ->and(StoreAttendanceQrToken::query()->firstOrFail()->encrypted_token)->toBe('demo-personal-principal')
         ->and($admin->employeeProfile)->not->toBeNull()
-        ->and($admin->employeeProfile?->expected_minutes_per_day)->toBe(480)
+        ->and($admin->employeeProfile?->expected_minutes_per_day)->toBe(840)
         ->and($admin->employeeProfile?->work_days)->toBe([1, 2, 3, 4, 5, 6])
         ->and($admin->employeeProfile?->compensations()->value('pay_type'))->toBe(EmployeeCompensation::TYPE_MONTHLY)
         ->and($admin->employeeProfile?->compensations()->value('amount'))->toBe('3500.00')

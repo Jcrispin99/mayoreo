@@ -8,6 +8,7 @@ import { ModuleLayout } from '../../components/module/module-layout';
 import { getVisibleMenu } from '../../config/menu';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
+import { formatBusinessDateTime } from '../../lib/date-time';
 import type { AttendanceShift, Compensation, PayrollLine, PayrollPeriod, StoreSummary } from '../workforce/workforce-types';
 import type { AccessItem, AccessResourceKind, Permission, Role, UserAccount } from './access-types';
 
@@ -20,6 +21,7 @@ const CONFIG = {
   roles: { endpoint: '/roles', singular: 'rol', article: 'el' },
 } as const;
 const DAY_LABELS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+const EMPLOYEES_ROUTE = '/module/access/employees';
 
 function requestErrorMessage(error: any) {
   const validationErrors = error?.response?.data?.errors;
@@ -28,7 +30,7 @@ function requestErrorMessage(error: any) {
 }
 
 function dateTime(value: string | null) {
-  return value ? new Intl.DateTimeFormat('es-PE', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : 'Pendiente';
+  return formatBusinessDateTime(value);
 }
 
 function duration(minutes: number | null) {
@@ -160,6 +162,10 @@ export function AccessReferenceForm({ itemId, kind }: AccessReferenceFormProps) 
     setEmploymentStatus('active');
   }
 
+  function returnToList() {
+    router.replace(kind === 'users' && (employeeEnabled || employeeProfileId) ? EMPLOYEES_ROUTE : '/module/access/users');
+  }
+
   async function save() {
     if (!name.trim()) { setError('Completa el nombre.'); setTab('account'); return; }
     if (kind === 'users' && !email.trim()) { setError('Completa el correo electrónico.'); setTab('account'); return; }
@@ -173,7 +179,7 @@ export function AccessReferenceForm({ itemId, kind }: AccessReferenceFormProps) 
       if (kind === 'roles') {
         const payload = { name: name.trim(), permissions: selectedPermissionNames };
         editing ? await api.put(`/roles/${itemId}`, payload) : await api.post('/roles', payload);
-        router.back(); return;
+        returnToList(); return;
       }
       const payload = { name: name.trim(), email: email.trim().toLocaleLowerCase('es'), ...(password ? { password, password_confirmation: passwordConfirmation } : {}) };
       const response = editing ? await api.put(`/users/${itemId}`, payload) : await api.post('/users', payload);
@@ -196,7 +202,7 @@ export function AccessReferenceForm({ itemId, kind }: AccessReferenceFormProps) 
           expected_minutes_per_day: Math.round(Number(expectedHours) * 60), monthly_divisor: Number(monthlyDivisor), work_days: workDays,
         });
       }
-      router.back();
+      returnToList();
     } catch (requestError) { setError(requestErrorMessage(requestError)); }
     finally { setSaving(false); }
   }
@@ -204,7 +210,7 @@ export function AccessReferenceForm({ itemId, kind }: AccessReferenceFormProps) 
   async function remove() {
     if (!itemId) return;
     setSaving(true); setError('');
-    try { await api.delete(`${config.endpoint}/${itemId}`); router.back(); }
+    try { await api.delete(`${config.endpoint}/${itemId}`); returnToList(); }
     catch (requestError) { setError(requestErrorMessage(requestError)); setConfirmingDelete(false); }
     finally { setSaving(false); }
   }
@@ -222,7 +228,7 @@ export function AccessReferenceForm({ itemId, kind }: AccessReferenceFormProps) 
   return <ModuleLayout module={ACCESS_MODULE} selectedItemId={kind}>
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.screen}>
       {loading ? <ActivityIndicator color="#B4232D" size="large" style={styles.loader} /> : <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" nestedScrollEnabled showsVerticalScrollIndicator style={styles.scroll}>
-        <View style={styles.header}><Button compact icon="arrow-left" onPress={() => router.back()}>Volver</Button><Button buttonColor="#FF4D4D" compact disabled={saving} loading={saving} mode="contained" onPress={() => void save()}>Guardar</Button></View>
+        <View style={styles.header}><Button compact icon="arrow-left" onPress={returnToList}>Volver</Button><Button buttonColor="#FF4D4D" compact disabled={saving} loading={saving} mode="contained" onPress={() => void save()}>Guardar</Button></View>
         <Text style={styles.title}>{editing ? `Editar ${config.singular}` : `Nuevo ${config.singular}`}</Text>
         <Text style={styles.subtitle}>{kind === 'users' ? 'Una sola ficha para su cuenta, relación laboral, asistencia y pagos.' : 'Define el nombre del rol y sus permisos.'}</Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}

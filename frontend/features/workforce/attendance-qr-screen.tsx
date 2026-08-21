@@ -6,6 +6,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { ActivityIndicator, Button, Icon, Menu, Text } from 'react-native-paper';
 import QRCode from 'react-native-qrcode-svg';
 import { api, apiErrorMessage } from '../../lib/api';
+import { formatBusinessDateTime } from '../../lib/date-time';
 import type { StoreSummary } from './workforce-types';
 
 type QrSvgRef = {
@@ -181,7 +182,7 @@ export function AttendanceQrScreen() {
         <Text style={styles.cardTitle}>{configured ? 'Este QR necesita una renovación' : 'Esta tienda aún no tiene QR'}</Text>
         <Text style={styles.cardHelp}>{configured ? 'Fue creado antes de habilitar la descarga y no puede reconstruirse desde su hash. Renuévalo una vez para volver a mostrarlo y descargarlo.' : 'Genera el primer código para habilitar las marcaciones.'}</Text>
       </>}
-      {rotatedAt ? <Text style={styles.rotated}>Última renovación: {new Date(rotatedAt).toLocaleString('es-PE')}</Text> : null}
+      {rotatedAt ? <Text style={styles.rotated}>Última renovación: {formatBusinessDateTime(rotatedAt)}</Text> : null}
       <Button buttonColor={payload ? undefined : '#FF4D4D'} icon="refresh" loading={saving} mode={payload ? 'outlined' : 'contained'} onPress={() => void rotate()}>{configured ? 'Renovar código QR' : 'Generar QR'}</Button>
     </View>
   </ScrollView>;

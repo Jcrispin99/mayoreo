@@ -15,9 +15,17 @@ export default function HomeScreen() {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [message, setMessage] = useState('');
   const modules = useMemo(() => getVisibleMenu(user?.permissions), [user?.permissions]);
+  const canMarkAttendance = user !== null && (!user.permissions || user.permissions.includes('attendance.mark'));
 
   function openModule(module: MenuModule) {
     router.push({ pathname: '/module/[moduleId]', params: { moduleId: module.id } } as Href);
+  }
+
+  function openAttendanceMark() {
+    router.push({
+      pathname: '/module/[moduleId]/[itemId]',
+      params: { moduleId: 'access', itemId: 'attendance-mark' },
+    } as Href);
   }
 
   function openSettings() {
@@ -35,6 +43,7 @@ export default function HomeScreen() {
   return (
     <AppScreenLayout
       onMenuPress={() => setDrawerVisible(true)}
+      onAttendanceMarkPress={canMarkAttendance ? openAttendanceMark : undefined}
       notificationCount={unreadCount}
       onNotificationsPress={openNotifications}
       onProfilePress={() => setDrawerVisible(true)}

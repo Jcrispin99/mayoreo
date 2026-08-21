@@ -21,10 +21,19 @@ export function ModuleLayout({ children, module, selectedItemId }: ModuleLayoutP
   const [applicationsVisible, setApplicationsVisible] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const selectedItemTitle = module.items.find((item) => item.id === selectedItemId)?.title ?? module.title;
+  const canMarkAttendance = user !== null && (!user.permissions || user.permissions.includes('attendance.mark'));
 
   function openModule(nextModule: MenuModule) {
     setApplicationsVisible(false);
     router.replace({ pathname: '/module/[moduleId]', params: { moduleId: nextModule.id } } as Href);
+  }
+
+  function openAttendanceMark() {
+    setApplicationsVisible(false);
+    router.replace({
+      pathname: '/module/[moduleId]/[itemId]',
+      params: { moduleId: 'access', itemId: 'attendance-mark' },
+    } as Href);
   }
 
   function openItem(item: MenuItem) {
@@ -46,6 +55,7 @@ export function ModuleLayout({ children, module, selectedItemId }: ModuleLayoutP
       icon={module.icon}
       iconColor={module.color}
       onApplicationsPress={() => setApplicationsVisible(true)}
+      onAttendanceMarkPress={canMarkAttendance ? openAttendanceMark : undefined}
       onMenuPress={() => setDrawerVisible(true)}
       notificationCount={unreadCount}
       onNotificationsPress={openNotifications}
@@ -56,8 +66,10 @@ export function ModuleLayout({ children, module, selectedItemId }: ModuleLayoutP
       {children}
 
       <ApplicationSwitcher
+        canMarkAttendance={canMarkAttendance}
         modules={APP_MODULES}
         onClose={() => setApplicationsVisible(false)}
+        onAttendanceMarkPress={openAttendanceMark}
         onModulePress={openModule}
         visible={applicationsVisible}
       />

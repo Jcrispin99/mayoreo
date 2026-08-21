@@ -5,6 +5,7 @@ import { Icon, Text } from 'react-native-paper';
 import { DataTable, type DataTableColumn } from '../../components/data/data-table';
 import { ListToolbar } from '../../components/data/list-toolbar';
 import { api, apiErrorMessage } from '../../lib/api';
+import { currentBusinessMonth } from '../../lib/date-time';
 import type { PayrollPeriod } from './workforce-types';
 
 const PAGE_SIZE = 20;
@@ -39,11 +40,7 @@ export function PayrollList() {
   async function createCurrentMonth() {
     setCreating(true); setError('');
     try {
-      const now = new Date();
-      const year = now.getFullYear(); const month = now.getMonth();
-      const startsOn = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-      const lastDay = new Date(year, month + 1, 0).getDate();
-      const endsOn = `${year}-${String(month + 1).padStart(2, '0')}-${lastDay}`;
+      const { startsOn, endsOn } = currentBusinessMonth();
       const response = await api.post('/payroll-periods', { starts_on: startsOn, ends_on: endsOn });
       router.push({ pathname: '/access/payroll/[periodId]', params: { periodId: String(response.data.data.id) } } as Href);
     } catch (requestError: any) { setError(requestError?.response?.data?.message ?? 'No se pudo crear la planilla del mes actual.'); }

@@ -11,6 +11,7 @@ type AppScreenLayoutProps = {
   title: string;
   userName?: string;
   onApplicationsPress?: () => void;
+  onAttendanceMarkPress?: () => void;
   onMenuPress?: () => void;
   onNotificationsPress?: () => void;
   notificationCount?: number;
@@ -24,6 +25,7 @@ export function AppScreenLayout({
   title,
   userName,
   onApplicationsPress,
+  onAttendanceMarkPress,
   onMenuPress,
   onNotificationsPress,
   notificationCount,
@@ -36,6 +38,7 @@ export function AppScreenLayout({
         icon={icon}
         iconColor={iconColor}
         onApplicationsPress={onApplicationsPress}
+        onAttendanceMarkPress={onAttendanceMarkPress}
         onMenuPress={onMenuPress}
         onNotificationsPress={onNotificationsPress}
         notificationCount={notificationCount}

@@ -41,7 +41,7 @@ it('creates a labor profile and preserves compensation history', function (): vo
             'employment_status' => 'active',
             'hired_at' => '2026-08-01',
             'terminated_at' => null,
-            'expected_minutes_per_day' => 480,
+            'expected_minutes_per_day' => 840,
             'monthly_divisor' => 30,
             'work_days' => [0, 1, 2, 3, 4, 5, 6],
         ])->assertOk()
@@ -71,6 +71,21 @@ it('creates a labor profile and preserves compensation history', function (): vo
         ->toBe('2026-08-31');
 });
 
+it('requires 14 hours as the expected workday', function (): void {
+    $worker = User::factory()->create();
+
+    $this->withHeaders($this->managerHeaders)
+        ->putJson("/api/v1/users/{$worker->id}/employee-profile", [
+            'store_id' => $this->store->id,
+            'employment_status' => 'active',
+            'hired_at' => '2026-08-01',
+            'expected_minutes_per_day' => 480,
+            'monthly_divisor' => 30,
+            'work_days' => [0, 1, 2, 3, 4, 5, 6],
+        ])->assertUnprocessable()
+        ->assertJsonValidationErrors('expected_minutes_per_day');
+});
+
 it('alternates QR scans between entry and exit using server time', function (): void {
     $worker = User::factory()->create();
     grantApiPermissions($worker, 'attendance.mark', 'attendance.view-own');
@@ -79,7 +94,7 @@ it('alternates QR scans between entry and exit using server time', function (): 
         'store_id' => $this->store->id,
         'employment_status' => 'active',
         'hired_at' => '2026-08-01',
-        'expected_minutes_per_day' => 480,
+        'expected_minutes_per_day' => 840,
         'monthly_divisor' => 30,
         'work_days' => [0, 1, 2, 3, 4, 5, 6],
     ]);
@@ -129,6 +144,87 @@ it('alternates QR scans between entry and exit using server time', function (): 
     $this->assertDatabaseHas('attendance_events', ['type' => 'exit', 'source' => 'qr']);
 });
 
+it('starts a new attendance day after marking an unfinished previous shift as an incident', function (): void {
+    $worker = User::factory()->create();
+    grantApiPermissions($worker, 'attendance.mark');
+    $employee = EmployeeProfile::query()->create([
+        'user_id' => $worker->id,
+        'store_id' => $this->store->id,
+        'employment_status' => 'active',
+        'hired_at' => '2026-08-01',
+        'expected_minutes_per_day' => 840,
+        'monthly_divisor' => 30,
+        'work_days' => [0, 1, 2, 3, 4, 5, 6],
+    ]);
+    $workerHeaders = ['Authorization' => 'Bearer '.$worker->createToken('worker')->plainTextToken];
+    $payload = $this->withHeaders($this->managerHeaders)
+        ->postJson("/api/v1/stores/{$this->store->id}/attendance-qr/rotate")
+        ->assertOk()->json('data.payload');
+
+    $this->app['auth']->forgetGuards();
+    Carbon::setTestNow(Carbon::parse('2026-08-12 23:00:00', 'America/Lima'));
+    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', [
+        'qr_payload' => $payload,
+    ])->assertCreated()->assertJsonPath('data.action', 'entry');
+
+    Carbon::setTestNow(Carbon::parse('2026-08-13 08:00:00', 'America/Lima'));
+    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', [
+        'qr_payload' => $payload,
+    ])->assertCreated()
+        ->assertJsonPath('data.action', 'entry')
+        ->assertJsonPath('data.shift.status', 'open');
+
+    $this->assertDatabaseHas('attendance_shifts', [
+        'employee_profile_id' => $employee->id,
+        'status' => AttendanceShift::STATUS_INCIDENT,
+        'clocked_out_at' => null,
+        'worked_minutes' => null,
+    ]);
+    $this->assertDatabaseCount('attendance_shifts', 2);
+});
+
+it('excludes attendance without an exit from payroll minutes and pay', function (): void {
+    $worker = User::factory()->create();
+    $employee = EmployeeProfile::query()->create([
+        'user_id' => $worker->id,
+        'store_id' => $this->store->id,
+        'employment_status' => 'active',
+        'hired_at' => '2026-08-01',
+        'expected_minutes_per_day' => 840,
+        'monthly_divisor' => 30,
+        'work_days' => [0, 1, 2, 3, 4, 5, 6],
+    ]);
+    $employee->compensations()->create([
+        'pay_type' => 'daily',
+        'amount' => 100,
+        'effective_from' => '2026-08-01',
+        'created_by' => $this->manager->id,
+    ]);
+    AttendanceShift::query()->create([
+        'employee_profile_id' => $employee->id,
+        'store_id' => $this->store->id,
+        'clocked_in_at' => '2026-08-12T13:00:00Z',
+        'clocked_out_at' => '2026-08-12T20:00:00Z',
+        'worked_minutes' => 420,
+        'status' => AttendanceShift::STATUS_COMPLETED,
+        'source' => 'qr',
+    ]);
+    AttendanceShift::query()->create([
+        'employee_profile_id' => $employee->id,
+        'store_id' => $this->store->id,
+        'clocked_in_at' => '2026-08-13T13:00:00Z',
+        'status' => AttendanceShift::STATUS_INCIDENT,
+        'source' => 'qr',
+    ]);
+
+    $this->withHeaders($this->managerHeaders)->postJson('/api/v1/payroll-periods', [
+        'starts_on' => '2026-08-01',
+        'ends_on' => '2026-08-31',
+    ])->assertCreated()
+        ->assertJsonPath('data.lines.0.worked_minutes', 420)
+        ->assertJsonPath('data.lines.0.calculated_amount', '50.00');
+});
+
 it('identifies legacy QR tokens that cannot be recovered', function (): void {
     StoreAttendanceQrToken::query()->create([
         'store_id' => $this->store->id,
@@ -152,7 +248,7 @@ it('records manual attendance corrections with an immutable audit reason', funct
         'store_id' => $this->store->id,
         'employment_status' => 'active',
         'hired_at' => '2026-08-01',
-        'expected_minutes_per_day' => 480,
+        'expected_minutes_per_day' => 840,
         'monthly_divisor' => 30,
         'work_days' => [0, 1, 2, 3, 4, 5, 6],
     ]);
@@ -175,7 +271,7 @@ it('records manual attendance corrections with an immutable audit reason', funct
         ->and(AttendanceAdjustment::query()->latest('id')->first()?->reason)->toBe('Se verificó la hora correcta');
 });
 
-it('calculates daily payroll, keeps manual adjustments and freezes a closed period', function (): void {
+it('calculates daily payroll using 14-hour workdays, keeps manual adjustments and freezes a closed period', function (): void {
     $worker = User::factory()->create();
     grantApiPermissions($worker, 'payroll.view-own');
     $employee = EmployeeProfile::query()->create([
@@ -183,7 +279,7 @@ it('calculates daily payroll, keeps manual adjustments and freezes a closed peri
         'store_id' => $this->store->id,
         'employment_status' => 'active',
         'hired_at' => '2026-08-01',
-        'expected_minutes_per_day' => 480,
+        'expected_minutes_per_day' => 840,
         'monthly_divisor' => 30,
         'work_days' => [0, 1, 2, 3, 4, 5, 6],
     ]);
@@ -193,13 +289,13 @@ it('calculates daily payroll, keeps manual adjustments and freezes a closed peri
         'effective_from' => '2026-08-01',
         'created_by' => $this->manager->id,
     ]);
-    foreach ([10, 11] as $day) {
+    foreach ([10 => 841, 11 => 420] as $day => $minutes) {
         AttendanceShift::query()->create([
             'employee_profile_id' => $employee->id,
             'store_id' => $this->store->id,
             'clocked_in_at' => "2026-08-{$day}T13:00:00Z",
-            'clocked_out_at' => "2026-08-{$day}T22:00:00Z",
-            'worked_minutes' => 540,
+            'clocked_out_at' => Carbon::parse("2026-08-{$day}T13:00:00Z")->addMinutes($minutes),
+            'worked_minutes' => $minutes,
             'status' => 'completed',
             'source' => 'qr',
         ]);
@@ -209,8 +305,9 @@ it('calculates daily payroll, keeps manual adjustments and freezes a closed peri
         'starts_on' => '2026-08-01',
         'ends_on' => '2026-08-31',
     ])->assertCreated()
-        ->assertJsonPath('data.lines.0.valid_days', 2)
-        ->assertJsonPath('data.lines.0.calculated_amount', '200.00')
+        ->assertJsonPath('data.lines.0.valid_days', 1)
+        ->assertJsonPath('data.lines.0.worked_day_equivalents', '1.5000')
+        ->assertJsonPath('data.lines.0.calculated_amount', '150.00')
         ->json('data');
     $lineId = $period['lines'][0]['id'];
 
@@ -218,13 +315,13 @@ it('calculates daily payroll, keeps manual adjustments and freezes a closed peri
         ->patchJson("/api/v1/payroll-periods/{$period['id']}/lines/{$lineId}", [
             'adjustments_amount' => 25,
             'notes' => 'Bono acordado',
-        ])->assertOk()->assertJsonPath('data.payable_amount', '225.00');
+        ])->assertOk()->assertJsonPath('data.payable_amount', '175.00');
 
     $this->withHeaders($this->managerHeaders)
         ->postJson("/api/v1/payroll-periods/{$period['id']}/close")
         ->assertOk()
         ->assertJsonPath('data.status', 'closed')
-        ->assertJsonPath('data.lines.0.payable_amount', '225.00');
+        ->assertJsonPath('data.lines.0.payable_amount', '175.00');
 
     $this->withHeaders($this->managerHeaders)
         ->getJson("/api/v1/employees/{$employee->id}/payroll-lines")
@@ -242,7 +339,7 @@ it('calculates daily payroll, keeps manual adjustments and freezes a closed peri
     $this->app['auth']->forgetGuards();
     $this->withHeaders($workerHeaders)->getJson('/api/v1/payroll/mine')
         ->assertOk()
-        ->assertJsonPath('data.0.payable_amount', '225.00');
+        ->assertJsonPath('data.0.payable_amount', '175.00');
 });
 
 it('deducts monthly absences using the calendar days in the period', function (): void {
@@ -252,7 +349,7 @@ it('deducts monthly absences using the calendar days in the period', function ()
         'store_id' => $this->store->id,
         'employment_status' => 'active',
         'hired_at' => '2026-08-01',
-        'expected_minutes_per_day' => 480,
+        'expected_minutes_per_day' => 840,
         'monthly_divisor' => 30,
         'work_days' => [0, 1, 2, 3, 4, 5, 6],
     ]);
@@ -267,8 +364,8 @@ it('deducts monthly absences using the calendar days in the period', function ()
             'employee_profile_id' => $employee->id,
             'store_id' => $this->store->id,
             'clocked_in_at' => "{$date}T13:00:00Z",
-            'clocked_out_at' => "{$date}T21:00:00Z",
-            'worked_minutes' => 480,
+            'clocked_out_at' => Carbon::parse("{$date}T13:00:00Z")->addMinutes(840),
+            'worked_minutes' => 840,
             'status' => 'completed',
             'source' => 'qr',
         ]);
@@ -292,7 +389,7 @@ it('applies a proportional special-day bonus from worked minutes', function (): 
         'store_id' => $this->store->id,
         'employment_status' => 'active',
         'hired_at' => '2026-08-01',
-        'expected_minutes_per_day' => 480,
+        'expected_minutes_per_day' => 840,
         'monthly_divisor' => 30,
         'work_days' => [0, 1, 2, 3, 4, 5, 6],
     ]);
@@ -310,7 +407,7 @@ it('applies a proportional special-day bonus from worked minutes', function (): 
 
     foreach (range(1, 31) as $day) {
         $date = sprintf('2026-08-%02d', $day);
-        $minutes = $day === 15 ? 240 : 480;
+        $minutes = $day === 15 ? 420 : 840;
         AttendanceShift::query()->create([
             'employee_profile_id' => $employee->id,
             'store_id' => $this->store->id,
@@ -329,7 +426,7 @@ it('applies a proportional special-day bonus from worked minutes', function (): 
         ->assertJsonPath('data.lines.0.base_amount', '3100.00')
         ->assertJsonPath('data.lines.0.attendance_deduction', '50.00')
         ->assertJsonPath('data.lines.0.special_day_bonus', '50.00')
-        ->assertJsonPath('data.lines.0.special_day_minutes', 240)
+        ->assertJsonPath('data.lines.0.special_day_minutes', 420)
         ->assertJsonPath('data.lines.0.worked_day_equivalents', '30.5000')
         ->assertJsonPath('data.lines.0.special_day_details.0.amount', '50.00')
         ->assertJsonPath('data.lines.0.calculated_amount', '3100.00');
@@ -352,7 +449,7 @@ it('does not expose compensation data with personnel permissions alone', functio
         'store_id' => $this->store->id,
         'employment_status' => 'active',
         'hired_at' => '2026-08-01',
-        'expected_minutes_per_day' => 480,
+        'expected_minutes_per_day' => 840,
         'monthly_divisor' => 30,
         'work_days' => [0, 1, 2, 3, 4, 5, 6],
     ]);

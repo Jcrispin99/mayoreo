@@ -6,13 +6,15 @@ import { COLORS } from '../../theme/colors';
 import { ApplicationGrid } from '../menu/application-grid';
 
 type ApplicationSwitcherProps = {
+  canMarkAttendance: boolean;
   modules: MenuModule[];
   visible: boolean;
   onClose: () => void;
+  onAttendanceMarkPress: () => void;
   onModulePress: (module: MenuModule) => void;
 };
 
-export function ApplicationSwitcher({ modules, visible, onClose, onModulePress }: ApplicationSwitcherProps) {
+export function ApplicationSwitcher({ canMarkAttendance, modules, visible, onClose, onAttendanceMarkPress, onModulePress }: ApplicationSwitcherProps) {
   return (
     <Modal animationType="slide" onRequestClose={onClose} transparent={false} visible={visible}>
       <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
@@ -21,6 +23,9 @@ export function ApplicationSwitcher({ modules, visible, onClose, onModulePress }
             <Icon source="view-grid-outline" color={COLORS.onPrimary} size={23} />
           </View>
           <Text style={styles.title}>Aplicaciones</Text>
+          {canMarkAttendance ? <Pressable accessibilityLabel="Marcar asistencia con QR" onPress={onAttendanceMarkPress} style={styles.attendanceMark}>
+            <Icon source="qrcode-scan" color={COLORS.text} size={24} />
+          </Pressable> : null}
           <Pressable accessibilityLabel="Cerrar aplicaciones" onPress={onClose} style={styles.close}>
             <Icon source="close" color={COLORS.textMuted} size={25} />
           </Pressable>
@@ -53,6 +58,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   title: { flex: 1, marginLeft: 12, color: COLORS.text, fontSize: 19, fontWeight: '800' },
+  attendanceMark: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
   close: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
   content: { paddingBottom: 40 },
 });

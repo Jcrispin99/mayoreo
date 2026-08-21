@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('employment_status', 20)->default('active');
             $table->date('hired_at');
             $table->date('terminated_at')->nullable();
-            $table->unsignedSmallInteger('expected_minutes_per_day')->default(480);
+            $table->unsignedSmallInteger('expected_minutes_per_day')->default(840);
             $table->unsignedSmallInteger('monthly_divisor')->default(30);
             $table->json('work_days');
             $table->timestamps();

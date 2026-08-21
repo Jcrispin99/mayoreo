@@ -39,9 +39,11 @@ final readonly class ScanAttendanceQrAction
             $timezone = config('payroll.timezone');
             $cooldownSeconds = config('payroll.scan_cooldown_seconds');
             $maximumShiftMinutes = config('payroll.maximum_shift_minutes');
+            $attendanceDayStartsAt = config('payroll.attendance_day_starts_at');
             assert(is_string($timezone));
             assert(is_int($cooldownSeconds));
             assert(is_int($maximumShiftMinutes));
+            assert(is_string($attendanceDayStartsAt));
             $today = $now->setTimezone($timezone)->toDateString();
             if (PayrollPeriod::query()->where('status', PayrollPeriod::STATUS_CLOSED)
                 ->whereDate('starts_on', '<=', $today)->whereDate('ends_on', '>=', $today)->exists()) {
@@ -69,6 +71,13 @@ final readonly class ScanAttendanceQrAction
                 ->where('employee_profile_id', $employee->id)
                 ->where('status', AttendanceShift::STATUS_OPEN)
                 ->lockForUpdate()->first();
+
+            if ($openShift && $this->hasPassedAttendanceDayCutoff($openShift, $now, $timezone, $attendanceDayStartsAt)) {
+                $openShift->update([
+                    'status' => AttendanceShift::STATUS_INCIDENT,
+                ]);
+                $openShift = null;
+            }
 
             if ($openShift) {
                 if ($openShift->store_id !== $qr->store_id) {
@@ -113,5 +122,23 @@ final readonly class ScanAttendanceQrAction
             'recorded_by' => $userId,
             'metadata' => $metadata,
         ]);
+    }
+
+    private function hasPassedAttendanceDayCutoff(
+        AttendanceShift $shift,
+        CarbonImmutable $now,
+        string $timezone,
+        string $attendanceDayStartsAt,
+    ): bool {
+        $clockedInAt = CarbonImmutable::parse($shift->getRawOriginal('clocked_in_at'), 'UTC');
+        $localClockedInAt = $clockedInAt->setTimezone($timezone);
+        $cutoff = $localClockedInAt
+            ->startOfDay()
+            ->setTimeFromTimeString($attendanceDayStartsAt);
+        if ($localClockedInAt->greaterThanOrEqualTo($cutoff)) {
+            $cutoff = $cutoff->addDay();
+        }
+
+        return $now->greaterThanOrEqualTo($cutoff->utc());
     }
 }

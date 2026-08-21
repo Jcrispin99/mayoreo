@@ -8,6 +8,7 @@ import { AccountingSaleList } from '../../features/accounting/accounting-sale-li
 import { CustomerList } from '../../features/customers/customer-list';
 import { InventoryReferenceList } from '../../features/inventory/inventory-reference-list';
 import { InventoryMovementList } from '../../features/inventory/inventory-movement-list';
+import { InventoryTransferList } from '../../features/inventory/inventory-transfer-list';
 import { PosSupplyRequestList } from '../../features/inventory/pos-supply-request-list';
 import { ProductList, type ProductSummary } from '../../features/products/product-list';
 import { PurchaseOrderList } from '../../features/purchases/purchase-order-list';
@@ -62,6 +63,8 @@ export function ModuleScreen() {
         <InventoryReferenceList kind="warehouses" />
       ) : module.id === 'inventory' && selectedItem.id === 'movements' ? (
         <InventoryMovementList />
+      ) : module.id === 'transfers' && selectedItem.id === 'transfer-list' ? (
+        <InventoryTransferList />
       ) : module.id === 'inventory' && selectedItem.id === 'pos-supply-requests' ? (
         <PosSupplyRequestList />
       ) : module.id === 'purchases' && selectedItem.id === 'purchase-orders' ? (

@@ -43,6 +43,7 @@ export const COLORS = {
 
 export const MODULE_COLORS = {
   inventory: { color: '#0F766E', softColor: '#CCFBF1' },
+  transfers: { color: '#0B7285', softColor: '#CFF4FC' },
   purchases: { color: '#9A4A08', softColor: '#FFEDD5' },
   pos: { color: '#1D4ED8', softColor: '#DBEAFE' },
   customers: { color: '#BE185D', softColor: '#FCE7F3' },

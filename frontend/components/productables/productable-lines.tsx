@@ -17,6 +17,7 @@ type ProductableLinesProps = {
   onAdd?: () => void;
   onOpen?: (key: ProductableLineView['key']) => void;
   readOnly?: boolean;
+  showTotal?: boolean;
   total?: number;
   totalLabel?: string;
 };
@@ -33,6 +34,7 @@ export function ProductableLines({
   onAdd,
   onOpen,
   readOnly = false,
+  showTotal = true,
   total,
   totalLabel = 'Total',
 }: ProductableLinesProps) {
@@ -87,7 +89,7 @@ export function ProductableLines({
         </Pressable>
       ))}
 
-      {lines.length > 0 ? (
+      {showTotal && lines.length > 0 ? (
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>{totalLabel}</Text>
           <Text style={styles.totalValue}>{money(displayedTotal)}</Text>

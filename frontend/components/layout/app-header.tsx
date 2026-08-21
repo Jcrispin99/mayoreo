@@ -9,6 +9,7 @@ type AppHeaderProps = {
   title: string;
   userName?: string;
   onApplicationsPress?: () => void;
+  onAttendanceMarkPress?: () => void;
   onMenuPress?: () => void;
   onNotificationsPress?: () => void;
   notificationCount?: number;
@@ -33,6 +34,7 @@ export function AppHeader({
   title,
   userName,
   onApplicationsPress,
+  onAttendanceMarkPress,
   onMenuPress,
   onNotificationsPress,
   notificationCount = 0,
@@ -51,7 +53,7 @@ export function AppHeader({
           <Icon source={onApplicationsPress ? 'view-grid-outline' : 'menu'} color={COLORS.text} size={24} />
         </Pressable>
 
-        <View style={styles.brand}>
+        <View style={[styles.brand, onAttendanceMarkPress && styles.brandWithAttendance]}>
           <View style={styles.brandMark}>
             <Icon source={icon} color={iconColor} size={18} />
           </View>
@@ -61,15 +63,15 @@ export function AppHeader({
         </View>
 
         <View style={styles.actions}>
-          {onApplicationsPress && onMenuPress ? (
+          {onAttendanceMarkPress ? (
             <Pressable
-              accessibilityLabel="Abrir menú del módulo"
+              accessibilityLabel="Marcar asistencia con QR"
               accessibilityRole="button"
               hitSlop={8}
-              onPress={onMenuPress}
+              onPress={onAttendanceMarkPress}
               style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
             >
-              <Icon source="menu" color={COLORS.text} size={25} />
+              <Icon source="qrcode-scan" color={COLORS.text} size={24} />
             </Pressable>
           ) : null}
           {onNotificationsPress ? (
@@ -98,6 +100,17 @@ export function AppHeader({
               style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
             >
               <Text style={styles.avatarText}>{getInitials(userName)}</Text>
+            </Pressable>
+          ) : null}
+          {onApplicationsPress && onMenuPress ? (
+            <Pressable
+              accessibilityLabel="Abrir menú del módulo"
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={onMenuPress}
+              style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+            >
+              <Icon source="menu" color={COLORS.text} size={25} />
             </Pressable>
           ) : null}
         </View>
@@ -134,6 +147,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 9,
   },
+  brandWithAttendance: { right: 196 },
   brandMark: {
     width: 31,
     height: 31,

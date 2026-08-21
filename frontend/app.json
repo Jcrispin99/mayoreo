@@ -4,6 +4,9 @@
     "slug": "frontend",
     "scheme": "mayoreo",
     "version": "1.0.0",
+    "extra": {
+      "businessTimeZone": "America/Lima"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

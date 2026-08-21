@@ -4,6 +4,7 @@ import { Linking, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Button, Icon, Text } from 'react-native-paper';
 import { useFocusEffect } from 'expo-router';
 import { api } from '../../lib/api';
+import { formatBusinessTime } from '../../lib/date-time';
 import { getPersistentDeviceId } from '../../lib/device-session';
 import type { AttendanceShift } from './workforce-types';
 
@@ -38,7 +39,7 @@ export function AttendanceMarkScreen() {
   if (!permission.granted) return <View style={styles.center}><Icon source="camera-outline" size={60} color="#B4232D" /><Text style={styles.title}>Permiso de cámara requerido</Text><Text style={styles.help}>La cámara se utiliza únicamente para leer el QR de la tienda.</Text><Button buttonColor="#FF4D4D" mode="contained" onPress={() => permission.canAskAgain ? void requestPermission() : void Linking.openSettings()}>{permission.canAskAgain ? 'Permitir cámara' : 'Abrir configuración'}</Button></View>;
 
   return <View style={styles.screen}>
-    <View style={styles.status}><Text style={styles.statusLabel}>Estado actual</Text><Text style={styles.statusValue}>{shift ? `Trabajando desde ${new Date(shift.clocked_in_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}` : 'Fuera del trabajo'}</Text><Text style={styles.statusHelp}>{shift ? 'El próximo escaneo registrará tu salida.' : 'El próximo escaneo registrará tu entrada.'}</Text></View>
+    <View style={styles.status}><Text style={styles.statusLabel}>Estado actual</Text><Text style={styles.statusValue}>{shift ? `Trabajando desde ${formatBusinessTime(shift.clocked_in_at)}` : 'Fuera del trabajo'}</Text><Text style={styles.statusHelp}>{shift ? 'El próximo escaneo registrará tu salida.' : 'El próximo escaneo registrará tu entrada.'}</Text></View>
     <View style={styles.cameraWrap}><CameraView barcodeScannerSettings={{ barcodeTypes: ['qr'] }} facing="back" onBarcodeScanned={scanned ? undefined : (result) => void handleScan(result)} style={styles.camera} /><View pointerEvents="none" style={styles.overlay}><View style={styles.frame} /></View></View>
     <View style={styles.result}>{submitting ? <ActivityIndicator color="#B4232D" /> : null}{message ? <Text style={styles.success}>{message}</Text> : null}{error ? <Text style={styles.error}>{error}</Text> : null}{scanned && !submitting ? <Button icon="qrcode-scan" mode="outlined" onPress={() => setScanned(false)}>Escanear nuevamente</Button> : <Text style={styles.instructions}>Apunta la cámara al QR de asistencia de tu tienda.</Text>}</View>
   </View>;

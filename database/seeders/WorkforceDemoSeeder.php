@@ -125,7 +125,7 @@ final class WorkforceDemoSeeder extends Seeder
                 'employment_status' => EmployeeProfile::STATUS_ACTIVE,
                 'hired_at' => $hiredAt->toDateString(),
                 'terminated_at' => null,
-                'expected_minutes_per_day' => 480,
+                'expected_minutes_per_day' => 840,
                 'monthly_divisor' => 30,
                 'work_days' => [0, 1, 2, 3, 4, 5, 6],
             ],
