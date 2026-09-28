@@ -12,6 +12,7 @@ use App\Exceptions\CustomerOperationException;
 use App\Exceptions\PosCheckoutException;
 use App\Exceptions\PosCheckoutTotalChangedException;
 use App\Exceptions\PosOrderException;
+use App\Jobs\SendFiscalDocumentToSunat;
 use App\Models\CashRegister;
 use App\Models\CashRegisterSession;
 use App\Models\Customer;
@@ -220,7 +221,10 @@ final readonly class CompletePosOrderAction
                 $payableTotal,
             );
 
-            $series = $this->lockSalesTicketSeries($cashRegister);
+            // Every completed POS sale is issued as a receipt regardless of how it was
+            // paid. The payment method only affects cash reconciliation, not SUNAT.
+            $documentType = 'receipt';
+            $series = $this->lockSeriesForDocumentType($cashRegister, $documentType);
             $fiscalIdentity = $this->fiscalDocumentIdentityService->snapshot(
                 $warehouse,
                 $series,
@@ -285,7 +289,7 @@ final readonly class CompletePosOrderAction
             ]);
 
             $number = $this->nextSequenceNumberService->generate(
-                'sales_ticket',
+                $documentType,
                 $series->series_code,
                 $series->fiscal_issuer_id,
             );
@@ -293,12 +297,14 @@ final readonly class CompletePosOrderAction
             $fiscalDocument = FiscalDocument::query()->create([
                 'sale_id' => $sale->id,
                 ...$fiscalIdentity,
-                'document_type' => 'sales_ticket',
+                'document_type' => $documentType,
                 'series_code' => $series->series_code,
                 'number' => $number,
                 'status' => 'issued',
                 'issued_at' => $completedAt,
             ]);
+
+            SendFiscalDocumentToSunat::dispatch($fiscalDocument)->afterCommit();
 
             $lockedOrder->update([
                 'status' => 'completed',
@@ -333,8 +339,9 @@ final readonly class CompletePosOrderAction
     {
         $sale->load(['items', 'payments', 'fiscalDocuments']);
         $payment = $sale->payments->first();
-        $fiscalDocument = $sale->fiscalDocuments
-            ->firstWhere('document_type', 'sales_ticket');
+        // A POS order gets exactly one fiscal document at checkout — sales_ticket
+        // or receipt, depending on payment method — so no type filter is needed.
+        $fiscalDocument = $sale->fiscalDocuments->first();
 
         if (! $payment instanceof SalePayment || ! $fiscalDocument instanceof FiscalDocument) {
             throw PosCheckoutException::incompleteExistingSale($sale->id);
@@ -392,20 +399,28 @@ final readonly class CompletePosOrderAction
         return [$normalizedReceivedAmount, $changeAmount, null];
     }
 
-    private function lockSalesTicketSeries(CashRegister $cashRegister): DocumentSeries
+    private function lockSeriesForDocumentType(CashRegister $cashRegister, string $documentType): DocumentSeries
     {
-        $series = DocumentSeries::query()
-            ->whereKey($cashRegister->default_sales_series_id)
-            ->where('document_type', 'sales_ticket')
+        $query = DocumentSeries::query()
+            ->where('document_type', $documentType)
             ->where('is_active', true)
             ->whereHas('cashRegisters', function (Builder $query) use ($cashRegister): void {
                 $query->where('cash_registers.id', $cashRegister->id);
-            })
-            ->lockForUpdate()
-            ->first();
+            });
+
+        // Sales tickets stick to the register's chosen default when it has more than
+        // one assigned; receipts don't have an equivalent default column, so any
+        // active receipt series assigned to the register will do.
+        if ($documentType === 'sales_ticket') {
+            $query->whereKey($cashRegister->default_sales_series_id);
+        }
+
+        $series = $query->lockForUpdate()->orderBy('id')->first();
 
         if (! $series instanceof DocumentSeries) {
-            throw PosCheckoutException::invalidDefaultSeries($cashRegister->id);
+            throw $documentType === 'receipt'
+                ? PosCheckoutException::invalidReceiptSeries($cashRegister->id)
+                : PosCheckoutException::invalidDefaultSeries($cashRegister->id);
         }
 
         return $series;

@@ -5,6 +5,9 @@ export type StoreSummary = {
   code: string;
   name: string;
   is_active: boolean;
+  attendance_latitude?: string | null;
+  attendance_longitude?: string | null;
+  attendance_radius_meters?: number;
 };
 
 export type Compensation = {

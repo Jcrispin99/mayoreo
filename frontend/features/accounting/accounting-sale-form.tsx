@@ -30,11 +30,14 @@ import type {
   PosPaymentMethodDefinition,
 } from '../pos/pos-types';
 import type {
+  AccountingFiscalDocument,
   AccountingFormReferences,
   AccountingProduct,
   AccountingSale,
   AccountingSaleDraftLine,
 } from './accounting-types';
+import { CREDIT_NOTE_REASONS } from './accounting-types';
+import { CreditNoteModal } from './credit-note-modal';
 import { SaleProductableEditor } from './sale-productable-editor';
 import { saleLinePreview } from './sale-productable-pricing';
 
@@ -128,6 +131,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [creditNoteModalVisible, setCreditNoteModalVisible] = useState(false);
 
   const loadReferences = useCallback(async () => {
     const [
@@ -367,10 +371,27 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
     }
   }
 
+  function handleCreditNoteIssued(creditNote: AccountingFiscalDocument) {
+    setSale((current) => (current ? {
+      ...current,
+      fiscal_documents: [...current.fiscal_documents, creditNote],
+    } : current));
+  }
+
   if (!ACCOUNTING_MODULE) return null;
 
   if (detailMode) {
     const payment = sale?.payments[0];
+    const existingCreditNote = sale?.fiscal_documents.find(
+      (fiscalDocument) => fiscalDocument.document_type === 'credit_note',
+    ) ?? null;
+    const canIssueCreditNote = Boolean(
+      sale
+      && sale.primary_document
+      && ['receipt', 'invoice'].includes(sale.primary_document.document_type)
+      && ['accepted', 'observed'].includes(sale.primary_document.sunat.status)
+      && !existingCreditNote,
+    );
 
     return (
       <ModuleLayout module={ACCOUNTING_MODULE} selectedItemId="sales">
@@ -447,6 +468,48 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
                   totalLabel="Total cobrado"
                 />
               </View>
+
+              <Text style={styles.sectionTitle}>Nota de crédito</Text>
+              <View style={styles.detailCard}>
+                {existingCreditNote ? (
+                  <>
+                    <DetailRow label="Documento" value={existingCreditNote.full_number} />
+                    <DetailRow
+                      label="Motivo"
+                      value={CREDIT_NOTE_REASONS.find(
+                        (reason) => reason.code === existingCreditNote.reason_code,
+                      )?.label ?? existingCreditNote.reason_code ?? '—'}
+                    />
+                    <DetailRow
+                      label="Estado en SUNAT"
+                      value={existingCreditNote.sunat.status === 'pending'
+                        ? 'En cola'
+                        : existingCreditNote.sunat.status}
+                    />
+                  </>
+                ) : canIssueCreditNote ? (
+                  <>
+                    <Text style={styles.creditNoteHint}>
+                      Puedes emitir una nota de crédito por devolución total o parcial
+                      de esta venta.
+                    </Text>
+                    <Button
+                      mode="outlined"
+                      onPress={() => setCreditNoteModalVisible(true)}
+                      style={styles.creditNoteButton}
+                      textColor="#B4232D"
+                    >
+                      Emitir nota de crédito
+                    </Button>
+                  </>
+                ) : (
+                  <Text style={styles.creditNoteHint}>
+                    {sale.primary_document && ['receipt', 'invoice'].includes(sale.primary_document.document_type)
+                      ? 'Todavía no se puede emitir: SUNAT no ha aceptado esta venta.'
+                      : 'Esta venta no tiene una boleta o factura para acreditar.'}
+                  </Text>
+                )}
+              </View>
               {error ? <Text style={styles.error}>{error}</Text> : null}
             </ScrollView>
           ) : (
@@ -458,6 +521,15 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
             </View>
           )}
         </View>
+        {sale && sale.primary_document ? (
+          <CreditNoteModal
+            document={sale.primary_document}
+            onClose={() => setCreditNoteModalVisible(false)}
+            onIssued={handleCreditNoteIssued}
+            sale={sale}
+            visible={creditNoteModalVisible}
+          />
+        ) : null}
       </ModuleLayout>
     );
   }
@@ -762,6 +834,8 @@ const styles = StyleSheet.create({
   detailLabel: { color: '#60706E', fontSize: 10, fontWeight: '700' },
   detailValue: { flex: 1, textAlign: 'right', color: '#172423', fontSize: 11, fontWeight: '800' },
   detailLines: { marginTop: 12 },
+  creditNoteHint: { color: '#60706E', fontSize: 11, lineHeight: 17 },
+  creditNoteButton: { marginTop: 12, borderColor: '#B4232D' },
   centerState: { flex: 1, padding: 30, alignItems: 'center', justifyContent: 'center', gap: 10 },
   centerTitle: { color: '#172423', fontSize: 16, fontWeight: '900' },
   centerText: { maxWidth: 420, textAlign: 'center', color: '#60706E', fontSize: 11 },

@@ -16,6 +16,31 @@ final class PayrollException extends DomainException
         return new self('El código QR de asistencia no es válido o fue reemplazado.');
     }
 
+    public static function expiredQr(): self
+    {
+        return new self('El código QR expiró. Espera a que la pantalla muestre uno nuevo y vuelve a escanear.');
+    }
+
+    public static function unauthorizedDevice(): self
+    {
+        return new self('La marcación debe realizarse desde el dispositivo vinculado a esta sesión.');
+    }
+
+    public static function storeLocationMissing(): self
+    {
+        return new self('La tienda no tiene configurada una ubicación para registrar asistencia.');
+    }
+
+    public static function inaccurateLocation(): self
+    {
+        return new self('No se pudo obtener una ubicación suficientemente precisa. Activa la ubicación exacta e inténtalo nuevamente.');
+    }
+
+    public static function outsideAttendanceArea(): self
+    {
+        return new self('Debes encontrarte dentro del área autorizada de la tienda para marcar asistencia.');
+    }
+
     public static function duplicateScan(): self
     {
         return new self('La marcación fue rechazada porque se realizó demasiado pronto después de la anterior.');

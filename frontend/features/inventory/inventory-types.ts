@@ -16,6 +16,9 @@ export type Store = {
   name: string;
   address: string | null;
   phone: string | null;
+  attendance_latitude: string | null;
+  attendance_longitude: string | null;
+  attendance_radius_meters: number;
   sunat_establishment_code: string | null;
   sunat_address: string | null;
   sunat_ubigeo: string | null;

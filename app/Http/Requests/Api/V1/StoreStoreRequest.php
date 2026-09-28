@@ -36,6 +36,9 @@ final class StoreStoreRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
+            'attendance_latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:attendance_longitude'],
+            'attendance_longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:attendance_latitude'],
+            'attendance_radius_meters' => ['sometimes', 'integer', 'between:20,1000'],
             'sunat_establishment_code' => [
                 'nullable',
                 'string',

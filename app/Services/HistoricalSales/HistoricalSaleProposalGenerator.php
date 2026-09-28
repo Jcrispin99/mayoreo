@@ -6,7 +6,6 @@ namespace App\Services\HistoricalSales;
 
 use App\Models\PriceTier;
 use App\Models\Product;
-use App\Models\Stock;
 use App\Models\Warehouse;
 use App\Services\MoneyService;
 use Illuminate\Database\Eloquent\Builder;
@@ -29,17 +28,11 @@ final readonly class HistoricalSaleProposalGenerator
             ->where('is_active', true)
             ->where(fn (Builder $query): Builder => $query->where('is_principal', true)->orWhereNull('product_template_id'))
             ->whereHas('priceTiers', fn (Builder $query): Builder => $query->where('is_active', true))
-            ->whereHas('stocks', fn (Builder $query): Builder => $query
-                ->where('warehouse_id', $warehouse->id)
-                ->where('quantity', '>', 0))
             ->with([
                 'baseUnit',
                 'template',
                 'priceTiers' => function (Relation $relation): void {
                     $relation->getQuery()->where('is_active', true)->orderBy('min_quantity');
-                },
-                'stocks' => function (Relation $relation) use ($warehouse): void {
-                    $relation->getQuery()->where('warehouse_id', $warehouse->id);
                 },
             ])
             ->get()
@@ -178,13 +171,7 @@ final readonly class HistoricalSaleProposalGenerator
         $options = collect();
 
         foreach ($products as $product) {
-            $stockModel = $product->stocks->first();
-            assert($stockModel instanceof Stock);
-            /** @var numeric-string $stock */
-            $stock = (string) $stockModel->quantity;
-            $maximum = min(5, (int) floor((float) $stock));
-
-            for ($quantity = 1; $quantity <= $maximum; $quantity++) {
+            for ($quantity = 1; $quantity <= 5; $quantity++) {
                 $normalizedQuantity = number_format($quantity, 6, '.', '');
                 $tier = $this->tierFor($product, $normalizedQuantity);
 
@@ -216,11 +203,6 @@ final readonly class HistoricalSaleProposalGenerator
      */
     private function weightedItem(Product $product, string $remaining, string $targetTotal, string $prefixTotal): ?array
     {
-        $stockModel = $product->stocks->first();
-        assert($stockModel instanceof Stock);
-        /** @var numeric-string $stock */
-        $stock = (string) $stockModel->quantity;
-
         foreach ($product->priceTiers as $tier) {
             /** @var numeric-string $price */
             $price = (string) $tier->unit_price;
@@ -236,7 +218,7 @@ final readonly class HistoricalSaleProposalGenerator
                 /** @var numeric-string $quantity */
                 $quantity = bcadd($baseQuantity, bcmul((string) $step, '0.000001', 6), 6);
 
-                if (bccomp($quantity, '0', 6) <= 0 || bccomp($quantity, $stock, 6) > 0) {
+                if (bccomp($quantity, '0', 6) <= 0) {
                     continue;
                 }
 

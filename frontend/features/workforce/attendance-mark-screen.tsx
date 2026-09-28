@@ -1,4 +1,5 @@
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
+import * as Location from 'expo-location';
 import { useCallback, useEffect, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Button, Icon, Text } from 'react-native-paper';
@@ -27,11 +28,22 @@ export function AttendanceMarkScreen() {
     if (scanned || submitting || !result.data.trim()) return;
     setScanned(true); setSubmitting(true); setError('');
     try {
+      const locationPermission = await Location.requestForegroundPermissionsAsync();
+      if (locationPermission.status !== 'granted') {
+        throw new Error('Necesitas permitir la ubicación para comprobar que estás dentro de la tienda.');
+      }
+      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       const deviceId = await getPersistentDeviceId();
-      const response = await api.post('/attendance/scan', { qr_payload: result.data.trim(), device_id: deviceId });
+      const response = await api.post('/attendance/scan', {
+        qr_payload: result.data.trim(),
+        device_id: deviceId,
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        accuracy: location.coords.accuracy ?? 10000,
+      });
       setShift(response.data.data.action === 'entry' ? response.data.data.shift : null);
       setMessage(response.data.message);
-    } catch (requestError: any) { setError(requestError?.response?.data?.message ?? 'No se pudo registrar la marcación.'); }
+    } catch (requestError: any) { setError(requestError?.response?.data?.message ?? requestError?.message ?? 'No se pudo registrar la marcación.'); }
     finally { setSubmitting(false); }
   }
 
@@ -41,7 +53,7 @@ export function AttendanceMarkScreen() {
   return <View style={styles.screen}>
     <View style={styles.status}><Text style={styles.statusLabel}>Estado actual</Text><Text style={styles.statusValue}>{shift ? `Trabajando desde ${formatBusinessTime(shift.clocked_in_at)}` : 'Fuera del trabajo'}</Text><Text style={styles.statusHelp}>{shift ? 'El próximo escaneo registrará tu salida.' : 'El próximo escaneo registrará tu entrada.'}</Text></View>
     <View style={styles.cameraWrap}><CameraView barcodeScannerSettings={{ barcodeTypes: ['qr'] }} facing="back" onBarcodeScanned={scanned ? undefined : (result) => void handleScan(result)} style={styles.camera} /><View pointerEvents="none" style={styles.overlay}><View style={styles.frame} /></View></View>
-    <View style={styles.result}>{submitting ? <ActivityIndicator color="#B4232D" /> : null}{message ? <Text style={styles.success}>{message}</Text> : null}{error ? <Text style={styles.error}>{error}</Text> : null}{scanned && !submitting ? <Button icon="qrcode-scan" mode="outlined" onPress={() => setScanned(false)}>Escanear nuevamente</Button> : <Text style={styles.instructions}>Apunta la cámara al QR de asistencia de tu tienda.</Text>}</View>
+    <View style={styles.result}>{submitting ? <><ActivityIndicator color="#B4232D" /><Text style={styles.instructions}>Comprobando QR, dispositivo y ubicación…</Text></> : null}{message ? <Text style={styles.success}>{message}</Text> : null}{error ? <Text style={styles.error}>{error}</Text> : null}{scanned && !submitting ? <Button icon="qrcode-scan" mode="outlined" onPress={() => setScanned(false)}>Escanear nuevamente</Button> : !submitting ? <Text style={styles.instructions}>Apunta la cámara al QR dinámico de tu tienda.</Text> : null}</View>
   </View>;
 }
 

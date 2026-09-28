@@ -22,7 +22,7 @@ final readonly class FiscalDocumentTransmissionService
         $locked = DB::transaction(function () use ($document): FiscalDocument {
             $current = FiscalDocument::query()->lockForUpdate()->findOrFail($document->id);
 
-            if (! in_array($current->document_type, ['receipt', 'invoice'], true)) {
+            if (! in_array($current->document_type, ['receipt', 'invoice', 'credit_note'], true)) {
                 throw SunatTransmissionException::unsupportedDocument($current->document_type);
             }
 
@@ -62,7 +62,11 @@ final readonly class FiscalDocumentTransmissionService
                 $locked->issuer_ruc,
                 $locked->issued_at->format('Y/m'),
             );
-            $documentCode = $locked->document_type === 'invoice' ? '01' : '03';
+            $documentCode = match ($locked->document_type) {
+                'invoice' => '01',
+                'credit_note' => '07',
+                default => '03',
+            };
             $baseName = sprintf(
                 '%s-%s-%s-%d',
                 $locked->issuer_ruc,

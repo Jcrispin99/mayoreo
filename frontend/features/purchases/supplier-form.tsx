@@ -65,12 +65,15 @@ export function SupplierForm({ supplierId }: SupplierFormProps) {
     setSaving(true);
     setError('');
     try {
+      const normalizedDocumentNumber = documentNumber.trim();
+      const normalizedPhone = phone.trim();
+      const normalizedEmail = email.trim().toLocaleLowerCase('es');
       const payload = {
         name: name.trim(),
-        document_number: documentNumber.trim() || null,
-        phone: phone.trim() || null,
-        email: email.trim().toLocaleLowerCase('es') || null,
         is_active: active,
+        ...(editing || normalizedDocumentNumber ? { document_number: normalizedDocumentNumber || null } : {}),
+        ...(editing || normalizedPhone ? { phone: normalizedPhone || null } : {}),
+        ...(editing || normalizedEmail ? { email: normalizedEmail || null } : {}),
       };
 
       if (editing) {
@@ -125,7 +128,7 @@ export function SupplierForm({ supplierId }: SupplierFormProps) {
             </View>
 
             <Text style={styles.title}>{editing ? 'Editar proveedor' : 'Nuevo proveedor'}</Text>
-            <Text style={styles.subtitle}>Registra los datos que se utilizarán al crear una compra.</Text>
+            <Text style={styles.subtitle}>Solo el nombre es obligatorio. Los demás datos puedes completarlos después.</Text>
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <View style={styles.form}>

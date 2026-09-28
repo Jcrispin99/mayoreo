@@ -19,6 +19,9 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string|null $address
  * @property string|null $phone
+ * @property string|null $attendance_latitude
+ * @property string|null $attendance_longitude
+ * @property int $attendance_radius_meters
  * @property string|null $sunat_establishment_code
  * @property string|null $sunat_address
  * @property string|null $sunat_ubigeo
@@ -41,6 +44,9 @@ final class Store extends Model
         'name',
         'address',
         'phone',
+        'attendance_latitude',
+        'attendance_longitude',
+        'attendance_radius_meters',
         'sunat_establishment_code',
         'sunat_address',
         'sunat_ubigeo',
@@ -108,6 +114,11 @@ final class Store extends Model
      */
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return [
+            'attendance_latitude' => 'decimal:7',
+            'attendance_longitude' => 'decimal:7',
+            'attendance_radius_meters' => 'integer',
+            'is_active' => 'boolean',
+        ];
     }
 }

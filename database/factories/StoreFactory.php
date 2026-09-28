@@ -19,6 +19,9 @@ final class StoreFactory extends Factory
             'name' => fake()->company(),
             'address' => fake()->address(),
             'phone' => fake()->phoneNumber(),
+            'attendance_latitude' => '-12.0463740',
+            'attendance_longitude' => '-77.0427930',
+            'attendance_radius_meters' => 100,
             'is_active' => true,
         ];
     }

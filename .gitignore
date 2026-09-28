@@ -31,5 +31,11 @@ Thumbs.db
 /.claude/
 CLAUDE.md
 
+# SUNAT digital certificates and private keys — never commit these
+*.p12
+*.pfx
+*.cer
+*.pem
+
 # SQLite databases
 database/*.sqlite

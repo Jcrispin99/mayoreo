@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Web\AuthenticatedSessionController;
+use App\Http\Controllers\Web\FiscalSettingsController;
 use App\Http\Controllers\Web\HistoricalSaleImportController;
 use App\Http\Controllers\Web\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -29,5 +30,26 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/{historicalSaleImport}/file', [HistoricalSaleImportController::class, 'download'])->name('download');
         Route::post('/{historicalSaleImport}/confirm', [HistoricalSaleImportController::class, 'confirm'])->name('confirm');
         Route::post('/{historicalSaleImport}/rows/{row}/regenerate', [HistoricalSaleImportController::class, 'regenerate'])->name('rows.regenerate');
+    });
+
+    Route::prefix('fiscal-settings')->name('fiscal-settings.')->group(function (): void {
+        Route::get('/', [FiscalSettingsController::class, 'index'])
+            ->middleware('can:fiscal-settings.view')
+            ->name('index');
+        Route::post('/', [FiscalSettingsController::class, 'store'])
+            ->middleware('can:fiscal-settings.manage')
+            ->name('store');
+        Route::put('/{fiscal_issuer}', [FiscalSettingsController::class, 'update'])
+            ->middleware('can:fiscal-settings.manage')
+            ->name('update');
+        Route::put('/{fiscal_issuer}/credentials', [FiscalSettingsController::class, 'updateCredentials'])
+            ->middleware('can:fiscal-credentials.manage')
+            ->name('credentials.update');
+        Route::post('/{fiscal_issuer}/certificate', [FiscalSettingsController::class, 'storeCertificate'])
+            ->middleware('can:fiscal-credentials.manage')
+            ->name('certificate.store');
+        Route::delete('/{fiscal_issuer}/certificate', [FiscalSettingsController::class, 'destroyCertificate'])
+            ->middleware('can:fiscal-credentials.manage')
+            ->name('certificate.destroy');
     });
 });

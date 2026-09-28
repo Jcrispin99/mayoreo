@@ -14,6 +14,27 @@ use Illuminate\Support\Carbon;
 
 uses(RefreshDatabase::class);
 
+/** @return array<string, mixed> */
+function attendanceScanPayload(string $qrPayload, array $overrides = []): array
+{
+    return array_merge([
+        'qr_payload' => $qrPayload,
+        'device_id' => 'phone-1',
+        'latitude' => -12.0463740,
+        'longitude' => -77.0427930,
+        'accuracy' => 10,
+    ], $overrides);
+}
+
+/** @return array{Authorization: string} */
+function attendanceDeviceHeaders(User $user, string $deviceId = 'phone-1'): array
+{
+    $token = $user->createToken('worker');
+    $token->accessToken->forceFill(['device_id' => $deviceId])->save();
+
+    return ['Authorization' => 'Bearer '.$token->plainTextToken];
+}
+
 beforeEach(function (): void {
     $this->manager = User::factory()->create();
     grantApiPermissions(
@@ -98,7 +119,8 @@ it('alternates QR scans between entry and exit using server time', function (): 
         'monthly_divisor' => 30,
         'work_days' => [0, 1, 2, 3, 4, 5, 6],
     ]);
-    $workerHeaders = ['Authorization' => 'Bearer '.$worker->createToken('worker')->plainTextToken];
+    $workerHeaders = attendanceDeviceHeaders($worker);
+    Carbon::setTestNow(Carbon::parse('2026-08-12 13:00:00', 'UTC'));
     $payload = $this->withHeaders($this->managerHeaders)
         ->postJson("/api/v1/stores/{$this->store->id}/attendance-qr/rotate")
         ->assertOk()->json('data.payload');
@@ -111,30 +133,25 @@ it('alternates QR scans between entry and exit using server time', function (): 
         ->assertJsonPath('data.payload', $payload);
 
     $storedToken = $this->store->attendanceQrToken()->firstOrFail();
-    $rawToken = str_replace((string) config('payroll.qr_prefix'), '', $payload);
-    expect($storedToken->getRawOriginal('encrypted_token'))->not->toBe($rawToken)
-        ->and($storedToken->encrypted_token)->toBe($rawToken);
+    expect($storedToken->getRawOriginal('encrypted_token'))->not->toBe($storedToken->encrypted_token)
+        ->and($payload)->toStartWith((string) config('payroll.qr_prefix').'v2:');
 
     $this->app['auth']->forgetGuards();
-    Carbon::setTestNow(Carbon::parse('2026-08-12 13:00:00', 'UTC'));
     expect($worker->fresh()?->can('attendance.mark'))->toBeTrue();
-    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', [
-        'qr_payload' => $payload,
-        'device_id' => 'phone-1',
-    ])->assertCreated()
+    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', attendanceScanPayload($payload))->assertCreated()
         ->assertJsonPath('data.action', 'entry')
         ->assertJsonPath('data.shift.status', 'open');
 
-    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', [
-        'qr_payload' => $payload,
-        'device_id' => 'phone-1',
-    ])->assertUnprocessable();
+    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', attendanceScanPayload($payload))
+        ->assertUnprocessable();
 
     Carbon::setTestNow(Carbon::parse('2026-08-12 22:00:00', 'UTC'));
-    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', [
-        'qr_payload' => $payload,
-        'device_id' => 'phone-1',
-    ])->assertCreated()
+    $this->app['auth']->forgetGuards();
+    $payload = $this->withHeaders($this->managerHeaders)
+        ->getJson("/api/v1/stores/{$this->store->id}/attendance-qr")
+        ->assertOk()->json('data.payload');
+    $this->app['auth']->forgetGuards();
+    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', attendanceScanPayload($payload))->assertCreated()
         ->assertJsonPath('data.action', 'exit')
         ->assertJsonPath('data.shift.status', 'completed')
         ->assertJsonPath('data.shift.worked_minutes', 540);
@@ -156,21 +173,23 @@ it('starts a new attendance day after marking an unfinished previous shift as an
         'monthly_divisor' => 30,
         'work_days' => [0, 1, 2, 3, 4, 5, 6],
     ]);
-    $workerHeaders = ['Authorization' => 'Bearer '.$worker->createToken('worker')->plainTextToken];
+    $workerHeaders = attendanceDeviceHeaders($worker);
+    Carbon::setTestNow(Carbon::parse('2026-08-12 23:00:00', 'America/Lima'));
     $payload = $this->withHeaders($this->managerHeaders)
         ->postJson("/api/v1/stores/{$this->store->id}/attendance-qr/rotate")
         ->assertOk()->json('data.payload');
 
     $this->app['auth']->forgetGuards();
-    Carbon::setTestNow(Carbon::parse('2026-08-12 23:00:00', 'America/Lima'));
-    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', [
-        'qr_payload' => $payload,
-    ])->assertCreated()->assertJsonPath('data.action', 'entry');
+    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', attendanceScanPayload($payload))
+        ->assertCreated()->assertJsonPath('data.action', 'entry');
 
     Carbon::setTestNow(Carbon::parse('2026-08-13 08:00:00', 'America/Lima'));
-    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', [
-        'qr_payload' => $payload,
-    ])->assertCreated()
+    $this->app['auth']->forgetGuards();
+    $payload = $this->withHeaders($this->managerHeaders)
+        ->getJson("/api/v1/stores/{$this->store->id}/attendance-qr")
+        ->assertOk()->json('data.payload');
+    $this->app['auth']->forgetGuards();
+    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', attendanceScanPayload($payload))->assertCreated()
         ->assertJsonPath('data.action', 'entry')
         ->assertJsonPath('data.shift.status', 'open');
 
@@ -181,6 +200,45 @@ it('starts a new attendance day after marking an unfinished previous shift as an
         'worked_minutes' => null,
     ]);
     $this->assertDatabaseCount('attendance_shifts', 2);
+});
+
+it('rejects expired QR codes, another device, inaccurate GPS and locations outside the store', function (): void {
+    $worker = User::factory()->create();
+    grantApiPermissions($worker, 'attendance.mark');
+    EmployeeProfile::query()->create([
+        'user_id' => $worker->id,
+        'store_id' => $this->store->id,
+        'employment_status' => 'active',
+        'hired_at' => '2026-08-01',
+        'expected_minutes_per_day' => 840,
+        'monthly_divisor' => 30,
+        'work_days' => [0, 1, 2, 3, 4, 5, 6],
+    ]);
+    $workerHeaders = attendanceDeviceHeaders($worker);
+
+    Carbon::setTestNow(Carbon::parse('2026-08-12 13:00:00', 'UTC'));
+    $payload = $this->withHeaders($this->managerHeaders)
+        ->postJson("/api/v1/stores/{$this->store->id}/attendance-qr/rotate")
+        ->assertOk()->json('data.payload');
+
+    $this->app['auth']->forgetGuards();
+    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', attendanceScanPayload($payload, [
+        'device_id' => 'another-phone',
+    ]))->assertUnprocessable()->assertJsonPath('message', 'La marcación debe realizarse desde el dispositivo vinculado a esta sesión.');
+
+    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', attendanceScanPayload($payload, [
+        'accuracy' => 150,
+    ]))->assertUnprocessable()->assertJsonPath('message', 'No se pudo obtener una ubicación suficientemente precisa. Activa la ubicación exacta e inténtalo nuevamente.');
+
+    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', attendanceScanPayload($payload, [
+        'latitude' => -12.0563740,
+    ]))->assertUnprocessable()->assertJsonPath('message', 'Debes encontrarte dentro del área autorizada de la tienda para marcar asistencia.');
+
+    Carbon::setTestNow(Carbon::parse('2026-08-12 13:02:00', 'UTC'));
+    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', attendanceScanPayload($payload))
+        ->assertUnprocessable()->assertJsonPath('message', 'El código QR expiró. Espera a que la pantalla muestre uno nuevo y vuelve a escanear.');
+
+    $this->assertDatabaseCount('attendance_shifts', 0);
 });
 
 it('excludes attendance without an exit from payroll minutes and pay', function (): void {

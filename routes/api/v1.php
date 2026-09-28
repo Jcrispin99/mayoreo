@@ -383,6 +383,9 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     Route::post('fiscal-documents/{fiscal_document}/send', [FiscalDocumentController::class, 'send'])
         ->middleware('can:sales.manage')
         ->name('api.v1.fiscal-documents.send');
+    Route::post('fiscal-documents/{fiscal_document}/credit-note', [FiscalDocumentController::class, 'creditNote'])
+        ->middleware('can:sales.manage')
+        ->name('api.v1.fiscal-documents.credit-note');
 });
 
 // Password reset routes (public with rate limiting)

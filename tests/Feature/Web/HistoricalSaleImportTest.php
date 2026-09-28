@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Jobs\SendFiscalDocumentToSunat;
 use App\Models\DocumentSeries;
 use App\Models\FiscalIssuer;
 use App\Models\HistoricalSaleImport;
@@ -14,6 +15,7 @@ use App\Models\Warehouse;
 use App\Services\StockLedgerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -23,6 +25,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     Storage::fake('local');
+    Queue::fake();
 
     $this->user = User::factory()->create();
     grantApiPermissions($this->user, 'sales.manage');
@@ -124,6 +127,8 @@ it('confirms rows chronologically as new receipts with Yape payments and exact t
     $import->refresh();
     $sales = $import->rows()->with('sale.fiscalDocuments', 'sale.payments')->orderBy('sold_at')->get();
 
+    Queue::assertPushed(SendFiscalDocumentToSunat::class, 2);
+
     expect($import->status)->toBe('completed')
         ->and($import->imported_rows)->toBe(2)
         ->and($import->imported_total)->toBe('55.00')
@@ -142,6 +147,44 @@ it('confirms rows chronologically as new receipts with Yape payments and exact t
     $this->assertDatabaseCount('sales', 2);
     $this->assertDatabaseCount('sale_payments', 2);
     $this->assertDatabaseCount('fiscal_documents', 2);
+});
+
+it('shows the SUNAT response for every imported receipt', function (): void {
+    $this->actingAs($this->user)->post('/historical-sales', [
+        'warehouse_id' => $this->warehouse->id,
+        'document_series_id' => $this->historicalSeries->id,
+        'file' => historicalSalesSpreadsheet([
+            ['10/08/2026', '11:25', '25.00'],
+        ]),
+    ])->assertRedirect();
+
+    $import = HistoricalSaleImport::query()->firstOrFail();
+    $this->actingAs($this->user)->post("/historical-sales/{$import->id}/confirm")->assertRedirect();
+    $document = $import->rows()->with('sale.fiscalDocuments')->firstOrFail()->sale?->fiscalDocuments->firstOrFail();
+    assert($document !== null);
+    $document->update([
+        'sunat_status' => 'accepted',
+        'sunat_attempts' => 1,
+        'cdr_code' => '0',
+        'cdr_description' => 'La boleta ha sido aceptada.',
+        'xml_path' => 'documents/test.xml',
+        'cdr_path' => 'documents/test-cdr.zip',
+        'sunat_sent_at' => now(),
+        'sunat_responded_at' => now(),
+    ]);
+
+    $this->actingAs($this->user)
+        ->get("/historical-sales/{$import->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('historical-sales/show')
+            ->where('import.rows.0.document_number', 'B901-00000001')
+            ->where('import.rows.0.sunat.status', 'accepted')
+            ->where('import.rows.0.sunat.attempts', 1)
+            ->where('import.rows.0.sunat.cdr_code', '0')
+            ->where('import.rows.0.sunat.cdr_description', 'La boleta ha sido aceptada.')
+            ->where('import.rows.0.sunat.has_xml', true)
+            ->where('import.rows.0.sunat.has_cdr', true));
 });
 
 it('imports only TE PAGÓ operations and preserves their Yape data', function (): void {
@@ -240,6 +283,47 @@ it('proposes more products as the Yape payment amount grows when stock is availa
     ])->assertRedirect();
 
     expect(HistoricalSaleImport::query()->firstOrFail()->rows()->firstOrFail()->proposed_items)->toHaveCount(3);
+});
+
+it('proposes and imports historical sales when warehouse stock is negative', function (): void {
+    $retailWarehouse = Warehouse::factory()->for($this->store)->retail()->create();
+    app(StockLedgerService::class)->registerOut(
+        $this->product,
+        $retailWarehouse,
+        '2.000000',
+        'sale',
+    );
+
+    $this->actingAs($this->user)->post('/historical-sales', [
+        'warehouse_id' => $retailWarehouse->id,
+        'document_series_id' => $this->historicalSeries->id,
+        'file' => historicalSalesSpreadsheet([
+            ['10/08/2026', '11:25', '13.00'],
+        ]),
+    ])->assertRedirect();
+
+    $import = HistoricalSaleImport::query()->firstOrFail();
+    $row = $import->rows()->firstOrFail();
+    $proposedQuantity = $row->proposed_items[0]['quantity'] ?? null;
+    assert(is_string($proposedQuantity));
+
+    expect($row->status)->toBe('ready')
+        ->and($row->proposed_items)->toHaveCount(1)
+        ->and($proposedQuantity)->toBeString()
+        ->and(preg_match('/^1\.\d*[1-9]\d*$/', $proposedQuantity))->toBe(1);
+
+    $this->actingAs($this->user)
+        ->post("/historical-sales/{$import->id}/confirm")
+        ->assertRedirect();
+
+    Queue::assertPushed(SendFiscalDocumentToSunat::class, 1);
+
+    /** @var numeric-string $proposedQuantity */
+    $expectedStock = bcsub('-2.000000', $proposedQuantity, 6);
+
+    expect($row->fresh()->status)->toBe('imported')
+        ->and($retailWarehouse->stocks()->where('product_id', $this->product->id)->firstOrFail()->quantity)
+        ->toBe($expectedStock);
 });
 
 it('rejects uploading the same file twice for one warehouse', function (): void {
@@ -354,6 +438,17 @@ it('supports legacy warehouses and global series without a fiscal issuer', funct
     ])->assertRedirect();
 
     expect(HistoricalSaleImport::query()->firstOrFail()->status)->toBe('ready');
+});
+
+it('defaults new web imports to the main warehouse', function (): void {
+    $mainWarehouse = Warehouse::factory()->for($this->store)->main()->create();
+
+    $this->actingAs($this->user)
+        ->get('/historical-sales/create')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('historical-sales/create')
+            ->where('default_warehouse_id', $mainWarehouse->id));
 });
 
 /**

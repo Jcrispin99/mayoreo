@@ -1,6 +1,6 @@
 import { Head, Link, router } from "@inertiajs/react"
 import { AlertTriangleIcon, ArrowLeftIcon, CheckCircle2Icon, DownloadIcon, LoaderCircleIcon, RefreshCwIcon } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -32,6 +32,19 @@ type ImportRow = {
   error_message: string | null
   sale_id: number | null
   document_number: string | null
+  sunat: {
+    status: string
+    attempts: number
+    error_code: string | null
+    error_message: string | null
+    cdr_code: string | null
+    cdr_description: string | null
+    cdr_notes: string[]
+    has_xml: boolean
+    has_cdr: boolean
+    sent_at: string | null
+    responded_at: string | null
+  } | null
 }
 
 type ImportDetail = {
@@ -55,10 +68,36 @@ type ImportDetail = {
   rows: ImportRow[]
 }
 
+const sunatStatusLabels: Record<string, string> = {
+  pending: "En cola",
+  processing: "Enviando",
+  accepted: "Aceptada",
+  observed: "Aceptada con observaciones",
+  rejected: "Rechazada",
+  error: "Error",
+}
+
+function sunatBadgeVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
+  if (status === "accepted") return "default"
+  if (status === "observed" || status === "processing") return "secondary"
+  if (status === "rejected" || status === "error") return "destructive"
+  return "outline"
+}
+
 export default function HistoricalSaleImportShow({ import: batch }: { import: ImportDetail }) {
   const [confirming, setConfirming] = useState(false)
   const canConfirm = batch.ready_rows > 0
   const lastProvisionalNumber = batch.next_number + Math.max(batch.ready_rows - 1, 0)
+  const fiscalRows = batch.rows.filter((row) => row.sunat !== null)
+  const acceptedBySunat = fiscalRows.filter((row) => ["accepted", "observed"].includes(row.sunat?.status ?? "")).length
+  const hasSunatInFlight = fiscalRows.some((row) => ["pending", "processing"].includes(row.sunat?.status ?? ""))
+
+  useEffect(() => {
+    if (!hasSunatInFlight) return
+
+    const interval = window.setInterval(() => router.reload({ only: ["import"] }), 3000)
+    return () => window.clearInterval(interval)
+  }, [hasSunatInFlight])
 
   function confirmImport() {
     if (!window.confirm(`Se crearán ${batch.ready_rows} ventas, pagos Yape y boletas nuevas. La serie ${batch.series_code} avanzará hasta ${String(lastProvisionalNumber).padStart(8, "0")}. ¿Continuar?`)) return
@@ -82,6 +121,11 @@ export default function HistoricalSaleImportShow({ import: batch }: { import: Im
           <div className="flex gap-2">
             <Button nativeButton={false} variant="outline" render={<Link href="/historical-sales" />}><ArrowLeftIcon /> Volver</Button>
             <Button nativeButton={false} variant="outline" render={<a href={`/historical-sales/${batch.id}/file`} />}><DownloadIcon /> Excel original</Button>
+            {batch.imported_rows > 0 ? (
+              <Button variant="outline" onClick={() => router.reload({ only: ["import"] })}>
+                <RefreshCwIcon className={hasSunatInFlight ? "animate-spin" : ""} /> Estado SUNAT
+              </Button>
+            ) : null}
             <Button onClick={confirmImport} disabled={!canConfirm || confirming}>
               {confirming ? <LoaderCircleIcon className="animate-spin" /> : <CheckCircle2Icon />}
               Confirmar {batch.ready_rows} ventas
@@ -104,16 +148,17 @@ export default function HistoricalSaleImportShow({ import: batch }: { import: Im
             <AlertTriangleIcon />
             <AlertTitle>Estas ventas se registrarán como boletas</AlertTitle>
             <AlertDescription>
-              Quedarán emitidas con su serie y correlativo real. Este proceso no realizará el envío automático a SUNAT.
+              Al confirmar, se enviarán automáticamente a SUNAT en segundo plano. El estado y la respuesta aparecerán en esta pantalla.
             </AlertDescription>
           </Alert>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {[
             ["Operaciones TE PAGÓ", batch.total_rows],
             ["Listas", batch.ready_rows],
             ["Importadas", batch.imported_rows],
+            ["Aceptadas SUNAT", fiscalRows.length > 0 ? `${acceptedBySunat}/${fiscalRows.length}` : "—"],
             ["Total esperado", `S/ ${batch.expected_total}`],
           ].map(([label, value]) => (
             <Card key={label}><CardHeader className="pb-1"><CardDescription>{label}</CardDescription><CardTitle>{value}</CardTitle></CardHeader></Card>
@@ -148,7 +193,18 @@ export default function HistoricalSaleImportShow({ import: batch }: { import: Im
                       <p className="text-xs text-muted-foreground">Destino: {row.destination ?? "—"}</p>
                       {row.message ? <p className="mt-1 max-w-64 text-xs text-muted-foreground">{row.message}</p> : null}
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{row.document_number ?? "—"}</TableCell>
+                    <TableCell className="min-w-56">
+                      <p className="font-mono text-xs">{row.document_number ?? "—"}</p>
+                      {row.sunat ? (
+                        <div className="mt-1 space-y-1">
+                          <Badge variant={sunatBadgeVariant(row.sunat.status)}>
+                            SUNAT: {sunatStatusLabels[row.sunat.status] ?? row.sunat.status}
+                          </Badge>
+                          {row.sunat.cdr_description ? <p className="max-w-64 text-xs text-muted-foreground">{row.sunat.cdr_description}</p> : null}
+                          {row.sunat.error_message ? <p className="max-w-64 text-xs text-destructive">{row.sunat.error_code ? `[${row.sunat.error_code}] ` : ""}{row.sunat.error_message}</p> : null}
+                        </div>
+                      ) : null}
+                    </TableCell>
                     <TableCell className="min-w-80">
                       {row.proposed_items.length > 0 ? (
                         <div className="space-y-1">

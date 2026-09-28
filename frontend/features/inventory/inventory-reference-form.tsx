@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Icon, Menu, Switch, Text, TextInput } from 'react-native-paper';
@@ -41,6 +42,10 @@ export function InventoryReferenceForm({ itemId, kind }: InventoryReferenceFormP
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
+  const [attendanceLatitude, setAttendanceLatitude] = useState('');
+  const [attendanceLongitude, setAttendanceLongitude] = useState('');
+  const [attendanceRadius, setAttendanceRadius] = useState('100');
+  const [locating, setLocating] = useState(false);
   const [active, setActive] = useState(true);
   const [storeId, setStoreId] = useState<number | null>(null);
   const [isDefault, setIsDefault] = useState(false);
@@ -78,6 +83,9 @@ export function InventoryReferenceForm({ itemId, kind }: InventoryReferenceFormP
             const store = loadedItem as Store;
             setAddress(store.address ?? '');
             setPhone(store.phone ?? '');
+            setAttendanceLatitude(store.attendance_latitude ?? '');
+            setAttendanceLongitude(store.attendance_longitude ?? '');
+            setAttendanceRadius(String(store.attendance_radius_meters ?? 100));
             setActive(store.is_active);
           } else if (kind === 'warehouses') {
             const warehouse = loadedItem as Warehouse;
@@ -117,6 +125,9 @@ export function InventoryReferenceForm({ itemId, kind }: InventoryReferenceFormP
           ...basePayload,
           address: address.trim() || null,
           phone: phone.trim() || null,
+          attendance_latitude: attendanceLatitude.trim() || null,
+          attendance_longitude: attendanceLongitude.trim() || null,
+          attendance_radius_meters: Number(attendanceRadius),
           is_active: active,
         };
       } else if (kind === 'warehouses') {
@@ -155,6 +166,24 @@ export function InventoryReferenceForm({ itemId, kind }: InventoryReferenceFormP
       setConfirmingDelete(false);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function captureAttendanceLocation() {
+    setLocating(true);
+    setError('');
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        throw new Error('Necesitas permitir la ubicación para registrar las coordenadas de la tienda.');
+      }
+      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      setAttendanceLatitude(location.coords.latitude.toFixed(7));
+      setAttendanceLongitude(location.coords.longitude.toFixed(7));
+    } catch (locationError) {
+      setError(locationError instanceof Error ? locationError.message : 'No se pudo obtener la ubicación actual.');
+    } finally {
+      setLocating(false);
     }
   }
 
@@ -208,6 +237,20 @@ export function InventoryReferenceForm({ itemId, kind }: InventoryReferenceFormP
                 <>
                   <TextInput label="Dirección" mode="flat" onChangeText={setAddress} style={styles.input} value={address} />
                   <TextInput keyboardType="phone-pad" label="Teléfono" mode="flat" onChangeText={setPhone} style={styles.input} value={phone} />
+                  <View style={styles.locationCard}>
+                    <View>
+                      <Text style={styles.switchText}>Área autorizada para asistencia</Text>
+                      <Text style={styles.switchHelp}>Ubícate físicamente en la tienda y captura sus coordenadas. Los trabajadores solo podrán marcar dentro del radio indicado.</Text>
+                    </View>
+                    <Button icon="crosshairs-gps" loading={locating} mode="outlined" onPress={() => void captureAttendanceLocation()}>
+                      Usar ubicación actual
+                    </Button>
+                    <View style={styles.coordinateRow}>
+                      <TextInput keyboardType="numbers-and-punctuation" label="Latitud" mode="flat" onChangeText={setAttendanceLatitude} style={styles.coordinateInput} value={attendanceLatitude} />
+                      <TextInput keyboardType="numbers-and-punctuation" label="Longitud" mode="flat" onChangeText={setAttendanceLongitude} style={styles.coordinateInput} value={attendanceLongitude} />
+                    </View>
+                    <TextInput keyboardType="number-pad" label="Radio permitido (metros)" mode="flat" onChangeText={setAttendanceRadius} style={styles.input} value={attendanceRadius} />
+                  </View>
                 </>
               ) : null}
 
@@ -333,6 +376,9 @@ const styles = StyleSheet.create({
   error: { marginTop: 16, padding: 12, borderRadius: 8, color: '#8F1D2C', backgroundColor: '#FCE8EA' },
   form: { marginTop: 22, gap: 19 },
   input: { backgroundColor: 'transparent' },
+  locationCard: { padding: 14, gap: 12, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 10, backgroundColor: '#FFFFFF' },
+  coordinateRow: { flexDirection: 'row', gap: 12 },
+  coordinateInput: { flex: 1, backgroundColor: 'transparent' },
   fieldLabel: { marginBottom: 3, color: '#60706E', fontSize: 11 },
   selector: { minHeight: 48, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#879692' },
   selectorDisabled: { opacity: 0.65 },

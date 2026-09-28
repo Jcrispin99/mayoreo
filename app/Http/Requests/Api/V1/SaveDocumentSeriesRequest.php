@@ -29,7 +29,7 @@ final class SaveDocumentSeriesRequest extends FormRequest
                 'integer',
                 Rule::exists('fiscal_issuers', 'id')->where('is_active', true),
             ],
-            'document_type' => ['required', Rule::in(['sales_ticket', 'receipt', 'invoice'])],
+            'document_type' => ['required', Rule::in(['sales_ticket', 'receipt', 'invoice', 'credit_note'])],
             'series_code' => [
                 'required',
                 'string',
@@ -50,6 +50,16 @@ final class SaveDocumentSeriesRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
+            $documentType = $this->string('document_type')->toString();
+            $seriesCode = $this->string('series_code')->toString();
+
+            if ($documentType === 'credit_note' && preg_match('/^[BF][A-Z0-9]{3}$/', $seriesCode) !== 1) {
+                $validator->errors()->add(
+                    'series_code',
+                    'La serie de nota de crédito debe tener 4 caracteres y comenzar con B para boletas o F para facturas.',
+                );
+            }
+
             $series = $this->route('document_series');
 
             if (! $series instanceof DocumentSeries) {
@@ -70,11 +80,11 @@ final class SaveDocumentSeriesRequest extends FormRequest
                 );
             }
 
-            if ($this->string('document_type')->toString() !== $series->document_type) {
+            if ($documentType !== $series->document_type) {
                 $validator->errors()->add('document_type', 'No se puede cambiar el tipo de una serie que ya está en uso.');
             }
 
-            if ($this->string('series_code')->toString() !== $series->series_code) {
+            if ($seriesCode !== $series->series_code) {
                 $validator->errors()->add('series_code', 'No se puede cambiar una serie que ya emitió documentos.');
             }
 

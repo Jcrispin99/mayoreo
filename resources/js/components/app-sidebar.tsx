@@ -5,6 +5,7 @@ import {
   HistoryIcon,
   LogOutIcon,
   PackageCheckIcon,
+  ShieldCheckIcon,
   UserRoundIcon,
 } from "lucide-react"
 
@@ -51,6 +52,12 @@ export function AppSidebar() {
       href: "/historical-sales",
       icon: HistoryIcon,
       visible: permissions.includes("sales.manage"),
+    },
+    {
+      title: "Configuración SUNAT",
+      href: "/fiscal-settings",
+      icon: ShieldCheckIcon,
+      visible: permissions.includes("fiscal-settings.view"),
     },
     { title: "Mi perfil", href: "/profile", icon: UserRoundIcon, visible: true },
   ]

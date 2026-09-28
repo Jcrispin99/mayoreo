@@ -9,4 +9,7 @@ return [
     'maximum_shift_minutes' => (int) env('ATTENDANCE_MAXIMUM_SHIFT_MINUTES', 1080),
     'attendance_day_starts_at' => env('ATTENDANCE_DAY_STARTS_AT', '00:00'),
     'qr_prefix' => 'mayoreo-attendance:',
+    'qr_ttl_seconds' => (int) env('ATTENDANCE_QR_TTL_SECONDS', 60),
+    'qr_clock_skew_seconds' => (int) env('ATTENDANCE_QR_CLOCK_SKEW_SECONDS', 5),
+    'maximum_location_accuracy_meters' => (int) env('ATTENDANCE_MAXIMUM_LOCATION_ACCURACY_METERS', 100),
 ];

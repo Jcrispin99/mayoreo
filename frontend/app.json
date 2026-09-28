@@ -62,6 +62,12 @@
         }
       ],
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Mayoreo usa tu ubicación al marcar asistencia para comprobar que estás dentro de la tienda."
+        }
+      ],
+      [
         "expo-media-library",
         {
           "photosPermission": false,

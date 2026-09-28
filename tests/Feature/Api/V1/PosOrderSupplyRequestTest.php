@@ -44,6 +44,12 @@ beforeEach(function (): void {
         'current_number' => 0,
         'is_active' => true,
     ]);
+    $this->receiptSeries = DocumentSeries::factory()->create([
+        'document_type' => 'receipt',
+        'series_code' => 'B01',
+        'current_number' => 0,
+        'is_active' => true,
+    ]);
     $this->cashRegister = CashRegister::query()->create([
         'store_id' => $this->store->id,
         'warehouse_id' => $this->pos->id,
@@ -53,6 +59,7 @@ beforeEach(function (): void {
         'is_active' => true,
     ]);
     $this->cashRegister->salesSeries()->attach($this->series);
+    $this->cashRegister->salesSeries()->attach($this->receiptSeries);
     $this->session = CashRegisterSession::query()->create([
         'cash_register_id' => $this->cashRegister->id,
         'opened_by' => $this->cashier->id,

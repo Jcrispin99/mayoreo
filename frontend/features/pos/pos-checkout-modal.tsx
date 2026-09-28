@@ -96,7 +96,9 @@ function CheckoutSuccess({
         <Text style={styles.successSubtitle}>El cobro, la venta y la salida de stock quedaron registrados.</Text>
 
         <View style={styles.successDocument}>
-          <Text style={styles.successDocumentLabel}>Nota de venta</Text>
+          <Text style={styles.successDocumentLabel}>
+            {result.fiscal_document.document_type === 'receipt' ? 'Boleta' : 'Nota de venta'}
+          </Text>
           <Text style={styles.successDocumentNumber}>
             {result.fiscal_document.series_code}-{result.fiscal_document.number}
           </Text>

@@ -344,17 +344,21 @@ final class ProductCatalogSeeder extends Seeder
      */
     private function priceTiers(Product $product, array $tiers): void
     {
-        $product->priceTiers()->delete();
+        $product->priceTiers()->update(['is_active' => false]);
 
         foreach ($tiers as $tier) {
-            PriceTier::query()->create([
-                'product_id' => $product->id,
-                'label' => $tier['label'],
-                'min_quantity' => $tier['min'],
-                'max_quantity' => $tier['max'],
-                'unit_price' => $tier['price'],
-                'is_active' => true,
-            ]);
+            PriceTier::query()->updateOrCreate(
+                [
+                    'product_id' => $product->id,
+                    'label' => $tier['label'],
+                ],
+                [
+                    'min_quantity' => $tier['min'],
+                    'max_quantity' => $tier['max'],
+                    'unit_price' => $tier['price'],
+                    'is_active' => true,
+                ],
+            );
         }
     }
 

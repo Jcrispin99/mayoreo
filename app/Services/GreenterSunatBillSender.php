@@ -22,6 +22,7 @@ use Greenter\Model\Response\BillResult;
 use Greenter\Model\Sale\FormaPagos\FormaPagoContado;
 use Greenter\Model\Sale\Invoice;
 use Greenter\Model\Sale\Legend;
+use Greenter\Model\Sale\Note;
 use Greenter\Model\Sale\SaleDetail;
 use Greenter\See;
 use Greenter\Ws\Services\SunatEndpoints;
@@ -29,7 +30,18 @@ use NumberFormatter;
 
 final readonly class GreenterSunatBillSender implements SunatBillSender
 {
-    private const float IGV_FACTOR = 1.18;
+    private const string EXONERATED_IGV_AFFECTATION = '20';
+
+    /**
+     * Maps our internal unit codes to SUNAT's Catálogo 03 (Unidades de
+     * Medida) codes. Internal codes stay as-is elsewhere (conversions, POS,
+     * product forms all key off them) — only the SUNAT wire format differs.
+     *
+     * @var array<string, string>
+     */
+    private const array SUNAT_UNIT_CODES = [
+        'kg' => 'KGM',
+    ];
 
     public function __construct(
         private FiscalCertificateService $certificateService,
@@ -40,6 +52,7 @@ final readonly class GreenterSunatBillSender implements SunatBillSender
         $document->loadMissing([
             'fiscalIssuer.credential',
             'sale.items.product.baseUnit',
+            'affectedDocument',
         ]);
 
         $issuer = $document->fiscalIssuer;
@@ -52,8 +65,10 @@ final readonly class GreenterSunatBillSender implements SunatBillSender
         }
 
         $see = $this->makeSee($document, $credential);
-        $invoice = $this->makeInvoice($document);
-        $result = $see->send($invoice);
+        $sunatDocument = $document->document_type === 'credit_note'
+            ? $this->makeNote($document)
+            : $this->makeInvoice($document);
+        $result = $see->send($sunatDocument);
         $xml = $see->getFactory()->getLastXml();
 
         if (! is_string($xml) || $xml === '') {
@@ -147,22 +162,15 @@ final readonly class GreenterSunatBillSender implements SunatBillSender
             $sale->customer_name,
         );
         $details = [];
-        $taxable = 0.0;
-        $igv = 0.0;
-        $total = 0.0;
+        $exonerated = 0.0;
 
         foreach ($items as $item) {
             $detail = $this->makeDetail($item);
             $details[] = $detail;
-            $taxable += (float) $detail->getMtoValorVenta();
-            $igv += (float) $detail->getIgv();
-            $total += (float) $detail->getMtoPrecioUnitario()
-                * (float) $detail->getCantidad();
+            $exonerated += (float) $detail->getMtoValorVenta();
         }
 
-        $taxable = round($taxable, 2);
-        $igv = round($igv, 2);
-        $total = round($taxable + $igv, 2);
+        $exonerated = round($exonerated, 2);
 
         return (new Invoice())
             ->setUblVersion('2.1')
@@ -175,17 +183,85 @@ final readonly class GreenterSunatBillSender implements SunatBillSender
             ->setTipoMoneda('PEN')
             ->setCompany($this->makeCompany($document))
             ->setClient($client)
-            ->setMtoOperGravadas($taxable)
-            ->setMtoIGV($igv)
-            ->setTotalImpuestos($igv)
-            ->setValorVenta($taxable)
-            ->setSubTotal($total)
-            ->setMtoImpVenta($total)
+            ->setMtoOperExoneradas($exonerated)
+            ->setMtoIGV(0.0)
+            ->setTotalImpuestos(0.0)
+            ->setValorVenta($exonerated)
+            ->setSubTotal($exonerated)
+            ->setMtoImpVenta($exonerated)
             ->setDetails($details)
             ->setLegends([
                 (new Legend())
                     ->setCode('1000')
-                    ->setValue($this->amountInWords($total)),
+                    ->setValue($this->amountInWords($exonerated)),
+            ]);
+    }
+
+    private function makeNote(FiscalDocument $document): Note
+    {
+        if (! $document->hasFiscalIdentitySnapshot()) {
+            throw SunatTransmissionException::missingIdentity();
+        }
+
+        $sale = $document->sale;
+        $affected = $document->affectedDocument;
+
+        if (! $sale instanceof Sale || ! $affected instanceof FiscalDocument) {
+            throw SunatTransmissionException::emptySale();
+        }
+
+        $items = $document->credit_note_items ?? [];
+
+        if ($items === []) {
+            throw SunatTransmissionException::emptySale();
+        }
+
+        $client = $this->makeClient(
+            $affected->document_type,
+            $sale->customer_document,
+            $sale->customer_name,
+        );
+        $details = [];
+        $exonerated = 0.0;
+
+        foreach ($items as $item) {
+            $detail = $this->makeSaleDetail(
+                (string) $item['product_sku'],
+                (string) $item['unit_code'],
+                (string) $item['product_name'],
+                (float) $item['quantity'],
+                round((float) $item['line_total'], 2),
+            );
+            $details[] = $detail;
+            $exonerated += (float) $detail->getMtoValorVenta();
+        }
+
+        $exonerated = round($exonerated, 2);
+
+        return (new Note())
+            ->setUblVersion('2.1')
+            ->setTipoDoc('07')
+            ->setSerie($document->series_code)
+            ->setCorrelativo((string) $document->number)
+            ->setFechaEmision($document->issued_at->toDateTimeImmutable())
+            ->setTipoMoneda('PEN')
+            ->setCompany($this->makeCompany($document))
+            ->setClient($client)
+            ->setCodMotivo((string) $document->reason_code)
+            ->setDesMotivo((string) $document->reason_description)
+            ->setTipDocAfectado($affected->document_type === 'invoice' ? '01' : '03')
+            ->setNumDocfectado($affected->series_code.'-'.$affected->number)
+            ->setMtoOperExoneradas($exonerated)
+            ->setMtoIGV(0.0)
+            ->setTotalImpuestos(0.0)
+            ->setValorVenta($exonerated)
+            ->setSubTotal($exonerated)
+            ->setMtoImpVenta($exonerated)
+            ->setDetails($details)
+            ->setLegends([
+                (new Legend())
+                    ->setCode('1000')
+                    ->setValue($this->amountInWords($exonerated)),
             ]);
     }
 
@@ -251,15 +327,6 @@ final readonly class GreenterSunatBillSender implements SunatBillSender
 
     private function makeDetail(Productable $item): SaleDetail
     {
-        $quantity = (float) $item->quantity;
-        $inclusiveTotal = round((float) $item->line_total, 2);
-
-        if ($quantity <= 0 || $inclusiveTotal < 0) {
-            throw SunatTransmissionException::emptySale();
-        }
-
-        $taxable = round($inclusiveTotal / self::IGV_FACTOR, 2);
-        $igv = round($inclusiveTotal - $taxable, 2);
         $product = $item->product;
         $baseUnit = $product?->baseUnit;
 
@@ -267,19 +334,41 @@ final readonly class GreenterSunatBillSender implements SunatBillSender
             throw SunatTransmissionException::emptySale();
         }
 
+        return $this->makeSaleDetail(
+            $product->sku,
+            $baseUnit->code,
+            $product->name,
+            (float) $item->quantity,
+            round((float) $item->line_total, 2),
+        );
+    }
+
+    private function makeSaleDetail(
+        string $sku,
+        string $unitCode,
+        string $description,
+        float $quantity,
+        float $inclusiveTotal,
+    ): SaleDetail {
+        if ($quantity <= 0 || $inclusiveTotal < 0) {
+            throw SunatTransmissionException::emptySale();
+        }
+
+        $exonerated = round($inclusiveTotal, 2);
+
         return (new SaleDetail())
-            ->setCodProducto($product->sku)
-            ->setUnidad($baseUnit->code)
+            ->setCodProducto($sku)
+            ->setUnidad(self::SUNAT_UNIT_CODES[$unitCode] ?? $unitCode)
             ->setCantidad($quantity)
-            ->setDescripcion($product->name)
-            ->setMtoBaseIgv($taxable)
-            ->setPorcentajeIgv(18.0)
-            ->setIgv($igv)
-            ->setTipAfeIgv('10')
-            ->setTotalImpuestos($igv)
-            ->setMtoValorVenta($taxable)
-            ->setMtoValorUnitario(round($taxable / $quantity, 10))
-            ->setMtoPrecioUnitario(round($inclusiveTotal / $quantity, 10));
+            ->setDescripcion($description)
+            ->setMtoBaseIgv($exonerated)
+            ->setPorcentajeIgv(0.0)
+            ->setIgv(0.0)
+            ->setTipAfeIgv(self::EXONERATED_IGV_AFFECTATION)
+            ->setTotalImpuestos(0.0)
+            ->setMtoValorVenta($exonerated)
+            ->setMtoValorUnitario(round($exonerated / $quantity, 10))
+            ->setMtoPrecioUnitario(round($exonerated / $quantity, 10));
     }
 
     private function amountInWords(float $amount): string

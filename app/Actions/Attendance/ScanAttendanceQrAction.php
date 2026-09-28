@@ -9,30 +9,23 @@ use App\Models\AttendanceEvent;
 use App\Models\AttendanceShift;
 use App\Models\EmployeeProfile;
 use App\Models\PayrollPeriod;
-use App\Models\StoreAttendanceQrToken;
+use App\Models\Store;
 use App\Models\User;
+use App\Services\AttendanceQrPayloadService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 final readonly class ScanAttendanceQrAction
 {
+    public function __construct(private AttendanceQrPayloadService $payloadService) {}
+
     /** @param array<string, mixed> $metadata
      * @return array{action: 'entry'|'exit', shift: AttendanceShift}
      */
     public function execute(User $user, string $payload, array $metadata = []): array
     {
-        $prefix = config('payroll.qr_prefix');
-        assert(is_string($prefix));
-        if (! str_starts_with($payload, $prefix)) {
-            throw PayrollException::invalidQr();
-        }
-
-        $rawToken = mb_substr($payload, mb_strlen($prefix));
-        $qr = StoreAttendanceQrToken::query()->with('store')
-            ->where('token_hash', hash('sha256', $rawToken))->first();
-        if (! $qr || ! $qr->store->is_active) {
-            throw PayrollException::invalidQr();
-        }
+        $qr = $this->payloadService->resolve($payload);
+        $metadata['distance_meters'] = $this->validateLocation($qr->store, $metadata);
 
         return DB::transaction(function () use ($user, $qr, $metadata): array {
             $now = now()->toImmutable()->utc();
@@ -108,6 +101,42 @@ final readonly class ScanAttendanceQrAction
 
             return ['action' => 'entry', 'shift' => $shift];
         });
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function validateLocation(Store $store, array $metadata): float
+    {
+        if ($store->attendance_latitude === null || $store->attendance_longitude === null) {
+            throw PayrollException::storeLocationMissing();
+        }
+
+        $latitude = $metadata['latitude'] ?? null;
+        $longitude = $metadata['longitude'] ?? null;
+        $accuracy = $metadata['accuracy'] ?? null;
+        if (! is_numeric($latitude) || ! is_numeric($longitude) || ! is_numeric($accuracy)) {
+            throw PayrollException::inaccurateLocation();
+        }
+
+        $maximumAccuracy = config('payroll.maximum_location_accuracy_meters');
+        assert(is_int($maximumAccuracy));
+        if ((float) $accuracy > $maximumAccuracy) {
+            throw PayrollException::inaccurateLocation();
+        }
+
+        $earthRadius = 6371000.0;
+        $storeLatitude = deg2rad((float) $store->attendance_latitude);
+        $latitudeRadians = deg2rad((float) $latitude);
+        $latitudeDelta = $latitudeRadians - $storeLatitude;
+        $longitudeDelta = deg2rad((float) $longitude - (float) $store->attendance_longitude);
+        $haversine = sin($latitudeDelta / 2) ** 2
+            + cos($storeLatitude) * cos($latitudeRadians) * sin($longitudeDelta / 2) ** 2;
+        $distance = 2 * $earthRadius * asin(min(1.0, sqrt($haversine)));
+
+        if ($distance > $store->attendance_radius_meters) {
+            throw PayrollException::outsideAttendanceArea();
+        }
+
+        return round($distance, 2);
     }
 
     /** @param array<string, mixed> $metadata */

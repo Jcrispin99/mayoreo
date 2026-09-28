@@ -188,7 +188,7 @@ export type PosCheckoutResult = {
     reference: string | null;
   };
   fiscal_document: {
-    document_type: 'sales_ticket';
+    document_type: 'sales_ticket' | 'receipt';
     series_code: string;
     number: number;
   };

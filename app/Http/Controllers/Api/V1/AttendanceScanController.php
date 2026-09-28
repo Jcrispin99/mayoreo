@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Attendance\ScanAttendanceQrAction;
+use App\Exceptions\PayrollException;
 use App\Http\Controllers\Api\ApiController;
 use App\Http\Requests\Api\V1\ScanAttendanceRequest;
 use App\Http\Resources\AttendanceShiftResource;
@@ -18,8 +19,14 @@ final class AttendanceScanController extends ApiController
     {
         $user = $request->user();
         assert($user !== null);
+        $sessionDeviceId = $user->currentAccessToken()?->getAttribute('device_id');
+        if (! is_string($sessionDeviceId) || ! hash_equals($sessionDeviceId, $request->deviceId())) {
+            throw PayrollException::unauthorizedDevice();
+        }
+
         $result = $action->execute($user, $request->qrPayload(), [
             'device_id' => $request->deviceId(),
+            ...$request->location(),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);

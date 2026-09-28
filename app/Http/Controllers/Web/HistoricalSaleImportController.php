@@ -15,7 +15,7 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\HistoricalSales\HistoricalSaleProposalGenerator;
 use App\Services\HistoricalSales\HistoricalSaleSpreadsheetReader;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -55,12 +55,18 @@ final class HistoricalSaleImportController extends Controller
 
     public function create(): Response
     {
-        $warehouses = Warehouse::query()
+        $warehouseModels = Warehouse::query()
             ->where('is_active', true)
             ->whereHas('store', fn ($query) => $query->where('is_active', true))
             ->with('store:id,name,fiscal_issuer_id')
             ->orderBy('name')
-            ->get()
+            ->get();
+        $defaultWarehouse = $warehouseModels->firstWhere('code', 'MAIN')
+            ?? $warehouseModels->firstWhere('type', 'main');
+        $defaultWarehouseId = $defaultWarehouse instanceof Warehouse
+            ? $defaultWarehouse->id
+            : null;
+        $warehouses = $warehouseModels
             ->map(fn (Warehouse $warehouse): array => [
                 'id' => $warehouse->id,
                 'name' => $warehouse->name,
@@ -90,6 +96,7 @@ final class HistoricalSaleImportController extends Controller
         return Inertia::render('historical-sales/create', [
             'warehouses' => $warehouses,
             'series' => $series,
+            'default_warehouse_id' => $defaultWarehouseId,
         ]);
     }
 
@@ -201,7 +208,7 @@ final class HistoricalSaleImportController extends Controller
             'warehouse.store',
             'documentSeries',
             'creator',
-            'rows' => fn (Builder $query): Builder => $query->with('sale.fiscalDocuments')->orderBy('sold_at')->orderBy('row_number'),
+            'rows' => fn (Relation $query): Relation => $query->with('sale.fiscalDocuments')->orderBy('sold_at')->orderBy('row_number'),
         ]);
         $series = $historicalSaleImport->documentSeries;
         assert($series instanceof DocumentSeries);
@@ -235,6 +242,19 @@ final class HistoricalSaleImportController extends Controller
                         'error_message' => $row->error_message,
                         'sale_id' => $row->sale_id,
                         'document_number' => $documentNumber,
+                        'sunat' => $document === null ? null : [
+                            'status' => $document->sunat_status,
+                            'attempts' => $document->sunat_attempts,
+                            'error_code' => $document->sunat_error_code,
+                            'error_message' => $document->sunat_error_message,
+                            'cdr_code' => $document->cdr_code,
+                            'cdr_description' => $document->cdr_description,
+                            'cdr_notes' => $document->cdr_notes ?? [],
+                            'has_xml' => filled($document->xml_path),
+                            'has_cdr' => filled($document->cdr_path),
+                            'sent_at' => $document->sunat_sent_at?->toIso8601String(),
+                            'responded_at' => $document->sunat_responded_at?->toIso8601String(),
+                        ],
                     ];
                 }),
             ],

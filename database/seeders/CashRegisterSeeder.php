@@ -22,7 +22,7 @@ final class CashRegisterSeeder extends Seeder
 
         $warehouse = Warehouse::query()
             ->where('store_id', $store->id)
-            ->where('type', 'pos')
+            ->where('code', 'MAIN')
             ->first()
             ?? Warehouse::query()->where('store_id', $store->id)->where('is_default', true)->first();
 
@@ -30,23 +30,34 @@ final class CashRegisterSeeder extends Seeder
             return;
         }
 
-        $salesSeries = DocumentSeries::query()
+        $salesTicketSeries = DocumentSeries::query()
+            ->where('fiscal_issuer_id', $store->fiscal_issuer_id)
             ->where('document_type', 'sales_ticket')
             ->where('series_code', 'NV01')
             ->first();
+        $receiptSeries = DocumentSeries::query()
+            ->where('fiscal_issuer_id', $store->fiscal_issuer_id)
+            ->where('document_type', 'receipt')
+            ->where('series_code', 'B001')
+            ->first();
 
-        $cashRegister = CashRegister::query()->firstOrCreate(
+        $cashRegister = CashRegister::query()->updateOrCreate(
             ['store_id' => $store->id, 'code' => 'CAJA-01'],
             [
                 'warehouse_id' => $warehouse->id,
-                'default_sales_series_id' => $salesSeries?->id,
+                'default_sales_series_id' => $salesTicketSeries?->id,
                 'name' => 'Caja principal',
                 'is_active' => true,
             ],
         );
 
-        if ($salesSeries instanceof DocumentSeries) {
-            $cashRegister->salesSeries()->syncWithoutDetaching([$salesSeries->id]);
+        $seriesIds = array_values(array_filter([
+            $salesTicketSeries?->id,
+            $receiptSeries?->id,
+        ], is_int(...)));
+
+        if ($seriesIds !== []) {
+            $cashRegister->salesSeries()->syncWithoutDetaching($seriesIds);
         }
     }
 }

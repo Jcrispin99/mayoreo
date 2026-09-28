@@ -18,6 +18,7 @@ final class DatabaseSeeder extends Seeder
     {
         $this->call(DocumentSeriesSeeder::class);
         $this->call(WarehouseSeeder::class);
+        $this->call(FiscalIssuerSeeder::class);
         $this->call(CashRegisterSeeder::class);
         $this->call(RolePermissionSeeder::class);
         $this->call(MultipleDevicePermissionSeeder::class);

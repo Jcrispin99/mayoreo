@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
-import * as Notifications from "expo-notifications";
+import { isRunningInExpoGo } from "expo";
 import {
     createContext,
     useCallback,
@@ -31,7 +31,16 @@ const PUSH_TOKEN_STORAGE_KEY = "mayoreo.notifications.expo-token";
 const POLL_INTERVAL_MS = 20_000;
 const PRICE_CHANGES_CHANNEL_ID = "price-changes-v2";
 
-if (Platform.OS !== "web") {
+// expo-notifications throws on Android as soon as it's imported inside Expo
+// Go (removed there since SDK 53) — requiring it lazily, only outside Expo
+// Go, keeps that side effect from running instead of just guarding its use.
+type NotificationsModule = typeof import("expo-notifications");
+const Notifications: NotificationsModule | null =
+    Platform.OS !== "web" && !isRunningInExpoGo()
+        ? (require("expo-notifications") as NotificationsModule)
+        : null;
+
+if (Notifications) {
     Notifications.setNotificationHandler({
         handleNotification: async () => ({
             shouldPlaySound: true,
@@ -83,6 +92,7 @@ const PriceNotificationsContext =
 
 async function registerNativePush(): Promise<boolean> {
     if (Platform.OS !== "android" && Platform.OS !== "ios") return false;
+    if (!Notifications) return false;
 
     if (Platform.OS === "android") {
         await Notifications.deleteNotificationChannelAsync(
@@ -427,7 +437,7 @@ export function PriceNotificationsProvider({
 
             if (newNotifications.length > 0) {
                 setCatalogVersion((current) => current + 1);
-                if (!pushReady.current && Platform.OS !== "web") {
+                if (!pushReady.current && Notifications) {
                     const newest = newNotifications[0];
                     const count = newNotifications.length;
                     await Notifications.scheduleNotificationAsync({
@@ -454,7 +464,7 @@ export function PriceNotificationsProvider({
                 }
             }
             initialized.current = true;
-            await Notifications.setBadgeCountAsync(
+            await Notifications?.setBadgeCountAsync(
                 Number(response.data.data?.unread_count) || 0,
             ).catch(() => false);
         } catch {
@@ -490,19 +500,17 @@ export function PriceNotificationsProvider({
                 if (state === "active") void refresh();
             },
         );
-        const receivedSubscription =
-            Platform.OS === "web"
-                ? null
-                : Notifications.addNotificationReceivedListener(() => {
-                      void refresh();
-                  });
-        const responseSubscription =
-            Platform.OS === "web"
-                ? null
-                : Notifications.addNotificationResponseReceivedListener(() => {
-                      setVisible(true);
-                      void refresh();
-                  });
+        const receivedSubscription = Notifications
+            ? Notifications.addNotificationReceivedListener(() => {
+                  void refresh();
+              })
+            : null;
+        const responseSubscription = Notifications
+            ? Notifications.addNotificationResponseReceivedListener(() => {
+                  setVisible(true);
+                  void refresh();
+              })
+            : null;
 
         return () => {
             active = false;
@@ -535,7 +543,7 @@ export function PriceNotificationsProvider({
             })),
         );
         setUnreadCount(0);
-        await Notifications.setBadgeCountAsync(0).catch(() => false);
+        await Notifications?.setBadgeCountAsync(0).catch(() => false);
     }
 
     const value = useMemo<PriceNotificationsContextValue>(

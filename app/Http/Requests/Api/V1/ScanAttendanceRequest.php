@@ -19,7 +19,10 @@ final class ScanAttendanceRequest extends FormRequest
     {
         return [
             'qr_payload' => ['required', 'string', 'max:255'],
-            'device_id' => ['nullable', 'string', 'max:255'],
+            'device_id' => ['required', 'string', 'max:128'],
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'accuracy' => ['required', 'numeric', 'min:0', 'max:10000'],
         ];
     }
 
@@ -31,10 +34,21 @@ final class ScanAttendanceRequest extends FormRequest
         return $value;
     }
 
-    public function deviceId(): ?string
+    public function deviceId(): string
     {
         $value = $this->validated('device_id');
+        assert(is_string($value));
 
-        return is_string($value) && $value !== '' ? $value : null;
+        return $value;
+    }
+
+    /** @return array{latitude: float, longitude: float, accuracy: float} */
+    public function location(): array
+    {
+        return [
+            'latitude' => (float) $this->validated('latitude'),
+            'longitude' => (float) $this->validated('longitude'),
+            'accuracy' => (float) $this->validated('accuracy'),
+        ];
     }
 }

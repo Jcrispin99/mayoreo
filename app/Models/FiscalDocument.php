@@ -43,6 +43,10 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $sunat_sent_at
  * @property Carbon|null $sunat_responded_at
  * @property int|null $exchanged_from_document_id
+ * @property int|null $affected_document_id
+ * @property string|null $reason_code
+ * @property string|null $reason_description
+ * @property list<array{sale_item_id: int, product_id: int, product_sku: string, product_name: string, unit_code: string, quantity: string, unit_price: string, line_total: string}>|null $credit_note_items
  * @property Carbon $issued_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -88,6 +92,10 @@ final class FiscalDocument extends Model
         'sunat_sent_at',
         'sunat_responded_at',
         'exchanged_from_document_id',
+        'affected_document_id',
+        'reason_code',
+        'reason_description',
+        'credit_note_items',
         'issued_at',
     ];
 
@@ -129,6 +137,24 @@ final class FiscalDocument extends Model
     public function exchangedTo(): HasOne
     {
         return $this->hasOne(self::class, 'exchanged_from_document_id');
+    }
+
+    /**
+     * @return BelongsTo<FiscalDocument, $this>
+     */
+    public function affectedDocument(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'affected_document_id');
+    }
+
+    /**
+     * The credit note issued against this document, if any.
+     *
+     * @return HasOne<FiscalDocument, $this>
+     */
+    public function creditNote(): HasOne
+    {
+        return $this->hasOne(self::class, 'affected_document_id');
     }
 
     public function hasFiscalIdentitySnapshot(): bool
@@ -190,6 +216,7 @@ final class FiscalDocument extends Model
             'number' => 'integer',
             'sunat_attempts' => 'integer',
             'cdr_notes' => 'array',
+            'credit_note_items' => 'array',
             'issued_at' => 'datetime',
             'sunat_sent_at' => 'datetime',
             'sunat_responded_at' => 'datetime',

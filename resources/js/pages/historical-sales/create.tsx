@@ -33,9 +33,17 @@ function formattedNumber(number: number) {
   return String(number).padStart(8, "0")
 }
 
-export default function CreateHistoricalSaleImport({ warehouses, series }: { warehouses: WarehouseOption[]; series: SeriesOption[] }) {
+export default function CreateHistoricalSaleImport({
+  warehouses,
+  series,
+  default_warehouse_id,
+}: {
+  warehouses: WarehouseOption[]
+  series: SeriesOption[]
+  default_warehouse_id: number | null
+}) {
   const form = useForm({
-    warehouse_id: "",
+    warehouse_id: default_warehouse_id === null ? "" : String(default_warehouse_id),
     document_series_id: "",
     file: null as File | null,
   })

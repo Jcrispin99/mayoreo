@@ -39,12 +39,11 @@ final class SaleResource extends JsonResource
             'items' => SaleItemResource::collection($this->whenLoaded('items')),
             'payments' => SalePaymentResource::collection($this->whenLoaded('payments')),
             'fiscal_documents' => FiscalDocumentResource::collection($this->whenLoaded('fiscalDocuments')),
-            'primary_document' => $this->whenLoaded(
-                'fiscalDocuments',
-                fn (): ?FiscalDocumentResource => $this->fiscalDocuments->isEmpty()
-                    ? null
-                    : new FiscalDocumentResource($this->fiscalDocuments->first()),
-            ),
+            'primary_document' => $this->whenLoaded('fiscalDocuments', function (): ?FiscalDocumentResource {
+                $primary = $this->fiscalDocuments->firstWhere('document_type', '!=', 'credit_note');
+
+                return $primary === null ? null : new FiscalDocumentResource($primary);
+            }),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

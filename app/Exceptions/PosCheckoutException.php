@@ -40,6 +40,13 @@ final class PosCheckoutException extends DomainException
         );
     }
 
+    public static function invalidReceiptSeries(int $cashRegisterId): self
+    {
+        return new self(
+            "La caja [{$cashRegisterId}] no tiene una serie activa de boleta asignada.",
+        );
+    }
+
     public static function invalidWarehouse(int $cashRegisterId): self
     {
         return new self("El almacén configurado para la caja [{$cashRegisterId}] no pertenece a su tienda.");

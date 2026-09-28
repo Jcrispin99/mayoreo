@@ -48,9 +48,20 @@ final readonly class ResolveSaleStockConsumptionAction
             throw ProductStockConversionException::invalidSaleMode($soldProduct->id);
         }
 
+        $hasContentQuantity = $soldProduct->content_quantity !== null;
+        $hasContentUnit = $soldProduct->content_unit_id !== null;
+
+        if (! $hasContentQuantity && ! $hasContentUnit) {
+            return new SaleStockConsumption(
+                $soldProduct,
+                bcadd($saleQuantity, '0', 6),
+            );
+        }
+
         $contentUnit = $soldProduct->contentUnit()->first();
         if (
-            $soldProduct->content_quantity === null
+            ! $hasContentQuantity
+            || ! $hasContentUnit
             || ! $contentUnit instanceof UnitOfMeasure
         ) {
             throw ProductStockConversionException::missingContent($soldProduct->id);

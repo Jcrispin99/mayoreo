@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Jobs\SendFiscalDocumentToSunat;
 use App\Models\CashRegister;
 use App\Models\CashRegisterSession;
 use App\Models\Customer;
@@ -20,6 +21,7 @@ use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
 
@@ -186,6 +188,8 @@ function expectPosCheckoutSnapshot(
 }
 
 beforeEach(function (): void {
+    Queue::fake();
+
     $this->user = User::factory()->create();
     grantApiPermissions($this->user, 'cash-sessions.view', 'cash-sessions.manage');
     $this->headers = [
@@ -206,6 +210,12 @@ beforeEach(function (): void {
         'current_number' => 40,
         'is_active' => true,
     ]);
+    $this->receiptSeries = DocumentSeries::factory()->create([
+        'document_type' => 'receipt',
+        'series_code' => 'B099',
+        'current_number' => 5,
+        'is_active' => true,
+    ]);
     $this->cashRegister = CashRegister::query()->create([
         'store_id' => $this->store->id,
         'warehouse_id' => $this->warehouse->id,
@@ -215,6 +225,7 @@ beforeEach(function (): void {
         'is_active' => true,
     ]);
     $this->cashRegister->salesSeries()->attach($this->series);
+    $this->cashRegister->salesSeries()->attach($this->receiptSeries);
     $this->session = CashRegisterSession::query()->create([
         'cash_register_id' => $this->cashRegister->id,
         'opened_by' => $this->user->id,
@@ -262,9 +273,9 @@ it('checks out a cash order and persists received amount, change and expected ca
         ->assertJsonPath('data.payment.received_amount', '20.00')
         ->assertJsonPath('data.payment.change_amount', '10.00')
         ->assertJsonPath('data.payment.reference', null)
-        ->assertJsonPath('data.fiscal_document.document_type', 'sales_ticket')
-        ->assertJsonPath('data.fiscal_document.series_code', 'NV99')
-        ->assertJsonPath('data.fiscal_document.number', 41);
+        ->assertJsonPath('data.fiscal_document.document_type', 'receipt')
+        ->assertJsonPath('data.fiscal_document.series_code', 'B099')
+        ->assertJsonPath('data.fiscal_document.number', 6);
 
     $saleId = $response->json('data.sale.id');
     expect($saleId)->toBeInt();
@@ -389,7 +400,11 @@ it('records an external payment without increasing physical expected cash', func
         ->assertJsonPath('data.payment.amount', '10.00')
         ->assertJsonPath('data.payment.received_amount', null)
         ->assertJsonPath('data.payment.change_amount', '0.00')
-        ->assertJsonPath('data.payment.reference', $reference);
+        ->assertJsonPath('data.payment.reference', $reference)
+        ->assertJsonPath('data.fiscal_document.document_type', 'receipt')
+        ->assertJsonPath('data.fiscal_document.series_code', 'B099');
+
+    Queue::assertPushed(SendFiscalDocumentToSunat::class, 1);
 
     $this->withHeaders($this->headers)
         ->getJson("/api/v1/cash-register-sessions/{$this->session->id}")
@@ -830,44 +845,27 @@ it('rejects a product with no active price tier at checkout', function (): void 
     expectPosCheckoutSnapshot($snapshot, $this->order, $this->product, $this->warehouse);
 });
 
-it('rejects an invalid default ticket series without side effects', function (Closure $mutateSeries): void {
+it('rejects checkout without an active receipt series assigned to the register', function (Closure $mutateSeries): void {
     $mutateSeries($this);
     $snapshot = posCheckoutSnapshot($this->order, $this->product, $this->warehouse);
 
     $this->withHeaders($this->headers)
         ->postJson(
             posCheckoutUrl($this->session, $this->order),
-            posCheckoutPayload('10.00', 'cash', '10.00'),
+            posCheckoutPayload('10.00', 'yape', reference: 'YAPE-NO-RECEIPT-SERIES'),
         )
         ->assertUnprocessable();
 
     expectPosCheckoutSnapshot($snapshot, $this->order, $this->product, $this->warehouse);
 })->with([
-    'missing default' => [
+    'inactive receipt series' => [
         static function (object $test): void {
-            $test->cashRegister->update(['default_sales_series_id' => null]);
+            $test->receiptSeries->update(['is_active' => false]);
         },
     ],
-    'inactive default' => [
+    'receipt series not assigned to the register' => [
         static function (object $test): void {
-            $test->series->update(['is_active' => false]);
-        },
-    ],
-    'default not assigned to the register' => [
-        static function (object $test): void {
-            $test->cashRegister->salesSeries()->detach($test->series);
-        },
-    ],
-    'default has the wrong document type' => [
-        static function (object $test): void {
-            $receiptSeries = DocumentSeries::factory()->create([
-                'document_type' => 'receipt',
-                'series_code' => 'B099',
-                'current_number' => 5,
-                'is_active' => true,
-            ]);
-            $test->cashRegister->salesSeries()->attach($receiptSeries);
-            $test->cashRegister->update(['default_sales_series_id' => $receiptSeries->id]);
+            $test->cashRegister->salesSeries()->detach($test->receiptSeries);
         },
     ],
 ]);
@@ -951,7 +949,13 @@ it('returns the same checkout on retry without duplicating any side effect', fun
     expect($second->json('data.order.id'))->toBe($first->json('data.order.id'))
         ->and($second->json('data.sale.id'))->toBe($firstSaleId)
         ->and($second->json('data.payment'))->toBe($first->json('data.payment'))
-        ->and($second->json('data.fiscal_document'))->toBe($first->json('data.fiscal_document'))
+        // The SUNAT sub-state legitimately changes between the two responses: it's
+        // sent in the background right after the first checkout commits, so by the
+        // time the retry re-reads the document it may already show a result. Only
+        // the identifying fields are expected to stay frozen across the retry.
+        ->and($second->json('data.fiscal_document.id'))->toBe($first->json('data.fiscal_document.id'))
+        ->and($second->json('data.fiscal_document.series_code'))->toBe($first->json('data.fiscal_document.series_code'))
+        ->and($second->json('data.fiscal_document.number'))->toBe($first->json('data.fiscal_document.number'))
         ->and(DB::table('sale_payments')->value('id'))->toBe($firstPaymentId)
         ->and(DB::table('fiscal_documents')->value('id'))->toBe($firstDocumentId)
         ->and(DB::table('inventory_movements')->orderBy('id')->pluck('id')->all())->toBe($firstMovementIds)
@@ -960,7 +964,7 @@ it('returns the same checkout on retry without duplicating any side effect', fun
         ->and(DB::table('fiscal_documents')->count())->toBe(1)
         ->and(DB::table('inventory_movements')->count())->toBe(1)
         ->and(DB::table('productables')->count())->toBe(2)
-        ->and((int) $this->series->fresh()?->current_number)->toBe(41)
+        ->and((int) $this->receiptSeries->fresh()?->current_number)->toBe(6)
         ->and((string) $this->stock->fresh()?->quantity)->toBe('4.000000');
 });
 

@@ -39,6 +39,9 @@ final class UpdateStoreRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
+            'attendance_latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:attendance_longitude'],
+            'attendance_longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:attendance_latitude'],
+            'attendance_radius_meters' => ['sometimes', 'integer', 'between:20,1000'],
             'sunat_establishment_code' => [
                 'nullable',
                 'string',
@@ -73,6 +76,23 @@ final class UpdateStoreRequest extends FormRequest
             }
 
             $input = $this->all();
+            $attendanceLatitude = array_key_exists('attendance_latitude', $input)
+                ? $this->input('attendance_latitude')
+                : $store->attendance_latitude;
+            $attendanceLongitude = array_key_exists('attendance_longitude', $input)
+                ? $this->input('attendance_longitude')
+                : $store->attendance_longitude;
+            if (($attendanceLatitude === null) !== ($attendanceLongitude === null)) {
+                $validator->errors()->add(
+                    'attendance_latitude',
+                    'La latitud y la longitud de asistencia deben configurarse o eliminarse juntas.',
+                );
+                $validator->errors()->add(
+                    'attendance_longitude',
+                    'La latitud y la longitud de asistencia deben configurarse o eliminarse juntas.',
+                );
+            }
+
             $disconnectingIssuer = array_key_exists('fiscal_issuer_id', $input)
                 && $this->input('fiscal_issuer_id') === null;
             $fiscalIssuerId = array_key_exists('fiscal_issuer_id', $input)

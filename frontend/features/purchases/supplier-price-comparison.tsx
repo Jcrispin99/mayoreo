@@ -334,12 +334,15 @@ export function SupplierPriceComparison() {
     setSavingSupplier(true);
     setSupplierCreateError('');
     try {
+      const normalizedDocumentNumber = supplierDocumentNumber.trim();
+      const normalizedPhone = supplierPhone.trim();
+      const normalizedEmail = supplierEmail.trim().toLocaleLowerCase('es');
       const response = await api.post('/suppliers', {
         name: supplierName.trim(),
-        document_number: supplierDocumentNumber.trim() || null,
-        phone: supplierPhone.trim() || null,
-        email: supplierEmail.trim().toLocaleLowerCase('es') || null,
         is_active: true,
+        ...(normalizedDocumentNumber ? { document_number: normalizedDocumentNumber } : {}),
+        ...(normalizedPhone ? { phone: normalizedPhone } : {}),
+        ...(normalizedEmail ? { email: normalizedEmail } : {}),
       });
       const createdSupplier = response.data.data as Supplier;
 
@@ -802,7 +805,7 @@ export function SupplierPriceComparison() {
                   <Text style={styles.supplierModalEyebrow}>NUEVO PROVEEDOR</Text>
                   <Text style={styles.supplierModalTitle}>Registro rápido</Text>
                   <Text style={styles.supplierSelectionHelp}>
-                    Quedará activo y seleccionado para que puedas registrar sus precios.
+                    Solo el nombre es obligatorio. Quedará activo y seleccionado para registrar sus precios.
                   </Text>
                 </View>
                 <View style={styles.quickSupplierFields}>

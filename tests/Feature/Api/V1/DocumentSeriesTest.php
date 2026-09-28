@@ -86,6 +86,31 @@ it('rejects purchase series through the sales series endpoint', function (): voi
         ->assertJsonValidationErrors('document_type');
 });
 
+it('requires B or F SUNAT prefixes for credit-note series', function (): void {
+    foreach (['BC01', 'FC01'] as $seriesCode) {
+        $this->withHeaders($this->headers)
+            ->postJson('/api/v1/document-series', [
+                'fiscal_issuer_id' => $this->issuer->id,
+                'document_type' => 'credit_note',
+                'series_code' => $seriesCode,
+                'current_number' => 0,
+                'is_active' => true,
+            ])
+            ->assertCreated();
+    }
+
+    $this->withHeaders($this->headers)
+        ->postJson('/api/v1/document-series', [
+            'fiscal_issuer_id' => $this->issuer->id,
+            'document_type' => 'credit_note',
+            'series_code' => 'NC01',
+            'current_number' => 0,
+            'is_active' => true,
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('series_code');
+});
+
 it('allows the same series code for different fiscal issuers', function (): void {
     $otherIssuer = FiscalIssuer::factory()->create();
 

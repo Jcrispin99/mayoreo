@@ -43,6 +43,10 @@ final class FiscalDocumentResource extends JsonResource
                 'responded_at' => $this->sunat_responded_at?->toIso8601String(),
             ],
             'exchanged_from_document_id' => $this->exchanged_from_document_id,
+            'affected_document_id' => $this->affected_document_id,
+            'reason_code' => $this->reason_code,
+            'reason_description' => $this->reason_description,
+            'credit_note_items' => $this->credit_note_items,
             'has_fiscal_identity_snapshot' => $this->hasFiscalIdentitySnapshot(),
             'issuer' => $this->fiscal_issuer_id === null ? null : [
                 'id' => $this->fiscal_issuer_id,

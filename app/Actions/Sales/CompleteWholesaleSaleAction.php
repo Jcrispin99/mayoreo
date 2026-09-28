@@ -10,6 +10,7 @@ use App\Exceptions\CustomerOperationException;
 use App\Exceptions\IncompatibleUnitException;
 use App\Exceptions\WholesaleSaleException;
 use App\Exceptions\WholesaleSaleTotalChangedException;
+use App\Jobs\SendFiscalDocumentToSunat;
 use App\Models\CashRegister;
 use App\Models\CashRegisterSession;
 use App\Models\Customer;
@@ -206,7 +207,7 @@ final readonly class CompleteWholesaleSaleAction
                 $series->fiscal_issuer_id,
             );
 
-            FiscalDocument::query()->create([
+            $fiscalDocument = FiscalDocument::query()->create([
                 'sale_id' => $sale->id,
                 ...$fiscalIdentity,
                 'document_type' => $documentType,
@@ -215,6 +216,10 @@ final readonly class CompleteWholesaleSaleAction
                 'status' => 'issued',
                 'issued_at' => $soldAt,
             ]);
+
+            if ($documentType === 'receipt') {
+                SendFiscalDocumentToSunat::dispatch($fiscalDocument)->afterCommit();
+            }
 
             return $sale->fresh($this->relations()) ?? $sale;
         }, self::TRANSACTION_ATTEMPTS);

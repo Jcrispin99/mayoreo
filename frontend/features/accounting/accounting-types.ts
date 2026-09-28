@@ -50,15 +50,51 @@ export type AccountingSalePayment = {
   paid_at: string;
 };
 
+export type SunatTransmissionStatus = {
+  status: string;
+  attempts: number;
+  error_code: string | null;
+  error_message: string | null;
+  cdr_code: string | null;
+  cdr_description: string | null;
+  cdr_notes: string[];
+  has_xml: boolean;
+  xml_hash: string | null;
+  has_cdr: boolean;
+  sent_at: string | null;
+  responded_at: string | null;
+};
+
+export type CreditNoteItemSnapshot = {
+  sale_item_id: number;
+  product_id: number;
+  product_sku: string;
+  product_name: string;
+  unit_code: string;
+  quantity: string;
+  unit_price: string;
+  line_total: string;
+};
+
 export type AccountingFiscalDocument = {
   id: number;
-  document_type: 'sales_ticket' | 'receipt' | 'invoice';
+  document_type: 'sales_ticket' | 'receipt' | 'invoice' | 'credit_note';
   series_code: string;
   number: number;
   full_number: string;
   status: string;
+  sunat: SunatTransmissionStatus;
+  affected_document_id: number | null;
+  reason_code: string | null;
+  reason_description: string | null;
+  credit_note_items: CreditNoteItemSnapshot[] | null;
   issued_at: string;
 };
+
+export const CREDIT_NOTE_REASONS: { code: string; label: string }[] = [
+  { code: '06', label: 'Devolución total' },
+  { code: '07', label: 'Devolución por ítem' },
+];
 
 export type AccountingSale = {
   id: number;
@@ -113,4 +149,3 @@ export type AccountingFormReferences = {
   cashSessions: CashRegisterSession[];
   units: UnitOfMeasure[];
 };
-

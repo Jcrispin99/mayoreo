@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 
 final class DocumentSeriesController extends ApiController
 {
-    private const array SALES_TYPES = ['sales_ticket', 'receipt', 'invoice'];
+    private const array SALES_TYPES = ['sales_ticket', 'receipt', 'invoice', 'credit_note'];
 
     public function index(Request $request): JsonResponse
     {
