@@ -134,7 +134,7 @@ it('alternates QR scans between entry and exit using server time', function (): 
 
     $storedToken = $this->store->attendanceQrToken()->firstOrFail();
     expect($storedToken->getRawOriginal('encrypted_token'))->not->toBe($storedToken->encrypted_token)
-        ->and($payload)->toStartWith((string) config('payroll.qr_prefix').'v2:');
+        ->and($payload)->toStartWith((string) config('payroll.qr_prefix').'v3:');
 
     $this->app['auth']->forgetGuards();
     expect($worker->fresh()?->can('attendance.mark'))->toBeTrue();
@@ -147,11 +147,12 @@ it('alternates QR scans between entry and exit using server time', function (): 
 
     Carbon::setTestNow(Carbon::parse('2026-08-12 22:00:00', 'UTC'));
     $this->app['auth']->forgetGuards();
-    $payload = $this->withHeaders($this->managerHeaders)
+    $laterPayload = $this->withHeaders($this->managerHeaders)
         ->getJson("/api/v1/stores/{$this->store->id}/attendance-qr")
         ->assertOk()->json('data.payload');
+    expect($laterPayload)->toBe($payload);
     $this->app['auth']->forgetGuards();
-    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', attendanceScanPayload($payload))->assertCreated()
+    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', attendanceScanPayload($laterPayload))->assertCreated()
         ->assertJsonPath('data.action', 'exit')
         ->assertJsonPath('data.shift.status', 'completed')
         ->assertJsonPath('data.shift.worked_minutes', 540);
@@ -202,7 +203,7 @@ it('starts a new attendance day after marking an unfinished previous shift as an
     $this->assertDatabaseCount('attendance_shifts', 2);
 });
 
-it('rejects expired QR codes, another device, inaccurate GPS and locations outside the store', function (): void {
+it('keeps permanent QR codes valid while rejecting another device, inaccurate GPS and locations outside the store', function (): void {
     $worker = User::factory()->create();
     grantApiPermissions($worker, 'attendance.mark');
     EmployeeProfile::query()->create([
@@ -236,9 +237,44 @@ it('rejects expired QR codes, another device, inaccurate GPS and locations outsi
 
     Carbon::setTestNow(Carbon::parse('2026-08-12 13:02:00', 'UTC'));
     $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', attendanceScanPayload($payload))
-        ->assertUnprocessable()->assertJsonPath('message', 'El código QR expiró. Espera a que la pantalla muestre uno nuevo y vuelve a escanear.');
+        ->assertCreated()->assertJsonPath('data.action', 'entry');
 
-    $this->assertDatabaseCount('attendance_shifts', 0);
+    $this->assertDatabaseCount('attendance_shifts', 1);
+});
+
+it('invalidates the previously printed QR only when a manager rotates it', function (): void {
+    $worker = User::factory()->create();
+    grantApiPermissions($worker, 'attendance.mark');
+    EmployeeProfile::query()->create([
+        'user_id' => $worker->id,
+        'store_id' => $this->store->id,
+        'employment_status' => 'active',
+        'hired_at' => '2026-08-01',
+        'expected_minutes_per_day' => 840,
+        'monthly_divisor' => 30,
+        'work_days' => [0, 1, 2, 3, 4, 5, 6],
+    ]);
+    $workerHeaders = attendanceDeviceHeaders($worker);
+
+    $oldPayload = $this->withHeaders($this->managerHeaders)
+        ->postJson("/api/v1/stores/{$this->store->id}/attendance-qr/rotate")
+        ->assertOk()->json('data.payload');
+    $newPayload = $this->withHeaders($this->managerHeaders)
+        ->postJson("/api/v1/stores/{$this->store->id}/attendance-qr/rotate")
+        ->assertOk()->json('data.payload');
+
+    expect($newPayload)->not->toBe($oldPayload);
+
+    $this->app['auth']->forgetGuards();
+    $this->withHeaders($workerHeaders)
+        ->postJson('/api/v1/attendance/scan', attendanceScanPayload($oldPayload))
+        ->assertUnprocessable()
+        ->assertJsonPath('message', 'El código QR de asistencia no es válido o fue reemplazado.');
+
+    $this->withHeaders($workerHeaders)
+        ->postJson('/api/v1/attendance/scan', attendanceScanPayload($newPayload))
+        ->assertCreated()
+        ->assertJsonPath('data.action', 'entry');
 });
 
 it('excludes attendance without an exit from payroll minutes and pay', function (): void {

@@ -12,7 +12,7 @@ final readonly class RotateStoreAttendanceQrAction
 {
     public function __construct(private AttendanceQrPayloadService $payloadService) {}
 
-    /** @return array{payload: string, expires_at: string, rotated_at: string} */
+    /** @return array{payload: string, rotated_at: string} */
     public function execute(Store $store, ?int $rotatedBy): array
     {
         $rawToken = Str::random(64);

@@ -5,6 +5,7 @@ import {
   HistoryIcon,
   LogOutIcon,
   PackageCheckIcon,
+  QrCodeIcon,
   ShieldCheckIcon,
   UserRoundIcon,
 } from "lucide-react"
@@ -52,6 +53,12 @@ export function AppSidebar() {
       href: "/historical-sales",
       icon: HistoryIcon,
       visible: permissions.includes("sales.manage"),
+    },
+    {
+      title: "QR de asistencia",
+      href: "/attendance-qr",
+      icon: QrCodeIcon,
+      visible: permissions.includes("attendance-qr.manage"),
     },
     {
       title: "Configuración SUNAT",

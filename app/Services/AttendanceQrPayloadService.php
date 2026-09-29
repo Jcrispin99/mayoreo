@@ -9,27 +9,22 @@ use App\Models\StoreAttendanceQrToken;
 
 final class AttendanceQrPayloadService
 {
-    /** @return array{payload: string, expires_at: string} */
+    /** @return array{payload: string} */
     public function issue(StoreAttendanceQrToken $qr): array
     {
         $prefix = config('payroll.qr_prefix');
-        $ttlSeconds = config('payroll.qr_ttl_seconds');
         assert(is_string($prefix));
-        assert(is_int($ttlSeconds));
 
         $secret = $qr->encrypted_token;
         if (! is_string($secret) || $secret === '') {
             throw PayrollException::invalidQr();
         }
 
-        $issuedAt = now()->timestamp;
-        $expiresAt = $issuedAt + $ttlSeconds;
-        $signedValue = $this->signedValue($qr->store_id, $issuedAt, $expiresAt);
+        $signedValue = 'v3:'.$qr->store_id;
         $signature = hash_hmac('sha256', $signedValue, $secret);
 
         return [
-            'payload' => $prefix.'v2:'.$signedValue.':'.$signature,
-            'expires_at' => now()->setTimestamp($expiresAt)->toIso8601String(),
+            'payload' => $prefix.$signedValue.':'.$signature,
         ];
     }
 
@@ -47,6 +42,32 @@ final class AttendanceQrPayloadService
         }
 
         $encoded = mb_substr($payload, mb_strlen($prefix));
+        if (preg_match('/^v3:([1-9]\d*):([a-f0-9]{64})$/', $encoded, $matches) === 1) {
+            return $this->resolvePermanent((int) $matches[1], $matches[2]);
+        }
+
+        return $this->resolveLegacyDynamic($encoded, $ttlSeconds, $clockSkewSeconds);
+    }
+
+    private function resolvePermanent(int $storeId, string $signature): StoreAttendanceQrToken
+    {
+        $qr = $this->activeStoreQr($storeId);
+        $secret = $qr->encrypted_token;
+        assert(is_string($secret));
+
+        $expected = hash_hmac('sha256', 'v3:'.$storeId, $secret);
+        if (! hash_equals($expected, $signature)) {
+            throw PayrollException::invalidQr();
+        }
+
+        return $qr;
+    }
+
+    private function resolveLegacyDynamic(
+        string $encoded,
+        int $ttlSeconds,
+        int $clockSkewSeconds,
+    ): StoreAttendanceQrToken {
         if (preg_match('/^v2:([1-9]\d*):(\d{10}):(\d{10}):([a-f0-9]{64})$/', $encoded, $matches) !== 1) {
             throw PayrollException::invalidQr();
         }
@@ -55,7 +76,7 @@ final class AttendanceQrPayloadService
         $issuedAt = (int) $matches[2];
         $expiresAt = (int) $matches[3];
         $signature = $matches[4];
-        $now = now()->timestamp;
+        $now = (int) now()->timestamp;
 
         if ($expiresAt <= $issuedAt || ($expiresAt - $issuedAt) > $ttlSeconds
             || $issuedAt > ($now + $clockSkewSeconds)) {
@@ -65,14 +86,23 @@ final class AttendanceQrPayloadService
             throw PayrollException::expiredQr();
         }
 
-        $qr = StoreAttendanceQrToken::query()->with('store')->where('store_id', $storeId)->first();
-        $secret = $qr?->encrypted_token;
-        if (! $qr || ! is_string($secret) || $secret === '' || ! $qr->store->is_active) {
-            throw PayrollException::invalidQr();
-        }
+        $qr = $this->activeStoreQr($storeId);
+        $secret = $qr->encrypted_token;
+        assert(is_string($secret));
 
         $expected = hash_hmac('sha256', $this->signedValue($storeId, $issuedAt, $expiresAt), $secret);
         if (! hash_equals($expected, $signature)) {
+            throw PayrollException::invalidQr();
+        }
+
+        return $qr;
+    }
+
+    private function activeStoreQr(int $storeId): StoreAttendanceQrToken
+    {
+        $qr = StoreAttendanceQrToken::query()->with('store')->where('store_id', $storeId)->first();
+        $secret = $qr?->encrypted_token;
+        if (! $qr || ! is_string($secret) || $secret === '' || ! $qr->store->is_active) {
             throw PayrollException::invalidQr();
         }
 

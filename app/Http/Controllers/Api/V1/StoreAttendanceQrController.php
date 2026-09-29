@@ -16,14 +16,14 @@ final class StoreAttendanceQrController extends ApiController
     public function show(Store $store, AttendanceQrPayloadService $payloadService): JsonResponse
     {
         $token = $store->attendanceQrToken;
-        $dynamicPayload = $token?->encrypted_token === null ? null : $payloadService->issue($token);
+        $permanentPayload = $token?->encrypted_token === null ? null : $payloadService->issue($token);
 
         return $this->success([
             'store_id' => $store->id,
             'configured' => $token !== null,
-            'recoverable' => $dynamicPayload !== null,
-            'payload' => $dynamicPayload['payload'] ?? null,
-            'expires_at' => $dynamicPayload['expires_at'] ?? null,
+            'recoverable' => $permanentPayload !== null,
+            'payload' => $permanentPayload['payload'] ?? null,
+            'expires_at' => null,
             'rotated_at' => $token?->rotated_at?->toIso8601String(),
         ])->header('Cache-Control', 'no-store, private');
     }

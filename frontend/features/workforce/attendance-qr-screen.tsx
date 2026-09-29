@@ -1,25 +1,31 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Asset, requestPermissionsAsync } from 'expo-media-library';
+import * as Sharing from 'expo-sharing';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Button, Icon, Menu, Text } from 'react-native-paper';
 import QRCode from 'react-native-qrcode-svg';
 import { api, apiErrorMessage } from '../../lib/api';
 import { formatBusinessDateTime } from '../../lib/date-time';
 import type { StoreSummary } from './workforce-types';
 
-const QR_REFRESH_INTERVAL_MS = 30_000;
+type QrSvgRef = {
+  toDataURL: (callback: (base64: string) => void, options?: { width?: number; height?: number }) => void;
+};
+
+type ExportAction = 'download' | 'share' | null;
 
 export function AttendanceQrScreen() {
+  const qrRef = useRef<QrSvgRef | null>(null);
   const [stores, setStores] = useState<StoreSummary[]>([]);
   const [storeId, setStoreId] = useState<number | null>(null);
   const [payload, setPayload] = useState('');
-  const [expiresAt, setExpiresAt] = useState<string | null>(null);
-  const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [rotatedAt, setRotatedAt] = useState<string | null>(null);
   const [configured, setConfigured] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState<ExportAction>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const selectedStore = stores.find((store) => store.id === storeId);
@@ -40,41 +46,17 @@ export function AttendanceQrScreen() {
     })();
   }, []);
 
-  const loadQr = useCallback(async (showLoading = false) => {
-    if (!storeId) return;
-    if (showLoading) setRefreshing(true);
-    try {
-      const response = await api.get(`/stores/${storeId}/attendance-qr`);
-      setConfigured(Boolean(response.data.data.configured));
-      setPayload(response.data.data.payload ?? '');
-      setExpiresAt(response.data.data.expires_at ?? null);
-      setRotatedAt(response.data.data.rotated_at ?? null);
-      setError('');
-    } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'No se pudo actualizar el QR dinámico.'));
-    } finally {
-      if (showLoading) setRefreshing(false);
-    }
-  }, [storeId]);
-
   useEffect(() => {
+    if (!storeId) return;
     setPayload('');
-    setExpiresAt(null);
     setError('');
     setNotice('');
-    void loadQr(true);
-    const refreshTimer = setInterval(() => void loadQr(), QR_REFRESH_INTERVAL_MS);
-    return () => clearInterval(refreshTimer);
-  }, [loadQr]);
-
-  useEffect(() => {
-    const updateCountdown = () => {
-      setSecondsRemaining(expiresAt ? Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000)) : 0);
-    };
-    updateCountdown();
-    const countdownTimer = setInterval(updateCountdown, 1000);
-    return () => clearInterval(countdownTimer);
-  }, [expiresAt]);
+    void api.get(`/stores/${storeId}/attendance-qr`).then((response) => {
+      setConfigured(Boolean(response.data.data.configured));
+      setPayload(response.data.data.payload ?? '');
+      setRotatedAt(response.data.data.rotated_at ?? null);
+    }).catch((requestError) => setError(apiErrorMessage(requestError, 'No se pudo consultar el QR.')));
+  }, [storeId]);
 
   async function rotate() {
     if (!storeId) return;
@@ -84,14 +66,105 @@ export function AttendanceQrScreen() {
     try {
       const response = await api.post(`/stores/${storeId}/attendance-qr/rotate`);
       setPayload(response.data.data.payload);
-      setExpiresAt(response.data.data.expires_at);
       setRotatedAt(response.data.data.rotated_at);
       setConfigured(true);
-      setNotice('Clave renovada. Todos los códigos anteriores dejaron de funcionar.');
+      setNotice('QR renovado. La impresión anterior dejó de funcionar.');
     } catch (requestError: any) {
       setError(requestError?.response?.data?.message ?? 'No se pudo generar el QR.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  function confirmRotate() {
+    if (!configured) {
+      void rotate();
+      return;
+    }
+
+    Alert.alert(
+      'Invalidar QR impreso',
+      'El código que ya imprimiste dejará de funcionar. Tendrás que imprimir y colocar el nuevo QR.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Invalidar y generar', style: 'destructive', onPress: () => void rotate() },
+      ],
+    );
+  }
+
+  function qrBase64(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      if (!qrRef.current) {
+        reject(new Error('El QR todavía no está listo.'));
+        return;
+      }
+      qrRef.current.toDataURL(resolve, { width: 1024, height: 1024 });
+    });
+  }
+
+  function fileName() {
+    const code = selectedStore?.code?.toLowerCase().replace(/[^a-z0-9-]/g, '-') || 'tienda';
+    return `qr-asistencia-${code}.png`;
+  }
+
+  async function temporaryQrFile() {
+    const directory = FileSystem.cacheDirectory;
+    if (!directory) throw new Error('No se encontró almacenamiento temporal en el dispositivo.');
+    const uri = `${directory}${fileName()}`;
+    await FileSystem.writeAsStringAsync(uri, await qrBase64(), {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    return uri;
+  }
+
+  async function download() {
+    setExporting('download');
+    setError('');
+    setNotice('');
+    try {
+      const base64 = await qrBase64();
+      if (Platform.OS === 'web') {
+        const link = document.createElement('a');
+        link.href = `data:image/png;base64,${base64}`;
+        link.download = fileName();
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setNotice('Imagen QR descargada.');
+        return;
+      }
+
+      const permission = await requestPermissionsAsync(true, ['photo']);
+      if (permission.status !== 'granted') {
+        throw new Error('Necesitas permitir el acceso a fotos para guardar el QR.');
+      }
+      const uri = await temporaryQrFile();
+      await Asset.create(uri);
+      setNotice('QR guardado en las fotos del celular.');
+    } catch (exportError) {
+      setError(exportError instanceof Error ? exportError.message : 'No se pudo guardar el QR.');
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  async function share() {
+    setExporting('share');
+    setError('');
+    setNotice('');
+    try {
+      if (!await Sharing.isAvailableAsync()) {
+        throw new Error('La opción de compartir no está disponible en este dispositivo.');
+      }
+      await Sharing.shareAsync(await temporaryQrFile(), {
+        dialogTitle: `QR de asistencia · ${selectedStore?.name ?? 'Tienda'}`,
+        mimeType: 'image/png',
+        UTI: 'public.png',
+      });
+    } catch (exportError) {
+      setError(exportError instanceof Error ? exportError.message : 'No se pudo compartir el QR.');
+    } finally {
+      setExporting(null);
     }
   }
 
@@ -100,8 +173,8 @@ export function AttendanceQrScreen() {
   const hasGeofence = selectedStore?.attendance_latitude && selectedStore?.attendance_longitude;
 
   return <ScrollView contentContainerStyle={styles.content}>
-    <Text style={styles.title}>QR dinámico de asistencia</Text>
-    <Text style={styles.subtitle}>Mantén esta pantalla abierta en la tienda. El código se renueva automáticamente y una captura vence en menos de un minuto.</Text>
+    <Text style={styles.title}>QR permanente de asistencia</Text>
+    <Text style={styles.subtitle}>Imprime este código una sola vez y colócalo en la tienda. Seguirá vigente hasta que decidas invalidarlo.</Text>
     {error ? <Text style={styles.error}>{error}</Text> : null}
     {notice ? <Text style={styles.notice}>{notice}</Text> : null}
     <Menu
@@ -115,19 +188,21 @@ export function AttendanceQrScreen() {
     <View style={styles.card}>
       {payload ? <>
         <View style={styles.qr}>
-          <QRCode backgroundColor="#FFFFFF" color="#172423" quietZone={16} size={250} value={payload} />
+          <QRCode backgroundColor="#FFFFFF" color="#172423" getRef={(ref) => { qrRef.current = ref as QrSvgRef; }} quietZone={16} size={250} value={payload} />
         </View>
-        <Text style={styles.ready}>Código activo · {secondsRemaining}s</Text>
-        <Text style={styles.cardHelp}>La app lo actualizará automáticamente. Si llega a cero antes de renovarse, usa “Actualizar ahora”.</Text>
-        {refreshing ? <ActivityIndicator color="#B4232D" /> : null}
-        <Button icon="refresh" loading={refreshing} mode="outlined" onPress={() => void loadQr(true)}>Actualizar ahora</Button>
+        <Text style={styles.ready}>Código permanente listo para imprimir</Text>
+        <Text style={styles.cardHelp}>Puedes guardarlo en las fotos o compartirlo para imprimir. No caduca con el paso del tiempo.</Text>
+        <View style={styles.actions}>
+          <Button icon="download" loading={exporting === 'download'} mode="contained" onPress={() => void download()} style={styles.actionButton}>Guardar QR</Button>
+          {Platform.OS !== 'web' ? <Button icon="share-variant" loading={exporting === 'share'} mode="outlined" onPress={() => void share()} style={styles.actionButton}>Compartir</Button> : null}
+        </View>
       </> : <>
         <Icon source={configured ? 'qrcode-edit' : 'qrcode-plus'} color="#60706E" size={72} />
-        <Text style={styles.cardTitle}>{configured ? 'Actualizando el código dinámico…' : 'Esta tienda aún no tiene QR'}</Text>
-        <Text style={styles.cardHelp}>{configured ? 'Espera unos segundos o actualiza nuevamente.' : 'Genera la clave inicial para habilitar las marcaciones dinámicas.'}</Text>
+        <Text style={styles.cardTitle}>{configured ? 'Este QR necesita una renovación' : 'Esta tienda aún no tiene QR'}</Text>
+        <Text style={styles.cardHelp}>{configured ? 'La clave anterior no se puede reconstruir. Renuévala una vez para volver a mostrar e imprimir el código.' : 'Genera el primer código permanente para habilitar las marcaciones.'}</Text>
       </>}
-      {rotatedAt ? <Text style={styles.rotated}>Clave renovada: {formatBusinessDateTime(rotatedAt)}</Text> : null}
-      <Button buttonColor={payload ? undefined : '#FF4D4D'} icon="shield-refresh-outline" loading={saving} mode={payload ? 'text' : 'contained'} onPress={() => void rotate()}>{configured ? 'Invalidar y renovar clave' : 'Generar clave QR'}</Button>
+      {rotatedAt ? <Text style={styles.rotated}>Generado o renovado: {formatBusinessDateTime(rotatedAt)}</Text> : null}
+      <Button buttonColor={payload ? undefined : '#FF4D4D'} icon="shield-refresh-outline" loading={saving} mode={payload ? 'text' : 'contained'} onPress={confirmRotate}>{configured ? 'Invalidar y generar otro' : 'Generar QR permanente'}</Button>
     </View>
   </ScrollView>;
 }
@@ -146,8 +221,10 @@ const styles = StyleSheet.create({
   value: { marginTop: 4, color: '#172423', fontSize: 14, fontWeight: '800' },
   card: { marginTop: 22, padding: 28, alignItems: 'center', gap: 14, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 14, backgroundColor: '#FFFFFF' },
   qr: { padding: 10, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 12, backgroundColor: '#FFFFFF' },
-  ready: { color: '#247451', fontSize: 15, fontWeight: '900' },
+  ready: { color: '#247451', fontSize: 15, fontWeight: '900', textAlign: 'center' },
   cardTitle: { color: '#172423', fontSize: 17, fontWeight: '900', textAlign: 'center' },
   cardHelp: { maxWidth: 430, color: '#60706E', fontSize: 11, lineHeight: 17, textAlign: 'center' },
   rotated: { color: '#60706E', fontSize: 10 },
+  actions: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
+  actionButton: { minWidth: 160 },
 });

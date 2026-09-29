@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Web\AttendanceQrController;
 use App\Http\Controllers\Web\AuthenticatedSessionController;
 use App\Http\Controllers\Web\FiscalSettingsController;
 use App\Http\Controllers\Web\HistoricalSaleImportController;
@@ -20,6 +21,11 @@ Route::middleware('auth')->group(function (): void {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+
+    Route::middleware('can:attendance-qr.manage')->prefix('attendance-qr')->name('attendance-qr.')->group(function (): void {
+        Route::get('/', [AttendanceQrController::class, 'index'])->name('index');
+        Route::post('/{store}/rotate', [AttendanceQrController::class, 'rotate'])->name('rotate');
+    });
 
     Route::middleware('can:sales.manage')->prefix('historical-sales')->name('historical-sales.')->group(function (): void {
         Route::get('/', [HistoricalSaleImportController::class, 'index'])->name('index');
