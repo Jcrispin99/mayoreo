@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Actions\Attendance\RotateStoreAttendanceQrAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\UpdateAttendanceLocationRequest;
 use App\Models\Store;
 use App\Services\AttendanceQrPayloadService;
 use Illuminate\Http\RedirectResponse;
@@ -53,6 +54,15 @@ final class AttendanceQrController extends Controller
         abort_unless($store->is_active, 404);
 
         $action->execute($store, $request->user()?->id);
+
+        return back();
+    }
+
+    public function updateLocation(UpdateAttendanceLocationRequest $request, Store $store): RedirectResponse
+    {
+        abort_unless($store->is_active, 404);
+
+        $store->update($request->validated());
 
         return back();
     }

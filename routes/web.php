@@ -25,6 +25,7 @@ Route::middleware('auth')->group(function (): void {
     Route::middleware('can:attendance-qr.manage')->prefix('attendance-qr')->name('attendance-qr.')->group(function (): void {
         Route::get('/', [AttendanceQrController::class, 'index'])->name('index');
         Route::post('/{store}/rotate', [AttendanceQrController::class, 'rotate'])->name('rotate');
+        Route::put('/{store}/location', [AttendanceQrController::class, 'updateLocation'])->name('location.update');
     });
 
     Route::middleware('can:sales.manage')->prefix('historical-sales')->name('historical-sales.')->group(function (): void {

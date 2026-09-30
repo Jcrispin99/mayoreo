@@ -70,3 +70,36 @@ it('generates a new QR and invalidates the former one from the web', function ()
                 && str_starts_with($payload, (string) config('payroll.qr_prefix').'v3:'))
             ->etc());
 });
+
+it('updates the attendance location and radius from the QR web module', function (): void {
+    $this->actingAs($this->manager)
+        ->put("/attendance-qr/{$this->store->id}/location", [
+            'attendance_latitude' => '-9.9292648',
+            'attendance_longitude' => '-76.2399549',
+            'attendance_radius_meters' => 75,
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('stores', [
+        'id' => $this->store->id,
+        'attendance_latitude' => '-9.9292648',
+        'attendance_longitude' => '-76.2399549',
+        'attendance_radius_meters' => 75,
+    ]);
+});
+
+it('validates attendance coordinates and radius from the web', function (): void {
+    $this->actingAs($this->manager)
+        ->from('/attendance-qr')
+        ->put("/attendance-qr/{$this->store->id}/location", [
+            'attendance_latitude' => '-95',
+            'attendance_longitude' => '200',
+            'attendance_radius_meters' => 10,
+        ])
+        ->assertRedirect('/attendance-qr')
+        ->assertSessionHasErrors([
+            'attendance_latitude',
+            'attendance_longitude',
+            'attendance_radius_meters',
+        ]);
+});
