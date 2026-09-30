@@ -12,7 +12,7 @@ import {
 import QRCode from "qrcode"
 import { useEffect, useMemo, useState, type FormEvent } from "react"
 
-import "leaflet/dist/leaflet.css"
+import "maplibre-gl/dist/maplibre-gl.css"
 
 import { AttendanceLocationMap } from "@/components/attendance-location-map"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
