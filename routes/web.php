@@ -26,6 +26,9 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/', [AttendanceQrController::class, 'index'])->name('index');
         Route::post('/{store}/rotate', [AttendanceQrController::class, 'rotate'])->name('rotate');
         Route::put('/{store}/location', [AttendanceQrController::class, 'updateLocation'])->name('location.update');
+        Route::post('/{store}/locations', [AttendanceQrController::class, 'storeAttendanceLocation'])->name('locations.store');
+        Route::put('/{store}/locations/{attendanceLocation}', [AttendanceQrController::class, 'updateAttendanceLocation'])->name('locations.update');
+        Route::delete('/{store}/locations/{attendanceLocation}', [AttendanceQrController::class, 'destroyAttendanceLocation'])->name('locations.destroy');
     });
 
     Route::middleware('can:sales.manage')->prefix('historical-sales')->name('historical-sales.')->group(function (): void {

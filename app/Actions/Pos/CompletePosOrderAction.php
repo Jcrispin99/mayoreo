@@ -59,6 +59,7 @@ final readonly class CompletePosOrderAction
         ?string $receivedAmount,
         ?string $reference,
         ?int $completedBy,
+        ?int $documentSeriesId = null,
     ): CompletePosOrderResult {
         return DB::transaction(function () use (
             $session,
@@ -68,6 +69,7 @@ final readonly class CompletePosOrderAction
             $receivedAmount,
             $reference,
             $completedBy,
+            $documentSeriesId,
         ): CompletePosOrderResult {
             $lockedSession = CashRegisterSession::query()
                 ->lockForUpdate()
@@ -221,10 +223,9 @@ final readonly class CompletePosOrderAction
                 $payableTotal,
             );
 
-            // Every completed POS sale is issued as a receipt regardless of how it was
-            // paid. The payment method only affects cash reconciliation, not SUNAT.
-            $documentType = 'receipt';
-            $series = $this->lockSeriesForDocumentType($cashRegister, $documentType);
+            $series = $this->lockSeries($cashRegister, $documentSeriesId);
+            $documentType = $series->document_type;
+            $this->validateCustomerForDocumentType($customer, $documentType);
             $fiscalIdentity = $this->fiscalDocumentIdentityService->snapshot(
                 $warehouse,
                 $series,
@@ -304,7 +305,9 @@ final readonly class CompletePosOrderAction
                 'issued_at' => $completedAt,
             ]);
 
-            SendFiscalDocumentToSunat::dispatch($fiscalDocument)->afterCommit();
+            if (in_array($documentType, ['receipt', 'invoice'], true)) {
+                SendFiscalDocumentToSunat::dispatch($fiscalDocument)->afterCommit();
+            }
 
             $lockedOrder->update([
                 'status' => 'completed',
@@ -339,8 +342,7 @@ final readonly class CompletePosOrderAction
     {
         $sale->load(['items', 'payments', 'fiscalDocuments']);
         $payment = $sale->payments->first();
-        // A POS order gets exactly one fiscal document at checkout — sales_ticket
-        // or receipt, depending on payment method — so no type filter is needed.
+        // A POS order gets exactly one document at checkout, so no type filter is needed.
         $fiscalDocument = $sale->fiscalDocuments->first();
 
         if (! $payment instanceof SalePayment || ! $fiscalDocument instanceof FiscalDocument) {
@@ -399,31 +401,50 @@ final readonly class CompletePosOrderAction
         return [$normalizedReceivedAmount, $changeAmount, null];
     }
 
-    private function lockSeriesForDocumentType(CashRegister $cashRegister, string $documentType): DocumentSeries
+    private function lockSeries(CashRegister $cashRegister, ?int $documentSeriesId): DocumentSeries
     {
         $query = DocumentSeries::query()
-            ->where('document_type', $documentType)
+            ->whereIn('document_type', ['sales_ticket', 'receipt', 'invoice'])
             ->where('is_active', true)
             ->whereHas('cashRegisters', function (Builder $query) use ($cashRegister): void {
                 $query->where('cash_registers.id', $cashRegister->id);
             });
 
-        // Sales tickets stick to the register's chosen default when it has more than
-        // one assigned; receipts don't have an equivalent default column, so any
-        // active receipt series assigned to the register will do.
-        if ($documentType === 'sales_ticket') {
+        if ($documentSeriesId !== null) {
+            $query->whereKey($documentSeriesId);
+        } else {
             $query->whereKey($cashRegister->default_sales_series_id);
         }
 
         $series = $query->lockForUpdate()->orderBy('id')->first();
 
         if (! $series instanceof DocumentSeries) {
-            throw $documentType === 'receipt'
-                ? PosCheckoutException::invalidReceiptSeries($cashRegister->id)
-                : PosCheckoutException::invalidDefaultSeries($cashRegister->id);
+            throw PosCheckoutException::invalidDocumentSeries($cashRegister->id);
         }
 
         return $series;
+    }
+
+    private function validateCustomerForDocumentType(?Customer $customer, string $documentType): void
+    {
+        if ($documentType === 'invoice') {
+            if (! $customer instanceof Customer
+                || preg_match('/^\d{11}$/D', (string) $customer->document_number) !== 1
+                || mb_trim($customer->name) === '') {
+                throw PosCheckoutException::invalidInvoiceCustomer();
+            }
+
+            return;
+        }
+
+        if ($documentType !== 'receipt' || ! $customer instanceof Customer) {
+            return;
+        }
+
+        $document = mb_trim((string) $customer->document_number);
+        if ($document !== '' && preg_match('/^(?:\d{8}|\d{11})$/D', $document) !== 1) {
+            throw PosCheckoutException::invalidReceiptCustomer();
+        }
     }
 
     /** @return array<int|string, Closure|string> */

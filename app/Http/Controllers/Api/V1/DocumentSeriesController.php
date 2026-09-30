@@ -25,6 +25,7 @@ final class DocumentSeriesController extends ApiController
                 fn ($query) => $query->where('fiscal_issuer_id', $request->integer('fiscal_issuer_id')),
             )
             ->when($request->filled('document_type'), fn ($query) => $query->where('document_type', $request->string('document_type')))
+            ->when($request->filled('purpose'), fn ($query) => $query->where('purpose', $request->string('purpose')))
             ->when($request->filled('is_active'), fn ($query) => $query->where('is_active', $request->boolean('is_active')))
             ->orderBy('document_type')
             ->orderBy('series_code')

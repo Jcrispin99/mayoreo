@@ -8,7 +8,7 @@ import { api } from '../../lib/api';
 import { PurchaseProductableLines } from './purchase-productable-lines';
 import { PurchaseProductableEditor } from './purchase-productable-editor';
 import type { PurchaseProductableDraft } from './purchase-productable-types';
-import type { Product, PurchaseOrder, Supplier, Warehouse } from './purchase-types';
+import type { PurchaseOrder, Supplier, Warehouse } from './purchase-types';
 
 type PurchaseOrderFormProps = {
   purchaseId?: string;
@@ -36,7 +36,6 @@ export function PurchaseOrderForm({ purchaseId }: PurchaseOrderFormProps) {
   const editing = Boolean(purchaseId);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [supplierId, setSupplierId] = useState<number | null>(null);
   const [warehouseId, setWarehouseId] = useState<number | null>(null);
   const [orderedAt, setOrderedAt] = useState(localDate());
@@ -59,32 +58,27 @@ export function PurchaseOrderForm({ purchaseId }: PurchaseOrderFormProps) {
   useEffect(() => {
     async function loadForm() {
       try {
-        const [orderResponse, suppliersResponse, warehousesResponse, productsResponse] = await Promise.all([
+        const [orderResponse, suppliersResponse, warehousesResponse] = await Promise.all([
           purchaseId ? api.get(`/purchase-orders/${purchaseId}`) : Promise.resolve(null),
           api.get('/suppliers'),
           api.get('/warehouses'),
-          api.get('/products'),
         ]);
         const order: PurchaseOrder | null = orderResponse?.data.data ?? null;
-        const existingProductIds = new Set(order?.items.map((item) => item.product_id) ?? []);
         const availableSuppliers: Supplier[] = (suppliersResponse.data.data ?? []).filter(
           (supplier: Supplier) => supplier.is_active || supplier.id === order?.supplier_id,
         );
         const validWarehouses: Warehouse[] = (warehousesResponse.data.data ?? []).filter(
           (warehouse: Warehouse) => warehouse.type !== 'pos' && (warehouse.is_active || warehouse.id === order?.warehouse_id),
         );
-        const availableProducts: Product[] = (productsResponse.data.data ?? []).filter(
-          (product: Product) => product.is_active || existingProductIds.has(product.id),
-        );
 
         setSuppliers(availableSuppliers);
         setWarehouses(validWarehouses);
-        setProducts(availableProducts);
 
         if (order) {
           const loadedItems: PurchaseProductableDraft[] = order.items.map((item, index) => ({
             key: index + 1,
             productId: item.product_id,
+            product: item.product ?? null,
             purchaseUnitId: item.product_purchase_unit_id,
             quantity: String(item.quantity_purchased),
             unitCost: String(item.unit_cost),
@@ -297,7 +291,12 @@ export function PurchaseOrderForm({ purchaseId }: PurchaseOrderFormProps) {
               <Text style={styles.productsHeaderText}>Productos</Text>
             </View>
             <View style={styles.productsContent}>
-              <PurchaseProductableLines items={items} onAdd={openNewLine} onOpen={openLine} products={products} readOnly={readOnly} />
+              <PurchaseProductableLines
+                items={items}
+                onAdd={openNewLine}
+                onOpen={openLine}
+                readOnly={readOnly}
+              />
             </View>
           </ScrollView>
         )}
@@ -308,7 +307,6 @@ export function PurchaseOrderForm({ purchaseId }: PurchaseOrderFormProps) {
         onClose={() => setLineEditorVisible(false)}
         onDelete={removeLine}
         onSave={saveLine}
-        products={products}
         readOnly={readOnly}
         visible={lineEditorVisible}
       />

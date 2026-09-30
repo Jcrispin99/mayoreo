@@ -74,9 +74,9 @@ final readonly class CompleteWholesaleSaleAction
         array $payload,
         ?int $createdBy,
         string $source = 'wholesale',
-        string $documentType = 'sales_ticket',
+        ?string $documentType = null,
     ): Sale {
-        if (! in_array($documentType, ['sales_ticket', 'receipt'], true)) {
+        if ($documentType !== null && ! in_array($documentType, ['sales_ticket', 'receipt', 'invoice'], true)) {
             throw WholesaleSaleException::invalidSeries();
         }
 
@@ -97,6 +97,8 @@ final readonly class CompleteWholesaleSaleAction
                 $warehouse,
                 $documentType,
             );
+            $documentType = $series->document_type;
+            $this->validateCustomerForDocumentType($customer, $documentType);
             $fiscalIdentity = $this->fiscalDocumentIdentityService->snapshot(
                 $warehouse,
                 $series,
@@ -217,7 +219,7 @@ final readonly class CompleteWholesaleSaleAction
                 'issued_at' => $soldAt,
             ]);
 
-            if ($documentType === 'receipt') {
+            if (in_array($documentType, ['receipt', 'invoice'], true)) {
                 SendFiscalDocumentToSunat::dispatch($fiscalDocument)->afterCommit();
             }
 
@@ -240,8 +242,11 @@ final readonly class CompleteWholesaleSaleAction
         return $customer;
     }
 
-    private function lockSeries(?int $seriesId, Warehouse $warehouse, string $documentType): DocumentSeries
-    {
+    private function lockSeries(
+        ?int $seriesId,
+        Warehouse $warehouse,
+        ?string $documentType,
+    ): DocumentSeries {
         $fiscalIssuerId = $warehouse->store_id === null
             ? null
             : DB::table('stores')
@@ -253,8 +258,14 @@ final readonly class CompleteWholesaleSaleAction
                 'fiscal_issuer_id',
                 is_numeric($fiscalIssuerId) ? (int) $fiscalIssuerId : null,
             )
-            ->where('document_type', $documentType)
+            ->whereIn('document_type', ['sales_ticket', 'receipt', 'invoice'])
             ->where('is_active', true);
+
+        if ($documentType !== null) {
+            $query->where('document_type', $documentType);
+        } elseif ($seriesId === null) {
+            $query->where('document_type', 'sales_ticket');
+        }
 
         if ($seriesId !== null) {
             $query->whereKey($seriesId);
@@ -269,6 +280,28 @@ final readonly class CompleteWholesaleSaleAction
         }
 
         return $series;
+    }
+
+    private function validateCustomerForDocumentType(?Customer $customer, string $documentType): void
+    {
+        if ($documentType === 'invoice') {
+            if (! $customer instanceof Customer
+                || preg_match('/^\d{11}$/D', (string) $customer->document_number) !== 1
+                || mb_trim($customer->name) === '') {
+                throw WholesaleSaleException::invalidInvoiceCustomer();
+            }
+
+            return;
+        }
+
+        if ($documentType !== 'receipt' || ! $customer instanceof Customer) {
+            return;
+        }
+
+        $document = mb_trim((string) $customer->document_number);
+        if ($document !== '' && preg_match('/^(?:\d{8}|\d{11})$/D', $document) !== 1) {
+            throw WholesaleSaleException::invalidReceiptCustomer();
+        }
     }
 
     /**

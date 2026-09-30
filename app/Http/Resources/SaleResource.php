@@ -40,7 +40,10 @@ final class SaleResource extends JsonResource
             'payments' => SalePaymentResource::collection($this->whenLoaded('payments')),
             'fiscal_documents' => FiscalDocumentResource::collection($this->whenLoaded('fiscalDocuments')),
             'primary_document' => $this->whenLoaded('fiscalDocuments', function (): ?FiscalDocumentResource {
-                $primary = $this->fiscalDocuments->firstWhere('document_type', '!=', 'credit_note');
+                $primary = $this->fiscalDocuments->first(
+                    fn ($document): bool => in_array($document->document_type, ['receipt', 'invoice'], true)
+                        && $document->status === 'issued',
+                ) ?? $this->fiscalDocuments->firstWhere('document_type', 'sales_ticket');
 
                 return $primary === null ? null : new FiscalDocumentResource($primary);
             }),

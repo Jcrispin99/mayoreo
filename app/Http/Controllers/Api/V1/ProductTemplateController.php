@@ -30,6 +30,10 @@ final class ProductTemplateController extends ApiController
 
     public function index(Request $request): JsonResponse
     {
+        if ($request->boolean('picker')) {
+            return $this->pickerIndex($request);
+        }
+
         $templates = ProductTemplate::query()
             ->with($this->relations())
             ->when($request->filled('is_active'), fn ($query) => $query->where('is_active', $request->boolean('is_active')))
@@ -99,6 +103,59 @@ final class ProductTemplateController extends ApiController
             new ProductTemplateResource($productTemplate->refresh()->load($this->relations())),
             'Product template updated successfully',
         );
+    }
+
+    private function pickerIndex(Request $request): JsonResponse
+    {
+        /** @var array{search?: string|null, page?: int|null, per_page?: int|null} $validated */
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:5', 'max:25'],
+        ]);
+        $search = mb_trim((string) ($validated['search'] ?? ''));
+        $perPage = (int) ($validated['per_page'] ?? 12);
+
+        $templates = ProductTemplate::query()
+            ->with([
+                'variants' => function (Relation $relation): void {
+                    $relation->getQuery()
+                        ->where('is_active', true)
+                        ->orderByDesc('is_principal')
+                        ->orderBy('variant_name');
+                },
+                'variants.baseUnit',
+                'variants.contentUnit',
+            ])
+            ->where('is_active', true)
+            ->whereHas('variants', fn ($variants) => $variants->where('is_active', true))
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($matching) use ($search): void {
+                    $matching->where('name', 'like', "%{$search}%")
+                        ->orWhereHas('variants', function ($variants) use ($search): void {
+                            $variants->where('is_active', true)
+                                ->where(function ($variantMatch) use ($search): void {
+                                    $variantMatch->where('sku', 'like', "%{$search}%")
+                                        ->orWhere('barcode', 'like', "%{$search}%")
+                                        ->orWhere('variant_name', 'like', "%{$search}%");
+                                });
+                        });
+                });
+            })
+            ->orderBy('name')
+            ->paginate($perPage);
+
+        return $this->success([
+            'items' => ProductTemplateResource::collection($templates->getCollection()),
+            'pagination' => [
+                'current_page' => $templates->currentPage(),
+                'last_page' => $templates->lastPage(),
+                'per_page' => $templates->perPage(),
+                'total' => $templates->total(),
+                'from' => $templates->firstItem(),
+                'to' => $templates->lastItem(),
+            ],
+        ]);
     }
 
     /**

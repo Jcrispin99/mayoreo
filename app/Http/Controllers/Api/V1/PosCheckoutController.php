@@ -32,6 +32,7 @@ final class PosCheckoutController extends ApiController
             $request->receivedAmount(),
             $request->paymentReference(),
             $request->user()?->id,
+            $request->documentSeriesId(),
         );
 
         return $this->success(

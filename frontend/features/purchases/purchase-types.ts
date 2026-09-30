@@ -1,3 +1,5 @@
+import type { UnitOfMeasure } from '../inventory/inventory-types';
+
 export type Supplier = {
   id: number;
   name: string;
@@ -17,10 +19,39 @@ export type Warehouse = {
 
 export type Product = {
   id: number;
+  product_template_id: number | null;
+  template?: { id: number; name: string; is_active: boolean; is_pos_visible: boolean } | null;
   sku: string;
+  barcode: string | null;
+  name: string;
+  variant_name: string | null;
+  display_name: string;
+  is_active: boolean;
+  is_principal: boolean;
+  sale_mode: 'unit' | 'measured';
+  base_unit: UnitOfMeasure | null;
+  content_quantity: string | null;
+  content_unit: UnitOfMeasure | null;
+};
+
+export type ProductTemplate = {
+  id: number;
   name: string;
   is_active: boolean;
-  base_unit?: { id: number; code: string; name: string } | null;
+  is_pos_visible: boolean;
+  variants: Product[];
+};
+
+export type ProductTemplatePage = {
+  items: ProductTemplate[];
+  pagination: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+  };
 };
 
 export type PurchaseOrderItem = {
@@ -29,7 +60,10 @@ export type PurchaseOrderItem = {
   product_purchase_unit_id: number | null;
   quantity_purchased: string | number;
   quantity_base: string | number;
+  stock_product_id: number | null;
+  stock_quantity: string | number | null;
   unit_cost: string | number;
+  product?: Product;
 };
 
 export type PurchaseOrder = {

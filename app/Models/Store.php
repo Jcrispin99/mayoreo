@@ -91,6 +91,12 @@ final class Store extends Model
         return $this->hasOne(StoreAttendanceQrToken::class);
     }
 
+    /** @return HasMany<AttendanceLocation, $this> */
+    public function attendanceLocations(): HasMany
+    {
+        return $this->hasMany(AttendanceLocation::class);
+    }
+
     /**
      * @return HasMany<FiscalDocument, $this>
      */

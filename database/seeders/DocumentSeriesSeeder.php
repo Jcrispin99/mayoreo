@@ -22,9 +22,9 @@ final class DocumentSeriesSeeder extends Seeder
         ];
 
         foreach ($series as $entry) {
-            DocumentSeries::query()->firstOrCreate(
+            DocumentSeries::query()->updateOrCreate(
                 ['document_type' => $entry['document_type'], 'series_code' => $entry['series_code']],
-                ['current_number' => 0, 'is_active' => true],
+                ['purpose' => 'operational', 'is_active' => true],
             );
         }
     }

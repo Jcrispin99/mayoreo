@@ -3,11 +3,13 @@ import {
   CrosshairIcon,
   DownloadIcon,
   MapPinIcon,
+  PlusIcon,
   PrinterIcon,
   QrCodeIcon,
   RefreshCwIcon,
   SaveIcon,
   ShieldCheckIcon,
+  Trash2Icon,
 } from "lucide-react"
 import QRCode from "qrcode"
 import { useEffect, useMemo, useState, type FormEvent } from "react"
@@ -24,6 +26,15 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AppLayout } from "@/layouts/app-layout"
 
+type AttendanceLocation = {
+  id: number
+  name: string
+  latitude: string
+  longitude: string
+  radius_meters: number
+  is_active: boolean
+}
+
 type StoreQr = {
   id: number
   code: string
@@ -32,6 +43,7 @@ type StoreQr = {
   attendance_latitude: string | null
   attendance_longitude: string | null
   attendance_radius_meters: number
+  attendance_locations: AttendanceLocation[]
   configured: boolean
   recoverable: boolean
   payload: string | null
@@ -57,22 +69,54 @@ function coordinate(value: string) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+type LocationForm = {
+  name: string
+  latitude: string
+  longitude: string
+  radius_meters: string
+  is_active: boolean
+}
+
+function locationForm(location?: AttendanceLocation): LocationForm {
+  return {
+    name: location?.name ?? "",
+    latitude: location?.latitude ?? "",
+    longitude: location?.longitude ?? "",
+    radius_meters: String(location?.radius_meters ?? 100),
+    is_active: location?.is_active ?? true,
+  }
+}
+
 function AttendanceLocationEditor({ store }: { store: StoreQr }) {
-  const form = useForm({
-    attendance_latitude: store.attendance_latitude ?? "",
-    attendance_longitude: store.attendance_longitude ?? "",
-    attendance_radius_meters: String(store.attendance_radius_meters || 100),
-  })
+  const initialLocation = store.attendance_locations[0]
+  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(initialLocation?.id ?? null)
+  const form = useForm<LocationForm>(locationForm(initialLocation))
   const [locationMessage, setLocationMessage] = useState("")
   const [recenterToken, setRecenterToken] = useState(0)
-  const latitude = coordinate(form.data.attendance_latitude)
-  const longitude = coordinate(form.data.attendance_longitude)
-  const parsedRadius = Number(form.data.attendance_radius_meters)
+  const latitude = coordinate(form.data.latitude)
+  const longitude = coordinate(form.data.longitude)
+  const parsedRadius = Number(form.data.radius_meters)
   const radius = Number.isFinite(parsedRadius) ? Math.min(1000, Math.max(20, parsedRadius)) : 100
+  const selectedLocation = store.attendance_locations.find((location) => location.id === selectedLocationId)
 
   function selectPoint(nextLatitude: number, nextLongitude: number) {
-    form.setData("attendance_latitude", nextLatitude.toFixed(7))
-    form.setData("attendance_longitude", nextLongitude.toFixed(7))
+    form.setData("latitude", nextLatitude.toFixed(7))
+    form.setData("longitude", nextLongitude.toFixed(7))
+    setLocationMessage("")
+  }
+
+  function selectLocation(location: AttendanceLocation) {
+    setSelectedLocationId(location.id)
+    form.setData(locationForm(location))
+    form.clearErrors()
+    setLocationMessage("")
+    setRecenterToken((value) => value + 1)
+  }
+
+  function startNewLocation() {
+    setSelectedLocationId(null)
+    form.setData(locationForm())
+    form.clearErrors()
     setLocationMessage("")
   }
 
@@ -96,19 +140,66 @@ function AttendanceLocationEditor({ store }: { store: StoreQr }) {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    form.put(`/attendance-qr/${store.id}/location`, { preserveScroll: true })
+    if (selectedLocationId === null) {
+      form.post(`/attendance-qr/${store.id}/locations`, { preserveScroll: true })
+      return
+    }
+
+    form.put(`/attendance-qr/${store.id}/locations/${selectedLocationId}`, { preserveScroll: true })
+  }
+
+  function removeLocation() {
+    if (!selectedLocation || !window.confirm(`¿Eliminar el punto “${selectedLocation.name}”?`)) return
+
+    router.delete(`/attendance-qr/${store.id}/locations/${selectedLocation.id}`, {
+      preserveScroll: true,
+      onSuccess: startNewLocation,
+    })
   }
 
   return (
     <Card id="attendance-location-editor" className="scroll-mt-6 print:hidden">
       <CardHeader>
-        <CardTitle>Ubicación autorizada de asistencia</CardTitle>
-        <CardDescription>
-          Haz clic sobre la entrada del local. El círculo rojo muestra el área donde los trabajadores podrán marcar.
-        </CardDescription>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle>Puntos autorizados de asistencia</CardTitle>
+            <CardDescription className="mt-1">
+              El mismo QR funciona en cualquiera de los puntos activos de esta tienda.
+            </CardDescription>
+          </div>
+          <Button type="button" variant="outline" onClick={startNewLocation}>
+            <PlusIcon />
+            Agregar punto
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent>
-        <form className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]" onSubmit={submit}>
+      <CardContent className="space-y-5">
+        {store.attendance_locations.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {store.attendance_locations.map((location) => (
+              <button
+                className={`rounded-xl border p-4 text-left transition-colors ${selectedLocationId === location.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                key={location.id}
+                onClick={() => selectLocation(location)}
+                type="button"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium">{location.name}</span>
+                  <Badge variant={location.is_active ? "default" : "secondary"}>{location.is_active ? "Activo" : "Inactivo"}</Badge>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">Radio de {location.radius_meters} m</p>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <Alert>
+            <MapPinIcon />
+            <AlertTitle>Aún no hay puntos configurados</AlertTitle>
+            <AlertDescription>Agrega el primer lugar desde donde se podrá marcar entrada y salida.</AlertDescription>
+          </Alert>
+        )}
+
+        <form className="grid gap-5 border-t pt-5 lg:grid-cols-[minmax(0,1fr)_20rem]" onSubmit={submit}>
           <div className="overflow-hidden rounded-xl">
             <AttendanceLocationMap
               latitude={latitude}
@@ -120,6 +211,18 @@ function AttendanceLocationEditor({ store }: { store: StoreQr }) {
           </div>
 
           <div className="flex flex-col gap-4">
+            <Field data-invalid={Boolean(form.errors.name)}>
+              <FieldLabel>Nombre del punto</FieldLabel>
+              <Input
+                aria-invalid={Boolean(form.errors.name)}
+                maxLength={100}
+                placeholder="Ej. Local principal o Almacén"
+                value={form.data.name}
+                onChange={(event) => form.setData("name", event.target.value)}
+              />
+              <FieldError>{form.errors.name}</FieldError>
+            </Field>
+
             <Button type="button" variant="outline" onClick={useCurrentLocation}>
               <CrosshairIcon />
               Usar mi ubicación actual
@@ -127,52 +230,68 @@ function AttendanceLocationEditor({ store }: { store: StoreQr }) {
             {locationMessage ? <p className="text-xs text-muted-foreground">{locationMessage}</p> : null}
 
             <div className="grid grid-cols-2 gap-3">
-              <Field data-invalid={Boolean(form.errors.attendance_latitude)}>
+              <Field data-invalid={Boolean(form.errors.latitude)}>
                 <FieldLabel>Latitud</FieldLabel>
                 <Input
-                  aria-invalid={Boolean(form.errors.attendance_latitude)}
+                  aria-invalid={Boolean(form.errors.latitude)}
                   inputMode="decimal"
                   step="0.0000001"
                   type="number"
-                  value={form.data.attendance_latitude}
-                  onChange={(event) => form.setData("attendance_latitude", event.target.value)}
+                  value={form.data.latitude}
+                  onChange={(event) => form.setData("latitude", event.target.value)}
                 />
-                <FieldError>{form.errors.attendance_latitude}</FieldError>
+                <FieldError>{form.errors.latitude}</FieldError>
               </Field>
-              <Field data-invalid={Boolean(form.errors.attendance_longitude)}>
+              <Field data-invalid={Boolean(form.errors.longitude)}>
                 <FieldLabel>Longitud</FieldLabel>
                 <Input
-                  aria-invalid={Boolean(form.errors.attendance_longitude)}
+                  aria-invalid={Boolean(form.errors.longitude)}
                   inputMode="decimal"
                   step="0.0000001"
                   type="number"
-                  value={form.data.attendance_longitude}
-                  onChange={(event) => form.setData("attendance_longitude", event.target.value)}
+                  value={form.data.longitude}
+                  onChange={(event) => form.setData("longitude", event.target.value)}
                 />
-                <FieldError>{form.errors.attendance_longitude}</FieldError>
+                <FieldError>{form.errors.longitude}</FieldError>
               </Field>
             </div>
 
-            <Field data-invalid={Boolean(form.errors.attendance_radius_meters)}>
+            <Field data-invalid={Boolean(form.errors.radius_meters)}>
               <FieldLabel>Radio permitido (metros)</FieldLabel>
               <Input
-                aria-invalid={Boolean(form.errors.attendance_radius_meters)}
+                aria-invalid={Boolean(form.errors.radius_meters)}
                 max={1000}
                 min={20}
                 type="number"
-                value={form.data.attendance_radius_meters}
-                onChange={(event) => form.setData("attendance_radius_meters", event.target.value)}
+                value={form.data.radius_meters}
+                onChange={(event) => form.setData("radius_meters", event.target.value)}
               />
               <FieldDescription>Entre 20 y 1000 metros. Para un local pequeño, 50–100 m suele ser suficiente.</FieldDescription>
-              <FieldError>{form.errors.attendance_radius_meters}</FieldError>
+              <FieldError>{form.errors.radius_meters}</FieldError>
             </Field>
 
-            <div className="mt-auto flex items-center gap-3">
-              <Button disabled={form.processing || latitude === null || longitude === null} type="submit">
+            <label className="flex items-center gap-3 rounded-lg border p-3 text-sm">
+              <input
+                checked={form.data.is_active}
+                className="size-4 accent-primary"
+                onChange={(event) => form.setData("is_active", event.target.checked)}
+                type="checkbox"
+              />
+              <span><strong>Punto activo</strong><span className="block text-xs text-muted-foreground">Los trabajadores podrán marcar dentro de este radio.</span></span>
+            </label>
+
+            <div className="mt-auto flex flex-wrap items-center gap-3">
+              <Button disabled={form.processing || latitude === null || longitude === null || form.data.name.trim() === ""} type="submit">
                 <SaveIcon />
-                Guardar ubicación
+                {selectedLocationId === null ? "Agregar punto" : "Guardar cambios"}
               </Button>
-              {form.recentlySuccessful ? <span className="text-sm text-emerald-700">Ubicación guardada.</span> : null}
+              {selectedLocation ? (
+                <Button type="button" variant="destructive" onClick={removeLocation}>
+                  <Trash2Icon />
+                  Eliminar
+                </Button>
+              ) : null}
+              {form.recentlySuccessful ? <span className="text-sm text-emerald-700">Punto guardado.</span> : null}
             </div>
           </div>
         </form>
@@ -243,7 +362,10 @@ export default function AttendanceQrIndex({ stores }: { stores: StoreQr[] }) {
     link.click()
   }
 
-  const geofenceConfigured = Boolean(store?.attendance_latitude && store.attendance_longitude)
+  const activeLocations = store?.attendance_locations.filter((location) => location.is_active) ?? []
+  const hasLegacyLocation = Boolean(store?.attendance_latitude && store.attendance_longitude)
+  const configuredLocationCount = activeLocations.length || (hasLegacyLocation ? 1 : 0)
+  const geofenceConfigured = configuredLocationCount > 0
 
   return (
     <AppLayout title="QR de asistencia">
@@ -388,7 +510,7 @@ export default function AttendanceQrIndex({ stores }: { stores: StoreQr[] }) {
                   <ShieldCheckIcon />
                   <AlertTitle>Validación activa</AlertTitle>
                   <AlertDescription>
-                    Aunque el QR no vence, cada marcación valida la sesión, el dispositivo y una distancia máxima de {store?.attendance_radius_meters} m de la tienda.
+                    Aunque el QR no vence, cada marcación valida la sesión, el dispositivo y que el trabajador esté dentro de uno de los {configuredLocationCount} punto{configuredLocationCount === 1 ? "" : "s"} activo{configuredLocationCount === 1 ? "" : "s"}.
                   </AlertDescription>
                 </Alert>
               )}

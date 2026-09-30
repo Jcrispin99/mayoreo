@@ -7,6 +7,7 @@ export type DocumentSeries = {
   id: number;
   fiscal_issuer_id: number | null;
   document_type: PosDocumentType;
+  purpose: 'operational' | 'historical_import';
   series_code: string;
   current_number: number;
   next_number: number;
@@ -165,6 +166,7 @@ export type PosCheckoutPaymentInput =
   };
 
 export type PosCheckoutPayload = {
+  document_series_id: number;
   expected_total: string;
   payment: PosCheckoutPaymentInput;
 };
@@ -188,7 +190,7 @@ export type PosCheckoutResult = {
     reference: string | null;
   };
   fiscal_document: {
-    document_type: 'sales_ticket' | 'receipt';
+    document_type: PosDocumentType;
     series_code: string;
     number: number;
   };

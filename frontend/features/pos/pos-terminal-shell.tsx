@@ -749,6 +749,8 @@ export function PosTerminalShell({ cashSessionId }: { cashSessionId: string }) {
 
       {orderOverlay.kind === 'checkout' && checkoutOrder && catalogAvailable ? (
         <PosCheckoutModal
+          defaultDocumentSeriesId={session.cash_register.default_sales_series_id}
+          documentSeries={session.cash_register.sales_series}
           onBack={returnToOrder}
           onDone={finishCheckout}
           onSubmit={submitCheckout}

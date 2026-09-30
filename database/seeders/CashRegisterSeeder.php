@@ -40,6 +40,11 @@ final class CashRegisterSeeder extends Seeder
             ->where('document_type', 'receipt')
             ->where('series_code', 'B001')
             ->first();
+        $invoiceSeries = DocumentSeries::query()
+            ->where('fiscal_issuer_id', $store->fiscal_issuer_id)
+            ->where('document_type', 'invoice')
+            ->where('series_code', 'F001')
+            ->first();
 
         $cashRegister = CashRegister::query()->updateOrCreate(
             ['store_id' => $store->id, 'code' => 'CAJA-01'],
@@ -54,6 +59,7 @@ final class CashRegisterSeeder extends Seeder
         $seriesIds = array_values(array_filter([
             $salesTicketSeries?->id,
             $receiptSeries?->id,
+            $invoiceSeries?->id,
         ], is_int(...)));
 
         if ($seriesIds !== []) {

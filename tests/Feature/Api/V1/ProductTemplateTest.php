@@ -108,6 +108,41 @@ it('lists one template instead of duplicating the family for every variant', fun
         ->assertJsonCount(2, 'data.0.variants');
 });
 
+it('paginates the lightweight template picker and searches on the server', function (): void {
+    foreach (['Avena', 'Cacao', 'Frejol', 'Lenteja', 'Quinua', 'Trigo'] as $index => $name) {
+        $template = ProductTemplate::query()->create([
+            'name' => $name,
+            'is_active' => true,
+            'is_pos_visible' => true,
+        ]);
+        Product::factory()->create([
+            'product_template_id' => $template->id,
+            'sku' => 'PICK-'.($index + 1),
+            'name' => "{$name} - Kilogramos",
+            'variant_name' => 'Kilogramos',
+            'base_unit_id' => $this->kilograms->id,
+            'sale_mode' => 'measured',
+            'is_principal' => true,
+        ]);
+    }
+
+    $this->withHeaders($this->headers)
+        ->getJson('/api/v1/product-templates?picker=1&per_page=5&page=1')
+        ->assertOk()
+        ->assertJsonPath('data.pagination.current_page', 1)
+        ->assertJsonPath('data.pagination.last_page', 2)
+        ->assertJsonPath('data.pagination.total', 6)
+        ->assertJsonCount(5, 'data.items')
+        ->assertJsonCount(1, 'data.items.0.variants');
+
+    $this->withHeaders($this->headers)
+        ->getJson('/api/v1/product-templates?picker=1&per_page=5&search=PICK-6')
+        ->assertOk()
+        ->assertJsonPath('data.pagination.total', 1)
+        ->assertJsonPath('data.items.0.name', 'Trigo')
+        ->assertJsonPath('data.items.0.variants.0.base_unit.code', 'kg');
+});
+
 it('updates the base price without destroying the existing quantity ranges', function (): void {
     $template = $this->withHeaders($this->headers)->postJson('/api/v1/product-templates', [
         'name' => 'Arroz Extra',

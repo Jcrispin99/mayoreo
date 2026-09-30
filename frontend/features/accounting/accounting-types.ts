@@ -78,6 +78,8 @@ export type CreditNoteItemSnapshot = {
 
 export type AccountingFiscalDocument = {
   id: number;
+  fiscal_issuer_id: number | null;
+  store_id: number | null;
   document_type: 'sales_ticket' | 'receipt' | 'invoice' | 'credit_note';
   series_code: string;
   number: number;

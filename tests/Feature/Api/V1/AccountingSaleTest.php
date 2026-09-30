@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Jobs\SendFiscalDocumentToSunat;
 use App\Models\CashRegister;
 use App\Models\CashRegisterSession;
 use App\Models\Customer;
@@ -17,10 +18,12 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\StockLedgerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
+    Queue::fake();
     $this->user = User::factory()->create();
     grantApiPermissions($this->user, 'sales.view', 'sales.manage');
     $this->headers = [
@@ -66,6 +69,31 @@ beforeEach(function (): void {
         '5000.000000',
         '0.0040',
     );
+});
+
+it('creates a new invoice from mobile sales with the selected series', function (): void {
+    $invoiceSeries = DocumentSeries::factory()->create([
+        'document_type' => 'invoice',
+        'series_code' => 'F009',
+        'current_number' => 8,
+    ]);
+
+    $this->withHeaders($this->headers)->postJson('/api/v1/sales', [
+        'warehouse_id' => $this->warehouse->id,
+        'customer_id' => $this->customer->id,
+        'document_series_id' => $invoiceSeries->id,
+        'expected_total' => '10.00',
+        'items' => [[
+            'product_id' => $this->product->id,
+            'quantity' => '1',
+            'unit_code' => 'kg',
+        ]],
+        'payment' => ['method' => 'card'],
+    ])->assertCreated()
+        ->assertJsonPath('data.primary_document.document_type', 'invoice')
+        ->assertJsonPath('data.primary_document.full_number', 'F009-9');
+
+    Queue::assertPushed(SendFiscalDocumentToSunat::class, 1);
 });
 
 it('completes a wholesale sale with customer, selected series, payment and converted unit', function (): void {

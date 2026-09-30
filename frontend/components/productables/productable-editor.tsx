@@ -30,6 +30,7 @@ type ProductableEditorProps = {
   readOnly?: boolean;
   selectedProductId: number | null;
   selectedProductLabel: string;
+  selectorLabel?: string;
   summaryDetail?: string;
   summaryLabel: string;
   summaryValue: string;
@@ -52,6 +53,7 @@ export function ProductableEditor({
   readOnly = false,
   selectedProductId,
   selectedProductLabel,
+  selectorLabel = 'Variante *',
   summaryDetail,
   summaryLabel,
   summaryValue,
@@ -72,7 +74,7 @@ export function ProductableEditor({
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
-            <Text style={styles.label}>Variante *</Text>
+            <Text style={styles.label}>{selectorLabel}</Text>
             <Pressable
               disabled={readOnly}
               onPress={onToggleProductPicker}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Asset, requestPermissionsAsync } from 'expo-media-library';
+import { createAssetAsync, requestPermissionsAsync } from 'expo-media-library/legacy';
 import * as Sharing from 'expo-sharing';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Button, Icon, Menu, Text } from 'react-native-paper';
@@ -139,7 +139,7 @@ export function AttendanceQrScreen() {
         throw new Error('Necesitas permitir el acceso a fotos para guardar el QR.');
       }
       const uri = await temporaryQrFile();
-      await Asset.create(uri);
+      await createAssetAsync(uri);
       setNotice('QR guardado en las fotos del celular.');
     } catch (exportError) {
       setError(exportError instanceof Error ? exportError.message : 'No se pudo guardar el QR.');

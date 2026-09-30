@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\ApiController;
 use App\Http\Requests\Api\V1\StoreStoreRequest;
 use App\Http\Requests\Api\V1\UpdateStoreRequest;
 use App\Http\Resources\StoreResource;
+use App\Models\AttendanceLocation;
 use App\Models\Store;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\JsonResponse;
@@ -41,6 +42,7 @@ final class StoreController extends ApiController
                 'is_default' => true,
                 'is_active' => true,
             ]);
+            $this->syncAttendanceLocationFromLegacyFields($store, $request->validated());
 
             return $store;
         });
@@ -74,7 +76,10 @@ final class StoreController extends ApiController
             $attributes['sunat_district'] = null;
         }
 
-        $store->update($attributes);
+        DB::transaction(function () use ($store, $attributes): void {
+            $store->update($attributes);
+            $this->syncAttendanceLocationFromLegacyFields($store, $attributes);
+        });
         $store->load('warehouses');
 
         return $this->success(new StoreResource($store), 'Tienda actualizada');
@@ -101,5 +106,41 @@ final class StoreController extends ApiController
         });
 
         return $this->noContent();
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function syncAttendanceLocationFromLegacyFields(Store $store, array $attributes): void
+    {
+        if (! array_key_exists('attendance_latitude', $attributes)
+            && ! array_key_exists('attendance_longitude', $attributes)
+            && ! array_key_exists('attendance_radius_meters', $attributes)) {
+            return;
+        }
+
+        if ($store->attendance_latitude === null || $store->attendance_longitude === null) {
+            if (array_key_exists('attendance_latitude', $attributes)
+                || array_key_exists('attendance_longitude', $attributes)) {
+                $store->attendanceLocations()->update(['is_active' => false]);
+            }
+
+            return;
+        }
+
+        $location = $store->attendanceLocations()->oldest('id')->first();
+        $values = [
+            'name' => $location instanceof AttendanceLocation ? $location->name : 'Ubicación principal',
+            'latitude' => $store->attendance_latitude,
+            'longitude' => $store->attendance_longitude,
+            'radius_meters' => $store->attendance_radius_meters,
+            'is_active' => true,
+        ];
+
+        if ($location instanceof AttendanceLocation) {
+            $location->update($values);
+
+            return;
+        }
+
+        $store->attendanceLocations()->create($values);
     }
 }

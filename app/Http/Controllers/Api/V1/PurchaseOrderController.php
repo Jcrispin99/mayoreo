@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Purchasing\RegisterPurchaseAction;
+use App\Actions\Sales\ResolveSaleStockConsumptionAction;
 use App\Exceptions\PurchaseOrderStateException;
 use App\Http\Controllers\Api\ApiController;
 use App\Http\Requests\Api\V1\StorePurchaseOrderRequest;
 use App\Http\Requests\Api\V1\UpdatePurchaseOrderRequest;
 use App\Http\Resources\PurchaseOrderResource;
+use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Services\NextSequenceNumberService;
 use Illuminate\Http\JsonResponse;
@@ -23,6 +25,7 @@ final class PurchaseOrderController extends ApiController
     public function __construct(
         private readonly RegisterPurchaseAction $registerPurchaseAction,
         private readonly NextSequenceNumberService $nextSequenceNumberService,
+        private readonly ResolveSaleStockConsumptionAction $resolveVariantStockAction,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -39,6 +42,10 @@ final class PurchaseOrderController extends ApiController
 
     public function store(StorePurchaseOrderRequest $request): JsonResponse
     {
+        /** @var list<array{product_id: int}> $itemsForValidation */
+        $itemsForValidation = $request->array('items');
+        $this->assertItemsAreResolvable($itemsForValidation);
+
         $order = DB::transaction(function () use ($request): PurchaseOrder {
             $number = $this->nextSequenceNumberService->generate('purchase', self::DEFAULT_PURCHASE_SERIES);
             $total = '0';
@@ -85,13 +92,21 @@ final class PurchaseOrderController extends ApiController
 
     public function show(PurchaseOrder $purchaseOrder): JsonResponse
     {
-        $purchaseOrder->load('items');
+        $purchaseOrder->load([
+            'items.product.baseUnit',
+            'items.product.contentUnit',
+            'items.product.template',
+        ]);
 
         return $this->success(new PurchaseOrderResource($purchaseOrder));
     }
 
     public function update(UpdatePurchaseOrderRequest $request, PurchaseOrder $purchaseOrder): JsonResponse
     {
+        /** @var list<array{product_id: int}> $itemsForValidation */
+        $itemsForValidation = $request->array('items');
+        $this->assertItemsAreResolvable($itemsForValidation);
+
         $purchaseOrder = DB::transaction(function () use ($request, $purchaseOrder): PurchaseOrder {
             $lockedPurchaseOrder = PurchaseOrder::query()
                 ->lockForUpdate()
@@ -142,5 +157,30 @@ final class PurchaseOrderController extends ApiController
         $purchaseOrder = $this->registerPurchaseAction->execute($purchaseOrder, $request->user()?->id);
 
         return $this->success(new PurchaseOrderResource($purchaseOrder), 'Purchase order confirmed successfully');
+    }
+
+    /**
+     * Fails fast (before any row is written) if a line's product/template
+     * configuration can't be resolved to a stock target — e.g. a packaged
+     * variant with no principal sibling, or missing package content. Uses
+     * a dummy probe quantity since every failure mode here depends only on
+     * static product/template configuration, never on the real quantity.
+     *
+     * @param  list<array{product_id: int}>  $items
+     */
+    private function assertItemsAreResolvable(array $items): void
+    {
+        /** @var list<int> $productIds */
+        $productIds = collect($items)->pluck('product_id')->unique()->values()->all();
+        $products = Product::query()->whereIn('id', $productIds)->get()->keyBy('id');
+
+        foreach ($productIds as $productId) {
+            $product = $products->get($productId);
+            if (! $product instanceof Product) {
+                continue;
+            }
+
+            $this->resolveVariantStockAction->execute($product, '1', lockForUpdate: false);
+        }
     }
 }

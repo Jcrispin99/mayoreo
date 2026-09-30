@@ -6,6 +6,9 @@ namespace App\Actions\Sales;
 
 use App\Exceptions\FiscalDocumentAlreadyExchangedException;
 use App\Exceptions\FiscalIdentityConfigurationException;
+use App\Exceptions\WholesaleSaleException;
+use App\Jobs\SendFiscalDocumentToSunat;
+use App\Models\DocumentSeries;
 use App\Models\FiscalDocument;
 use App\Models\FiscalIssuer;
 use App\Models\Sale;
@@ -13,11 +16,11 @@ use App\Services\NextSequenceNumberService;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Issues a boleta/factura placeholder in exchange for a sales ticket.
+ * Issues a boleta/factura in exchange for a sales ticket.
  * Inventory was already discounted when the sale was registered, so this
  * never touches stock — it only creates the fiscal document record and
- * marks the original ticket as exchanged. Real SUNAT integration (Greenter)
- * is wired in separately later.
+ * marks the original ticket as exchanged. The resulting fiscal document is
+ * queued for transmission to SUNAT after the database transaction commits.
  */
 final readonly class IssueFiscalDocumentPlaceholderAction
 {
@@ -33,9 +36,9 @@ final readonly class IssueFiscalDocumentPlaceholderAction
         private NextSequenceNumberService $nextSequenceNumberService,
     ) {}
 
-    public function execute(Sale $sale, string $documentType): FiscalDocument
+    public function execute(Sale $sale, ?string $documentType, ?int $documentSeriesId = null): FiscalDocument
     {
-        return DB::transaction(function () use ($sale, $documentType): FiscalDocument {
+        return DB::transaction(function () use ($sale, $documentType, $documentSeriesId): FiscalDocument {
             $ticket = $sale->fiscalDocuments()
                 ->where('document_type', 'sales_ticket')
                 ->where('status', 'issued')
@@ -60,10 +63,32 @@ final readonly class IssueFiscalDocumentPlaceholderAction
                 }
             }
 
-            $seriesCode = self::SERIES_BY_DOCUMENT_TYPE[$documentType];
+            $seriesQuery = DocumentSeries::query()
+                ->where('fiscal_issuer_id', $ticket->fiscal_issuer_id)
+                ->whereIn('document_type', ['receipt', 'invoice'])
+                ->where('purpose', 'operational')
+                ->where('is_active', true);
+
+            if ($documentSeriesId !== null) {
+                $seriesQuery->whereKey($documentSeriesId);
+            } elseif ($documentType !== null) {
+                $seriesQuery
+                    ->where('document_type', $documentType)
+                    ->where('series_code', self::SERIES_BY_DOCUMENT_TYPE[$documentType]);
+            }
+
+            $series = $seriesQuery->lockForUpdate()->orderBy('id')->first();
+
+            if (! $series instanceof DocumentSeries
+                || ($documentType !== null && $series->document_type !== $documentType)) {
+                throw WholesaleSaleException::invalidSeries();
+            }
+
+            $documentType = $series->document_type;
+            $this->validateCustomerForDocumentType($sale, $documentType);
             $number = $this->nextSequenceNumberService->generate(
                 $documentType,
-                $seriesCode,
+                $series->series_code,
                 $ticket->fiscal_issuer_id,
             );
 
@@ -71,7 +96,7 @@ final readonly class IssueFiscalDocumentPlaceholderAction
                 'sale_id' => $sale->id,
                 ...$ticket->fiscalIdentitySnapshot(),
                 'document_type' => $documentType,
-                'series_code' => $seriesCode,
+                'series_code' => $series->series_code,
                 'number' => $number,
                 'status' => 'issued',
                 'exchanged_from_document_id' => $ticket->id,
@@ -80,7 +105,27 @@ final readonly class IssueFiscalDocumentPlaceholderAction
 
             $ticket->update(['status' => 'exchanged']);
 
+            SendFiscalDocumentToSunat::dispatch($exchanged)->afterCommit();
+
             return $exchanged;
         });
+    }
+
+    private function validateCustomerForDocumentType(Sale $sale, string $documentType): void
+    {
+        $customerDocument = mb_trim((string) $sale->customer_document);
+
+        if ($documentType === 'invoice') {
+            if (preg_match('/^\d{11}$/D', $customerDocument) !== 1
+                || mb_trim((string) $sale->customer_name) === '') {
+                throw WholesaleSaleException::invalidInvoiceCustomer();
+            }
+
+            return;
+        }
+
+        if ($customerDocument !== '' && preg_match('/^(?:\d{8}|\d{11})$/D', $customerDocument) !== 1) {
+            throw WholesaleSaleException::invalidReceiptCustomer();
+        }
     }
 }

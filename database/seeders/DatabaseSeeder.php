@@ -23,9 +23,7 @@ final class DatabaseSeeder extends Seeder
         $this->call(RolePermissionSeeder::class);
         $this->call(MultipleDevicePermissionSeeder::class);
         $this->call(DefaultPosCustomerSeeder::class);
-        $this->call(ProductCatalogSeeder::class);
         $this->call(MayoreoProductCatalogSeeder::class);
-        $this->call(InitialInventoryPurchaseSeeder::class);
 
         if (app()->environment(['local', 'testing'])) {
             $this->call(WorkforceDemoSeeder::class);

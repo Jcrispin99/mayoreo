@@ -24,7 +24,10 @@ final class PurchaseOrderItemResource extends JsonResource
             'product_purchase_unit_id' => $this->product_purchase_unit_id,
             'quantity_purchased' => $this->quantity_purchased,
             'quantity_base' => $this->quantity,
+            'stock_product_id' => $this->stock_product_id,
+            'stock_quantity' => $this->stock_quantity,
             'unit_cost' => $this->unit_cost,
+            'product' => new ProductResource($this->whenLoaded('product')),
         ];
     }
 }

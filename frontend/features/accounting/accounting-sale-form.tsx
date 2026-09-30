@@ -38,6 +38,7 @@ import type {
 } from './accounting-types';
 import { CREDIT_NOTE_REASONS } from './accounting-types';
 import { CreditNoteModal } from './credit-note-modal';
+import { FiscalDocumentModal } from './fiscal-document-modal';
 import { SaleProductableEditor } from './sale-productable-editor';
 import { saleLinePreview } from './sale-productable-pricing';
 
@@ -72,6 +73,11 @@ const PAYMENT_LABELS: Record<string, string> = {
   yape: 'Yape',
   plin: 'Plin',
   bank_transfer: 'Transferencia',
+};
+const DOCUMENT_LABELS: Record<string, string> = {
+  sales_ticket: 'Nota de venta',
+  receipt: 'Boleta',
+  invoice: 'Factura',
 };
 function localDate() {
   const now = new Date();
@@ -132,6 +138,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [creditNoteModalVisible, setCreditNoteModalVisible] = useState(false);
+  const [fiscalDocumentModalVisible, setFiscalDocumentModalVisible] = useState(false);
 
   const loadReferences = useCallback(async () => {
     const [
@@ -146,7 +153,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
       api.get('/customers?is_active=true'),
       api.get('/warehouses?is_active=true'),
       api.get('/products?is_active=true'),
-      api.get('/document-series?document_type=sales_ticket&is_active=true'),
+      api.get('/document-series?is_active=true&purpose=operational'),
       api.get('/pos/payment-methods'),
       api.get('/cash-register-sessions?status=open'),
       api.get('/units-of-measure'),
@@ -156,9 +163,16 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
       customers: (customersResponse.data.data ?? []).filter((item: Customer) => item.is_active),
       warehouses: (warehousesResponse.data.data ?? []).filter((item: Warehouse) => item.is_active),
       products: (productsResponse.data.data ?? []).filter((item: AccountingProduct) => item.is_active),
-      series: (seriesResponse.data.data ?? []).filter(
-        (item: DocumentSeries) => item.is_active && item.document_type === 'sales_ticket',
-      ),
+      series: (seriesResponse.data.data ?? [])
+        .filter(
+          (item: DocumentSeries) => item.is_active
+            && ['sales_ticket', 'receipt', 'invoice'].includes(item.document_type),
+        )
+        .sort((left: DocumentSeries, right: DocumentSeries) => {
+          const order = { sales_ticket: 0, receipt: 1, invoice: 2 };
+          return order[left.document_type] - order[right.document_type]
+            || left.series_code.localeCompare(right.series_code);
+        }),
       paymentMethods: methodsResponse.data.data ?? [],
       cashSessions: (sessionsResponse.data.data ?? []).filter(
         (item: CashRegisterSession) => item.status === 'open',
@@ -298,6 +312,18 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
       setError('Selecciona cliente, almacén, serie y fecha.');
       return;
     }
+    if (selectedSeries?.document_type === 'invoice'
+      && (!selectedCustomer?.name.trim()
+        || !/^\d{11}$/.test(selectedCustomer.document_number ?? ''))) {
+      setError('Para emitir una factura selecciona un cliente con razón social y RUC de 11 dígitos.');
+      return;
+    }
+    if (selectedSeries?.document_type === 'receipt'
+      && selectedCustomer?.document_number
+      && !/^(?:\d{8}|\d{11})$/.test(selectedCustomer.document_number)) {
+      setError('Para emitir una boleta usa un cliente sin documento, con DNI de 8 dígitos o RUC de 11 dígitos.');
+      return;
+    }
     if (lines.length === 0 || invalidLine || duplicateProducts) {
       setError('Agrega productos distintos con cantidad, unidad y precio válidos.');
       return;
@@ -378,12 +404,29 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
     } : current));
   }
 
+  function handleFiscalDocumentIssued(document: AccountingFiscalDocument) {
+    setSale((current) => (current ? {
+      ...current,
+      fiscal_documents: [
+        ...current.fiscal_documents.map((item) => (
+          item.document_type === 'sales_ticket' ? { ...item, status: 'exchanged' } : item
+        )),
+        document,
+      ],
+      primary_document: document,
+    } : current));
+  }
+
   if (!ACCOUNTING_MODULE) return null;
 
   if (detailMode) {
     const payment = sale?.payments[0];
     const existingCreditNote = sale?.fiscal_documents.find(
       (fiscalDocument) => fiscalDocument.document_type === 'credit_note',
+    ) ?? null;
+    const issuedSalesTicket = sale?.fiscal_documents.find(
+      (fiscalDocument) => fiscalDocument.document_type === 'sales_ticket'
+        && fiscalDocument.status === 'issued',
     ) ?? null;
     const canIssueCreditNote = Boolean(
       sale
@@ -445,6 +488,37 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
                   <DetailRow label="Efectivo recibido" value={money(payment.received_amount)} />
                 ) : null}
                 {sale.notes ? <DetailRow label="Observación" value={sale.notes} /> : null}
+              </View>
+
+              <Text style={styles.sectionTitle}>Comprobante</Text>
+              <View style={styles.detailCard}>
+                <DetailRow
+                  label="Documento actual"
+                  value={`${DOCUMENT_LABELS[sale.primary_document?.document_type ?? ''] ?? 'Documento'} · ${sale.primary_document?.full_number ?? '—'}`}
+                />
+                {sale.primary_document && ['receipt', 'invoice'].includes(sale.primary_document.document_type) ? (
+                  <DetailRow
+                    label="Estado en SUNAT"
+                    value={sale.primary_document.sunat.status === 'pending'
+                      ? 'En cola'
+                      : sale.primary_document.sunat.status}
+                  />
+                ) : null}
+                {issuedSalesTicket ? (
+                  <>
+                    <Text style={styles.creditNoteHint}>
+                      Puedes convertir esta nota de venta en boleta o factura sin volver a cobrar
+                      ni descontar stock.
+                    </Text>
+                    <Button
+                      mode="contained"
+                      onPress={() => setFiscalDocumentModalVisible(true)}
+                      style={styles.creditNoteButton}
+                    >
+                      Emitir boleta o factura
+                    </Button>
+                  </>
+                ) : null}
               </View>
 
               <Text style={styles.sectionTitle}>Productos</Text>
@@ -530,6 +604,15 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
             visible={creditNoteModalVisible}
           />
         ) : null}
+        {sale && issuedSalesTicket ? (
+          <FiscalDocumentModal
+            onClose={() => setFiscalDocumentModalVisible(false)}
+            onIssued={handleFiscalDocumentIssued}
+            sale={sale}
+            sourceDocument={issuedSalesTicket}
+            visible={fiscalDocumentModalVisible}
+          />
+        ) : null}
       </ModuleLayout>
     );
   }
@@ -560,7 +643,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
             </View>
             <Text style={styles.title}>Nueva venta mayorista</Text>
             <Text style={styles.subtitle}>
-              Al confirmar se registrarán venta, pago, salida de stock y nota de venta en una sola operación.
+              Al confirmar se registrarán venta, pago, salida de stock y el comprobante elegido en una sola operación.
             </Text>
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -615,13 +698,13 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
                 ))}
               </Menu>
 
-              <Text style={styles.fieldLabel}>Serie de nota de venta *</Text>
+              <Text style={styles.fieldLabel}>Tipo y serie de comprobante *</Text>
               <Menu
                 anchor={(
                   <Pressable onPress={() => setOpenMenu({ type: 'series' })} style={styles.selector}>
                     <Text style={styles.selectorText}>
                       {selectedSeries
-                        ? `${selectedSeries.series_code} · próximo ${selectedSeries.next_number}`
+                        ? `${DOCUMENT_LABELS[selectedSeries.document_type]} · ${selectedSeries.series_code} · próximo ${selectedSeries.next_number}`
                         : 'Seleccionar serie'}
                     </Text>
                     <Icon color="#60706E" size={21} source="chevron-down" />
@@ -637,7 +720,7 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
                       setSeriesId(series.id);
                       setOpenMenu(null);
                     }}
-                    title={`${series.series_code} · próximo ${series.next_number}`}
+                    title={`${DOCUMENT_LABELS[series.document_type]} · ${series.series_code} · próximo ${series.next_number}`}
                   />
                 ))}
               </Menu>

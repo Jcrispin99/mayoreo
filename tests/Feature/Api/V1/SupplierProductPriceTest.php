@@ -77,7 +77,10 @@ it('creates or updates a standalone supplier price without creating a purchase',
 it('stores unit products directly by their base unit and rejects package prices', function (): void {
     $supplier = Supplier::query()->where('document_number', '20900000001')->firstOrFail();
     $product = App\Models\Product::query()->where('sku', 'A254')->firstOrFail();
-    $purchaseUnit = $product->purchaseUnits()->where('conversion_factor', '>', 1)->firstOrFail();
+    $purchaseUnit = App\Models\ProductPurchaseUnit::factory()->for($product)->create([
+        'name' => 'Paquete x 12',
+        'conversion_factor' => 12,
+    ]);
 
     $this->withHeaders($this->headers)->postJson('/api/v1/supplier-product-prices', [
         'supplier_id' => $supplier->id,

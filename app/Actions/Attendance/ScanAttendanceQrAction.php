@@ -25,7 +25,7 @@ final readonly class ScanAttendanceQrAction
     public function execute(User $user, string $payload, array $metadata = []): array
     {
         $qr = $this->payloadService->resolve($payload);
-        $metadata['distance_meters'] = $this->validateLocation($qr->store, $metadata);
+        $metadata = [...$metadata, ...$this->validateLocation($qr->store, $metadata)];
 
         return DB::transaction(function () use ($user, $qr, $metadata): array {
             $now = now()->toImmutable()->utc();
@@ -103,13 +103,12 @@ final readonly class ScanAttendanceQrAction
         });
     }
 
-    /** @param array<string, mixed> $metadata */
-    private function validateLocation(Store $store, array $metadata): float
+    /**
+     * @param  array<string, mixed>  $metadata
+     * @return array{distance_meters: float, attendance_location_id?: int, attendance_location_name?: string}
+     */
+    private function validateLocation(Store $store, array $metadata): array
     {
-        if ($store->attendance_latitude === null || $store->attendance_longitude === null) {
-            throw PayrollException::storeLocationMissing();
-        }
-
         $latitude = $metadata['latitude'] ?? null;
         $longitude = $metadata['longitude'] ?? null;
         $accuracy = $metadata['accuracy'] ?? null;
@@ -123,20 +122,65 @@ final readonly class ScanAttendanceQrAction
             throw PayrollException::inaccurateLocation();
         }
 
-        $earthRadius = 6371000.0;
-        $storeLatitude = deg2rad((float) $store->attendance_latitude);
-        $latitudeRadians = deg2rad((float) $latitude);
-        $latitudeDelta = $latitudeRadians - $storeLatitude;
-        $longitudeDelta = deg2rad((float) $longitude - (float) $store->attendance_longitude);
-        $haversine = sin($latitudeDelta / 2) ** 2
-            + cos($storeLatitude) * cos($latitudeRadians) * sin($longitudeDelta / 2) ** 2;
-        $distance = 2 * $earthRadius * asin(min(1.0, sqrt($haversine)));
+        $locations = $store->attendanceLocations()
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->get();
+
+        foreach ($locations as $location) {
+            $distance = $this->distanceMeters(
+                (float) $latitude,
+                (float) $longitude,
+                (float) $location->latitude,
+                (float) $location->longitude,
+            );
+
+            if ($distance <= $location->radius_meters) {
+                return [
+                    'distance_meters' => round($distance, 2),
+                    'attendance_location_id' => $location->id,
+                    'attendance_location_name' => $location->name,
+                ];
+            }
+        }
+
+        if ($locations->isNotEmpty()) {
+            throw PayrollException::outsideAttendanceArea();
+        }
+
+        if ($store->attendance_latitude === null || $store->attendance_longitude === null) {
+            throw PayrollException::storeLocationMissing();
+        }
+
+        $distance = $this->distanceMeters(
+            (float) $latitude,
+            (float) $longitude,
+            (float) $store->attendance_latitude,
+            (float) $store->attendance_longitude,
+        );
 
         if ($distance > $store->attendance_radius_meters) {
             throw PayrollException::outsideAttendanceArea();
         }
 
-        return round($distance, 2);
+        return ['distance_meters' => round($distance, 2)];
+    }
+
+    private function distanceMeters(
+        float $latitude,
+        float $longitude,
+        float $authorizedLatitude,
+        float $authorizedLongitude,
+    ): float {
+        $earthRadius = 6371000.0;
+        $authorizedLatitudeRadians = deg2rad($authorizedLatitude);
+        $latitudeRadians = deg2rad($latitude);
+        $latitudeDelta = $latitudeRadians - $authorizedLatitudeRadians;
+        $longitudeDelta = deg2rad($longitude - $authorizedLongitude);
+        $haversine = sin($latitudeDelta / 2) ** 2
+            + cos($authorizedLatitudeRadians) * cos($latitudeRadians) * sin($longitudeDelta / 2) ** 2;
+
+        return 2 * $earthRadius * asin(min(1.0, sqrt($haversine)));
     }
 
     /** @param array<string, mixed> $metadata */
@@ -159,7 +203,9 @@ final readonly class ScanAttendanceQrAction
         string $timezone,
         string $attendanceDayStartsAt,
     ): bool {
-        $clockedInAt = CarbonImmutable::parse($shift->getRawOriginal('clocked_in_at'), 'UTC');
+        $rawClockedInAt = $shift->getRawOriginal('clocked_in_at');
+        assert(is_string($rawClockedInAt));
+        $clockedInAt = CarbonImmutable::parse($rawClockedInAt, 'UTC');
         $localClockedInAt = $clockedInAt->setTimezone($timezone);
         $cutoff = $localClockedInAt
             ->startOfDay()

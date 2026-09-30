@@ -18,7 +18,17 @@ final class WholesaleSaleException extends DomainException
 
     public static function invalidSeries(): self
     {
-        return new self('Selecciona una serie activa de nota de venta.');
+        return new self('Selecciona una serie activa de nota de venta, boleta o factura para el emisor fiscal de la tienda.');
+    }
+
+    public static function invalidInvoiceCustomer(): self
+    {
+        return new self('Para emitir una factura selecciona un cliente con razón social y RUC de 11 dígitos.');
+    }
+
+    public static function invalidReceiptCustomer(): self
+    {
+        return new self('Para emitir una boleta usa un cliente sin documento, con DNI de 8 dígitos o RUC de 11 dígitos.');
     }
 
     public static function cashSessionRequired(): self

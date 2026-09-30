@@ -34,7 +34,11 @@ final class StoreSaleRequest extends FormRequest
         return [
             'warehouse_id' => ['required', 'integer', 'exists:warehouses,id'],
             'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
-            'document_series_id' => ['nullable', 'integer', 'exists:document_series,id'],
+            'document_series_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('document_series', 'id')->where('purpose', 'operational'),
+            ],
             'customer_name' => ['nullable', 'string', 'max:255'],
             'customer_document' => ['nullable', 'string', 'max:20'],
             'sold_at' => ['nullable', 'date'],

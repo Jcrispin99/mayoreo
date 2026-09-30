@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Models\PriceTier;
 use App\Models\Product;
-use App\Models\ProductPurchaseUnit;
 use App\Models\ProductTemplate;
 use App\Models\UnitOfMeasure;
 use Illuminate\Database\Seeder;
@@ -54,10 +52,6 @@ final class MayoreoProductCatalogSeeder extends Seeder
         $name = $this->requiredString($item, 'name');
         $unitCode = $this->catalogUnit($item['unit'] ?? null);
         $quantity = $this->nullableNumericString($item['quantity'] ?? null);
-        $confidence = $this->optionalString($item['confidence'] ?? null) ?? 'BAJA';
-        $reviewStatus = $this->optionalString($item['review_status'] ?? null) ?? 'PENDIENTE';
-        $prices = $this->prices($item['prices'] ?? null);
-        $tiers = $this->priceTiersFor($unitCode, $quantity, $prices);
 
         $product = Product::withTrashed()->where('sku', $sku)->first();
         $template = $product instanceof Product && $product->product_template_id !== null
@@ -69,12 +63,16 @@ final class MayoreoProductCatalogSeeder extends Seeder
                 ?? new ProductTemplate();
         }
 
+        $isNewTemplate = ! $template->exists;
         $template->fill([
             'name' => $name,
             'description' => $this->description($item, $quantity, $unitCode),
             'is_active' => true,
-            'is_pos_visible' => $tiers !== [] && ($confidence !== 'BAJA' || $reviewStatus === 'APROBADO'),
         ]);
+        if ($isNewTemplate) {
+            // Se siembra sin precios: no puede venderse en el POS hasta configurarlos.
+            $template->is_pos_visible = false;
+        }
         $template->save();
         if ($template->trashed()) {
             $template->restore();
@@ -105,9 +103,6 @@ final class MayoreoProductCatalogSeeder extends Seeder
             $product->restore();
         }
         $product->attributeValues()->sync([]);
-
-        $this->syncPriceTiers($product, $tiers);
-        $this->syncPurchaseUnits($product, $unitCode, $quantity);
     }
 
     /**
@@ -125,230 +120,6 @@ final class MayoreoProductCatalogSeeder extends Seeder
         }
 
         return [$quantity, $units[$unit]->id];
-    }
-
-    /**
-     * @return array{retail: numeric-string|null, regular: numeric-string|null, package_total: numeric-string|null, wholesale: numeric-string|null}
-     */
-    private function prices(mixed $value): array
-    {
-        $prices = is_array($value) ? $value : [];
-
-        return [
-            'retail' => $this->nullableNumericString($prices['retail'] ?? null),
-            'regular' => $this->nullableNumericString($prices['regular'] ?? null),
-            'package_total' => $this->nullableNumericString($prices['package_total'] ?? null),
-            'wholesale' => $this->nullableNumericString($prices['wholesale'] ?? null),
-        ];
-    }
-
-    /**
-     * @param  numeric-string|null  $quantity
-     * @param  array{retail: numeric-string|null, regular: numeric-string|null, package_total: numeric-string|null, wholesale: numeric-string|null}  $prices
-     * @return list<array{label: string, min: numeric-string, max: numeric-string|null, price: numeric-string}>
-     */
-    private function priceTiersFor(string $unit, ?string $quantity, array $prices): array
-    {
-        if ($unit === 'unidad') {
-            return $this->unitPriceTiers($quantity, $prices);
-        }
-
-        $tiers = [];
-        $retailPrice = $prices['retail'];
-        $regularPrice = $this->roundToCents($prices['regular']);
-        $wholesalePrice = $prices['wholesale'];
-        $hasWholesale = $wholesalePrice !== null && $quantity !== null;
-
-        if ($retailPrice !== null) {
-            $tiers[] = [
-                'label' => 'Menudeo',
-                'min' => '0.001000',
-                'max' => '0.999999',
-                'price' => $retailPrice,
-            ];
-        }
-
-        if ($regularPrice !== null && (! $hasWholesale || bccomp($quantity, '1', 6) > 0)) {
-            $tiers[] = [
-                'label' => 'Por kilo',
-                'min' => '1.000000',
-                'max' => $hasWholesale ? bcsub($quantity, '0.000001', 6) : null,
-                'price' => $regularPrice,
-            ];
-        }
-
-        if ($hasWholesale) {
-            $tiers[] = [
-                'label' => $this->wholesaleLabel($unit, $quantity, $prices['package_total']),
-                'min' => bccomp($quantity, '1', 6) >= 0 ? $quantity : '1.000000',
-                'max' => null,
-                'price' => $wholesalePrice,
-            ];
-        }
-
-        return $tiers;
-    }
-
-    /**
-     * @param  numeric-string|null  $quantity
-     * @param  array{retail: numeric-string|null, regular: numeric-string|null, package_total: numeric-string|null, wholesale: numeric-string|null}  $prices
-     * @return list<array{label: string, min: numeric-string, max: numeric-string|null, price: numeric-string}>
-     */
-    private function unitPriceTiers(?string $quantity, array $prices): array
-    {
-        $tiers = [];
-        $retailPrice = $prices['retail'];
-        $regularPrice = $this->roundToCents($prices['regular']);
-        $wholesalePrice = $prices['wholesale'];
-        $wholesaleThreshold = $quantity !== null && bccomp($quantity, '1', 6) > 0
-            ? $quantity
-            : null;
-
-        if ($retailPrice !== null) {
-            $tiers[] = [
-                'label' => 'Menudeo',
-                'min' => '1.000000',
-                'max' => $regularPrice !== null || $wholesaleThreshold !== null ? '1.000000' : null,
-                'price' => $retailPrice,
-            ];
-        }
-
-        if ($regularPrice !== null && ($wholesaleThreshold === null || bccomp($wholesaleThreshold, '2', 6) > 0)) {
-            $minimum = $retailPrice !== null ? '2.000000' : '1.000000';
-            $tiers[] = [
-                'label' => 'Venta unitaria',
-                'min' => $minimum,
-                'max' => $wholesaleThreshold !== null ? bcsub($wholesaleThreshold, '1', 6) : null,
-                'price' => $regularPrice,
-            ];
-        }
-
-        if ($wholesalePrice !== null && $wholesaleThreshold !== null) {
-            $tiers[] = [
-                'label' => $this->wholesaleLabel('unidad', $wholesaleThreshold, $prices['package_total']),
-                'min' => $wholesaleThreshold,
-                'max' => null,
-                'price' => $wholesalePrice,
-            ];
-        }
-
-        return $tiers;
-    }
-
-    /**
-     * @param  numeric-string  $quantity
-     * @param  numeric-string|null  $packageTotal
-     */
-    private function wholesaleLabel(string $unit, string $quantity, ?string $packageTotal): string
-    {
-        $label = match ($unit) {
-            'kg' => "Cliente / saco {$this->quantityLabel($quantity)} kg",
-            default => "Cliente / paquete x {$this->quantityLabel($quantity)}",
-        };
-
-        return $packageTotal === null ? $label : "{$label} (total S/ {$this->moneyLabel($packageTotal)})";
-    }
-
-    /**
-     * @param  numeric-string|null  $price
-     * @return numeric-string|null
-     */
-    private function roundToCents(?string $price): ?string
-    {
-        if ($price === null) {
-            return null;
-        }
-
-        /** @var numeric-string $rounded */
-        $rounded = bcadd($price, '0.005', 2);
-
-        return $rounded;
-    }
-
-    /**
-     * @param  list<array{label: string, min: numeric-string, max: numeric-string|null, price: numeric-string}>  $tiers
-     */
-    private function syncPriceTiers(Product $product, array $tiers): void
-    {
-        $product->priceTiers()->update(['is_active' => false]);
-
-        foreach ($tiers as $tier) {
-            PriceTier::query()->updateOrCreate(
-                ['product_id' => $product->id, 'label' => $tier['label']],
-                [
-                    'min_quantity' => $tier['min'],
-                    'max_quantity' => $tier['max'],
-                    'unit_price' => $tier['price'],
-                    'is_active' => true,
-                ],
-            );
-        }
-    }
-
-    /** @param numeric-string|null $quantity */
-    private function syncPurchaseUnits(Product $product, string $unit, ?string $quantity): void
-    {
-        $definitions = match ($unit) {
-            'kg' => $this->measuredPurchaseUnits('Kilogramo', 'Saco', 'kg', $quantity),
-            default => $this->countPurchaseUnits($quantity),
-        };
-        $processedIds = [];
-
-        foreach ($definitions as $definition) {
-            $purchaseUnit = ProductPurchaseUnit::query()->updateOrCreate(
-                ['product_id' => $product->id, 'name' => $definition['name']],
-                [
-                    'conversion_factor' => $definition['factor'],
-                    'barcode' => null,
-                    'is_default_purchase' => $definition['default'],
-                ],
-            );
-            $processedIds[] = $purchaseUnit->id;
-        }
-
-        $product->purchaseUnits()
-            ->whereNotIn('id', $processedIds)
-            ->update(['is_default_purchase' => false]);
-    }
-
-    /**
-     * @param  numeric-string|null  $quantity
-     * @return list<array{name: string, factor: numeric-string, default: bool}>
-     */
-    private function measuredPurchaseUnits(string $baseName, string $packageName, string $suffix, ?string $quantity): array
-    {
-        if ($quantity === null || bccomp($quantity, '1', 6) <= 0) {
-            return [['name' => $baseName, 'factor' => '1.000000', 'default' => true]];
-        }
-
-        return [
-            ['name' => $baseName, 'factor' => '1.000000', 'default' => false],
-            [
-                'name' => "{$packageName} {$this->quantityLabel($quantity)} {$suffix}",
-                'factor' => $quantity,
-                'default' => true,
-            ],
-        ];
-    }
-
-    /**
-     * @param  numeric-string|null  $quantity
-     * @return list<array{name: string, factor: numeric-string, default: bool}>
-     */
-    private function countPurchaseUnits(?string $quantity): array
-    {
-        if ($quantity === null || bccomp($quantity, '1', 6) <= 0) {
-            return [['name' => 'Unidad', 'factor' => '1.000000', 'default' => true]];
-        }
-
-        return [
-            ['name' => 'Unidad', 'factor' => '1.000000', 'default' => false],
-            [
-                'name' => "Paquete x {$this->quantityLabel($quantity)}",
-                'factor' => $quantity,
-                'default' => true,
-            ],
-        ];
     }
 
     /**
@@ -447,11 +218,5 @@ final class MayoreoProductCatalogSeeder extends Seeder
     private function quantityLabel(string $quantity): string
     {
         return mb_rtrim(mb_rtrim(number_format((float) $quantity, 6, '.', ''), '0'), '.');
-    }
-
-    /** @param numeric-string $amount */
-    private function moneyLabel(string $amount): string
-    {
-        return number_format((float) $amount, 2, '.', '');
     }
 }

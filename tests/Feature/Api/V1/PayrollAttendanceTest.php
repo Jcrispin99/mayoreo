@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Models\AttendanceAdjustment;
+use App\Models\AttendanceEvent;
+use App\Models\AttendanceLocation;
 use App\Models\AttendanceShift;
 use App\Models\EmployeeCompensation;
 use App\Models\EmployeeProfile;
@@ -240,6 +242,59 @@ it('keeps permanent QR codes valid while rejecting another device, inaccurate GP
         ->assertCreated()->assertJsonPath('data.action', 'entry');
 
     $this->assertDatabaseCount('attendance_shifts', 1);
+});
+
+it('accepts the same permanent QR at any active configured attendance location', function (): void {
+    $worker = User::factory()->create();
+    grantApiPermissions($worker, 'attendance.mark');
+    EmployeeProfile::query()->create([
+        'user_id' => $worker->id,
+        'store_id' => $this->store->id,
+        'employment_status' => 'active',
+        'hired_at' => '2026-08-01',
+        'expected_minutes_per_day' => 840,
+        'monthly_divisor' => 30,
+        'work_days' => [0, 1, 2, 3, 4, 5, 6],
+    ]);
+    $principal = AttendanceLocation::query()->create([
+        'store_id' => $this->store->id,
+        'name' => 'Local principal',
+        'latitude' => '-12.0463740',
+        'longitude' => '-77.0427930',
+        'radius_meters' => 80,
+        'is_active' => true,
+    ]);
+    $warehouse = AttendanceLocation::query()->create([
+        'store_id' => $this->store->id,
+        'name' => 'Almacén norte',
+        'latitude' => '-11.9500000',
+        'longitude' => '-77.0600000',
+        'radius_meters' => 100,
+        'is_active' => true,
+    ]);
+    $workerHeaders = attendanceDeviceHeaders($worker);
+    $payload = $this->withHeaders($this->managerHeaders)
+        ->postJson("/api/v1/stores/{$this->store->id}/attendance-qr/rotate")
+        ->assertOk()->json('data.payload');
+
+    $this->app['auth']->forgetGuards();
+    Carbon::setTestNow(Carbon::parse('2026-08-12 13:00:00', 'UTC'));
+    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', attendanceScanPayload($payload, [
+        'latitude' => -12.0463740,
+        'longitude' => -77.0427930,
+    ]))->assertCreated()->assertJsonPath('data.action', 'entry');
+
+    Carbon::setTestNow(Carbon::parse('2026-08-12 13:02:00', 'UTC'));
+    $this->withHeaders($workerHeaders)->postJson('/api/v1/attendance/scan', attendanceScanPayload($payload, [
+        'latitude' => -11.9500000,
+        'longitude' => -77.0600000,
+    ]))->assertCreated()->assertJsonPath('data.action', 'exit');
+
+    $events = AttendanceEvent::query()->orderBy('id')->get();
+    expect($events)->toHaveCount(2)
+        ->and($events[0]->metadata['attendance_location_id'])->toBe($principal->id)
+        ->and($events[1]->metadata['attendance_location_id'])->toBe($warehouse->id)
+        ->and($events[1]->metadata['attendance_location_name'])->toBe('Almacén norte');
 });
 
 it('invalidates the previously printed QR only when a manager rotates it', function (): void {

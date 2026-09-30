@@ -23,6 +23,7 @@ import {
   moneyInputToCents,
 } from './pos-money';
 import type {
+  DocumentSeries,
   PosCheckoutPayload,
   PosCheckoutResult,
   PosOrder,
@@ -31,6 +32,8 @@ import type {
 } from './pos-types';
 
 type PosCheckoutModalProps = {
+  defaultDocumentSeriesId: number;
+  documentSeries: DocumentSeries[];
   onBack: () => void;
   onDone: (result: PosCheckoutResult) => Promise<void>;
   onSubmit: (payload: PosCheckoutPayload) => Promise<PosCheckoutResult | null>;
@@ -45,6 +48,18 @@ const PAYMENT_METHOD_ICONS: Record<PosPaymentMethod, string> = {
   plin: 'cellphone-arrow-down',
   bank_transfer: 'bank-transfer',
 };
+
+const DOCUMENT_TYPE_LABELS = {
+  sales_ticket: 'Nota de venta',
+  receipt: 'Boleta',
+  invoice: 'Factura',
+} as const;
+
+const DOCUMENT_TYPE_ICONS = {
+  sales_ticket: 'receipt-text-outline',
+  receipt: 'file-document-outline',
+  invoice: 'file-certificate-outline',
+} as const;
 
 function requestErrorMessage(requestError: unknown) {
   if (!axios.isAxiosError(requestError)) {
@@ -97,7 +112,7 @@ function CheckoutSuccess({
 
         <View style={styles.successDocument}>
           <Text style={styles.successDocumentLabel}>
-            {result.fiscal_document.document_type === 'receipt' ? 'Boleta' : 'Nota de venta'}
+            {DOCUMENT_TYPE_LABELS[result.fiscal_document.document_type]}
           </Text>
           <Text style={styles.successDocumentNumber}>
             {result.fiscal_document.series_code}-{result.fiscal_document.number}
@@ -147,6 +162,8 @@ function CheckoutSuccess({
 }
 
 export function PosCheckoutModal({
+  defaultDocumentSeriesId,
+  documentSeries,
   onBack,
   onDone,
   onSubmit,
@@ -158,7 +175,12 @@ export function PosCheckoutModal({
   const totalCents = useMemo(() => decimalToCents(order.total), [order.total]);
   const safeTotalCents = totalCents ?? 0;
   const suggestedAmounts = useMemo(() => cashSuggestions(safeTotalCents), [safeTotalCents]);
+  const availableDocumentSeries = useMemo(
+    () => documentSeries.filter((series) => series.is_active),
+    [documentSeries],
+  );
   const [method, setMethod] = useState<PosPaymentMethod>('cash');
+  const [documentSeriesId, setDocumentSeriesId] = useState(defaultDocumentSeriesId);
   const [receivedAmount, setReceivedAmount] = useState(centsToDecimal(safeTotalCents));
   const [reference, setReference] = useState('');
   const [error, setError] = useState('');
@@ -181,6 +203,16 @@ export function PosCheckoutModal({
   const validPayment = totalCents !== null
     && paymentMethods.some((option) => option.code === method)
     && (method !== 'cash' || (receivedCents !== null && receivedCents >= totalCents));
+  const selectedDocumentSeries = availableDocumentSeries.find(
+    (series) => series.id === documentSeriesId,
+  ) ?? null;
+  const customerDocument = order.customer?.document_number?.trim() ?? '';
+  const validFiscalCustomer = selectedDocumentSeries?.document_type === 'invoice'
+    ? Boolean(order.customer?.name.trim()) && /^\d{11}$/.test(customerDocument)
+    : selectedDocumentSeries?.document_type === 'receipt'
+      ? customerDocument === '' || /^(?:\d{8}|\d{11})$/.test(customerDocument)
+      : true;
+  const validDocument = selectedDocumentSeries !== null && validFiscalCustomer;
 
   const loadPaymentMethods = useCallback(async () => {
     setMethodsLoading(true);
@@ -208,6 +240,11 @@ export function PosCheckoutModal({
 
     const nextTotalCents = decimalToCents(order.total) ?? 0;
     setMethod('cash');
+    setDocumentSeriesId(
+      availableDocumentSeries.some((series) => series.id === defaultDocumentSeriesId)
+        ? defaultDocumentSeriesId
+        : availableDocumentSeries[0]?.id ?? 0,
+    );
     setReceivedAmount(centsToDecimal(nextTotalCents));
     setReference('');
     setError('');
@@ -216,7 +253,7 @@ export function PosCheckoutModal({
     setResult(null);
     submittingRef.current = false;
     finishingRef.current = false;
-  }, [order.id, order.total, visible]);
+  }, [availableDocumentSeries, defaultDocumentSeriesId, order.id, order.total, visible]);
 
   useEffect(() => {
     if (visible) void loadPaymentMethods();
@@ -248,6 +285,7 @@ export function PosCheckoutModal({
 
     try {
       const checkoutResult = await onSubmit({
+        document_series_id: documentSeriesId,
         expected_total: centsToDecimal(totalCents),
         payment,
       });
@@ -356,6 +394,67 @@ export function PosCheckoutModal({
                 </View>
 
                 <View style={[styles.paymentColumn, wideLayout && styles.wideColumn]}>
+                  <View>
+                    <Text style={styles.sectionTitle}>Documento de venta</Text>
+                    <Text style={styles.sectionHelp}>Selecciona el comprobante y la serie que se emitirán.</Text>
+                  </View>
+
+                  <View style={styles.methods}>
+                    {availableDocumentSeries.map((series) => {
+                      const selected = documentSeriesId === series.id;
+                      return (
+                        <Pressable
+                          accessibilityLabel={`${DOCUMENT_TYPE_LABELS[series.document_type]} ${series.series_code}`}
+                          accessibilityRole="radio"
+                          accessibilityState={{ disabled: submitting, selected }}
+                          disabled={submitting}
+                          key={series.id}
+                          onPress={() => {
+                            setDocumentSeriesId(series.id);
+                            setError('');
+                          }}
+                          style={({ pressed }) => [
+                            styles.documentCard,
+                            selected && styles.methodCardSelected,
+                            pressed && !submitting && styles.methodCardPressed,
+                            submitting && styles.disabledControl,
+                          ]}
+                        >
+                          <View style={[styles.methodIcon, selected && styles.methodIconSelected]}>
+                            <Icon
+                              color={selected ? '#FFFFFF' : '#B4232D'}
+                              size={23}
+                              source={DOCUMENT_TYPE_ICONS[series.document_type]}
+                            />
+                          </View>
+                          <View style={styles.methodText}>
+                            <Text style={[styles.methodLabel, selected && styles.methodLabelSelected]}>
+                              {DOCUMENT_TYPE_LABELS[series.document_type]}
+                            </Text>
+                            <Text style={styles.methodDescription}>
+                              {series.series_code} · siguiente {series.next_number}
+                            </Text>
+                          </View>
+                          <Icon
+                            color={selected ? '#B4232D' : '#879692'}
+                            size={20}
+                            source={selected ? 'radiobox-marked' : 'radiobox-blank'}
+                          />
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+
+                  {availableDocumentSeries.length === 0 ? (
+                    <Text style={styles.fieldError}>Esta caja no tiene series de venta activas configuradas.</Text>
+                  ) : selectedDocumentSeries?.document_type === 'invoice' && !validFiscalCustomer ? (
+                    <Text style={styles.fieldError}>La factura requiere seleccionar un cliente con razón social y RUC de 11 dígitos.</Text>
+                  ) : selectedDocumentSeries?.document_type === 'receipt' && !validFiscalCustomer ? (
+                    <Text style={styles.fieldError}>La boleta requiere un DNI de 8 dígitos, RUC de 11 dígitos o dejar el cliente sin documento.</Text>
+                  ) : null}
+
+                  <View style={styles.sectionDivider} />
+
                   <View>
                     <Text style={styles.sectionTitle}>Método de pago</Text>
                     <Text style={styles.sectionHelp}>Selecciona una sola forma de pago para esta venta.</Text>
@@ -551,7 +650,7 @@ export function PosCheckoutModal({
                   <Button
                     buttonColor="#FF4D4D"
                     contentStyle={styles.primaryButtonContent}
-                    disabled={submitting || !validPayment}
+                    disabled={submitting || !validPayment || !validDocument}
                     icon="lock-check-outline"
                     loading={submitting}
                     mode="contained"
@@ -603,6 +702,7 @@ const styles = StyleSheet.create({
   methodsLoadingText: { color: '#60706E', fontSize: 10 },
   methodsError: { minHeight: 64, padding: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#FCE8EA' },
   methodCard: { minWidth: 190, minHeight: 66, flexGrow: 1, flexBasis: '47%', padding: 10, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 11, backgroundColor: '#FFFFFF' },
+  documentCard: { minWidth: 150, minHeight: 66, flexGrow: 1, flexBasis: '30%', padding: 10, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: '#D7E0DE', borderRadius: 11, backgroundColor: '#FFFFFF' },
   methodCardSelected: { borderColor: '#B4232D', backgroundColor: '#FFE5E5' },
   methodCardPressed: { backgroundColor: '#F2F6F7' },
   disabledControl: { opacity: 0.58 },
@@ -612,6 +712,7 @@ const styles = StyleSheet.create({
   methodLabel: { color: '#4A555A', fontSize: 11, fontWeight: '900' },
   methodLabelSelected: { color: '#B4232D' },
   methodDescription: { marginTop: 2, color: '#60706E', fontSize: 8 },
+  sectionDivider: { height: 1, backgroundColor: '#D7E0DE' },
   paymentForm: { gap: 10 },
   amountInput: { backgroundColor: '#FFFFFF', fontSize: 20, fontWeight: '900' },
   quickAmounts: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },

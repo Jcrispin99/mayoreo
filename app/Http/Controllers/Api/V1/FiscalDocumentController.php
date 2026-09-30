@@ -12,6 +12,7 @@ use App\Http\Requests\Api\V1\StoreCreditNoteRequest;
 use App\Http\Resources\FiscalDocumentResource;
 use App\Models\FiscalDocument;
 use App\Models\Sale;
+use App\Models\User;
 use App\Services\FiscalDocumentTransmissionService;
 use Illuminate\Http\JsonResponse;
 
@@ -30,7 +31,11 @@ final class FiscalDocumentController extends ApiController
 
     public function store(IssueFiscalDocumentRequest $request, Sale $sale): JsonResponse
     {
-        $document = $this->issueFiscalDocumentPlaceholderAction->execute($sale, $request->string('document_type')->toString());
+        $document = $this->issueFiscalDocumentPlaceholderAction->execute(
+            $sale,
+            $request->documentType(),
+            $request->documentSeriesId(),
+        );
 
         return $this->created(new FiscalDocumentResource($document), 'Fiscal document issued successfully');
     }
@@ -47,12 +52,15 @@ final class FiscalDocumentController extends ApiController
 
     public function creditNote(StoreCreditNoteRequest $request, FiscalDocument $fiscalDocument): JsonResponse
     {
+        $user = $request->user();
+        abort_unless($user instanceof User, 401);
+
         $creditNote = $this->issueCreditNoteAction->execute(
             $fiscalDocument,
             $request->reasonCode(),
             $request->reasonDescription(),
             $request->creditItems(),
-            $request->user()?->id ?? 0,
+            $user->id,
         );
 
         return $this->created(new FiscalDocumentResource($creditNote), 'Nota de crédito emitida');

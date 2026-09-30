@@ -11,7 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-it('configures the main register to sell from the main warehouse with receipt support', function (): void {
+it('configures the main register with note, receipt and invoice support', function (): void {
     $this->seed([
         DocumentSeriesSeeder::class,
         WarehouseSeeder::class,
@@ -27,10 +27,10 @@ it('configures the main register to sell from the main warehouse with receipt su
     expect($register->warehouse?->code)->toBe('MAIN')
         ->and($register->defaultSalesSeries?->series_code)->toBe('NV01')
         ->and($register->salesSeries->pluck('series_code')->sort()->values()->all())
-        ->toBe(['B001', 'NV01']);
+        ->toBe(['B001', 'F001', 'NV01']);
 
     $this->seed(CashRegisterSeeder::class);
 
     expect(CashRegister::query()->where('code', 'CAJA-01')->count())->toBe(1)
-        ->and($register->fresh()?->salesSeries()->count())->toBe(2);
+        ->and($register->fresh()?->salesSeries()->count())->toBe(3);
 });

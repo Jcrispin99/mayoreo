@@ -7,9 +7,10 @@ use App\Exceptions\PurchaseOrderStateException;
 use App\Models\DocumentSeries;
 use App\Models\InventoryMovement;
 use App\Models\Product;
-use App\Models\ProductPurchaseUnit;
+use App\Models\ProductTemplate;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
+use App\Models\UnitOfMeasure;
 use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -65,6 +66,24 @@ it('creates a purchase order in draft status', function (): void {
         'unit_cost' => '3.0000',
     ]);
     $response->assertJsonPath('data.items.0.quantity_base', '0.000000');
+});
+
+it('returns the selected product details when opening a purchase', function (): void {
+    $order = $this->withHeaders($this->headers)->postJson('/api/v1/purchase-orders', [
+        'supplier_id' => $this->supplier->id,
+        'warehouse_id' => $this->warehouse->id,
+        'ordered_at' => now()->toDateString(),
+        'items' => [
+            ['product_id' => $this->product->id, 'quantity_purchased' => 2, 'unit_cost' => 10],
+        ],
+    ])->assertCreated()->json('data');
+
+    $this->withHeaders($this->headers)
+        ->getJson("/api/v1/purchase-orders/{$order['id']}")
+        ->assertOk()
+        ->assertJsonPath('data.items.0.product.id', $this->product->id)
+        ->assertJsonPath('data.items.0.product.sku', $this->product->sku)
+        ->assertJsonPath('data.items.0.product.base_unit.code', 'kg');
 });
 
 it('generates consecutive purchase numbers and calculates each total', function (): void {
@@ -183,10 +202,35 @@ it('rejects updating a confirmed purchase order', function (): void {
         ->assertUnprocessable();
 });
 
-it('confirming a purchase order registers stock in the target warehouse', function (): void {
-    $purchaseUnit = ProductPurchaseUnit::factory()->for($this->product)->create([
-        'name' => 'saco 50kg',
-        'conversion_factor' => 50000,
+it('confirming a purchase order for a packaged variant credits the principal in its base unit', function (): void {
+    $grams = UnitOfMeasure::factory()->grams()->create();
+    $kilograms = UnitOfMeasure::query()->where('code', 'kg')->firstOrFail();
+    $units = UnitOfMeasure::factory()->units()->create();
+
+    $template = ProductTemplate::query()->create([
+        'name' => 'Arroz Extra',
+        'is_active' => true,
+        'is_pos_visible' => true,
+    ]);
+    $principal = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'name' => 'Arroz Extra - Granel',
+        'variant_name' => 'Granel',
+        'sku' => 'ARROZ-COMPRA-GRANEL',
+        'base_unit_id' => $grams->id,
+        'sale_mode' => 'measured',
+        'is_principal' => true,
+    ]);
+    $saco = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'name' => 'Arroz Extra - Saco 50kg',
+        'variant_name' => 'Saco 50kg',
+        'sku' => 'ARROZ-COMPRA-SACO50',
+        'base_unit_id' => $units->id,
+        'sale_mode' => 'unit',
+        'content_quantity' => 50,
+        'content_unit_id' => $kilograms->id,
+        'is_principal' => false,
     ]);
 
     $order = $this->withHeaders($this->headers)->postJson('/api/v1/purchase-orders', [
@@ -195,8 +239,7 @@ it('confirming a purchase order registers stock in the target warehouse', functi
         'ordered_at' => now()->toDateString(),
         'items' => [
             [
-                'product_id' => $this->product->id,
-                'product_purchase_unit_id' => $purchaseUnit->id,
+                'product_id' => $saco->id,
                 'quantity_purchased' => 10, // 10 sacos
                 'unit_cost' => 100, // 100 per saco
             ],
@@ -207,19 +250,94 @@ it('confirming a purchase order registers stock in the target warehouse', functi
 
     $response->assertOk()->assertJson(['data' => ['status' => 'confirmed']]);
 
-    // 10 sacos * 50000g = 500000 g; cost per gram = 100/50000 = 0.002
+    // 10 sacos * 50kg = 500000 g; cost per gram = 100/50000 = 0.002
     $this->assertDatabaseHas('stocks', [
         'warehouse_id' => $this->warehouse->id,
-        'product_id' => $this->product->id,
+        'product_id' => $principal->id,
         'quantity' => '500000.000000',
         'average_cost' => '0.0020',
+    ]);
+    $this->assertDatabaseMissing('stocks', ['product_id' => $saco->id]);
+
+    $this->assertDatabaseHas('productables', [
+        'productable_type' => PurchaseOrder::class,
+        'productable_id' => $order['id'],
+        'product_id' => $saco->id,
+        'stock_product_id' => $principal->id,
+        'quantity' => '10.000000',
+        'stock_quantity' => '500000.000000',
     ]);
 
     $this->assertDatabaseHas('inventory_movements', [
         'type' => 'purchase',
         'reference_type' => PurchaseOrder::class,
         'reference_id' => $order['id'],
+        'product_id' => $principal->id,
+        'quantity' => '500000.000000',
     ]);
+});
+
+it('rejects creating a purchase order for a template variant with no principal, before writing any rows', function (): void {
+    $template = ProductTemplate::query()->create([
+        'name' => 'Sin Principal',
+        'is_active' => true,
+        'is_pos_visible' => true,
+    ]);
+    $orphanVariant = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'is_principal' => false,
+        'sale_mode' => 'unit',
+    ]);
+
+    $response = $this->withHeaders($this->headers)->postJson('/api/v1/purchase-orders', [
+        'supplier_id' => $this->supplier->id,
+        'warehouse_id' => $this->warehouse->id,
+        'ordered_at' => now()->toDateString(),
+        'items' => [
+            ['product_id' => $orphanVariant->id, 'quantity_purchased' => 5, 'unit_cost' => 10],
+        ],
+    ]);
+
+    $response->assertUnprocessable();
+    $this->assertDatabaseCount('purchase_orders', 0);
+});
+
+it('rejects updating a draft with a template variant with no principal, leaving the draft unchanged', function (): void {
+    $order = $this->withHeaders($this->headers)->postJson('/api/v1/purchase-orders', [
+        'supplier_id' => $this->supplier->id,
+        'warehouse_id' => $this->warehouse->id,
+        'ordered_at' => now()->toDateString(),
+        'items' => [
+            ['product_id' => $this->product->id, 'quantity_purchased' => 2, 'unit_cost' => 10],
+        ],
+    ])->json('data');
+
+    $template = ProductTemplate::query()->create([
+        'name' => 'Sin Principal',
+        'is_active' => true,
+        'is_pos_visible' => true,
+    ]);
+    $orphanVariant = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'is_principal' => false,
+        'sale_mode' => 'unit',
+    ]);
+
+    $response = $this->withHeaders($this->headers)->putJson("/api/v1/purchase-orders/{$order['id']}", [
+        'supplier_id' => $this->supplier->id,
+        'warehouse_id' => $this->warehouse->id,
+        'ordered_at' => now()->toDateString(),
+        'items' => [
+            ['product_id' => $orphanVariant->id, 'quantity_purchased' => 5, 'unit_cost' => 10],
+        ],
+    ]);
+
+    $response->assertUnprocessable();
+    $this->assertDatabaseHas('purchase_orders', [
+        'id' => $order['id'],
+        'total' => '20.0000',
+    ]);
+    $this->assertDatabaseCount('productables', 1);
 });
 
 it('rejects a purchase order targeting the pos warehouse', function (): void {

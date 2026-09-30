@@ -13,8 +13,15 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-it('seeds the initial inventory purchase as an idempotent draft without changing stock', function (): void {
+it('keeps the initial purchase manual and seeds it as an idempotent draft without changing stock', function (): void {
     $this->seed(DatabaseSeeder::class);
+
+    expect(PurchaseOrder::query()->count())->toBe(0)
+        ->and(InventoryMovement::query()->count())->toBe(0)
+        ->and(Product::query()->count())->toBe(441)
+        ->and(Product::query()->where('sku', 'ARROZ-EXTRA-KG')->exists())->toBeFalse();
+
+    $this->seed(InitialInventoryPurchaseSeeder::class);
 
     $order = PurchaseOrder::query()
         ->with('items')

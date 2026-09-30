@@ -33,18 +33,21 @@ final class PosCheckoutException extends DomainException
         );
     }
 
-    public static function invalidDefaultSeries(int $cashRegisterId): self
+    public static function invalidDocumentSeries(int $cashRegisterId): self
     {
         return new self(
-            "La caja [{$cashRegisterId}] no tiene una serie activa de nota de venta asignada como predeterminada.",
+            "Selecciona una serie activa de nota de venta, boleta o factura asignada a la caja [{$cashRegisterId}].",
         );
     }
 
-    public static function invalidReceiptSeries(int $cashRegisterId): self
+    public static function invalidInvoiceCustomer(): self
     {
-        return new self(
-            "La caja [{$cashRegisterId}] no tiene una serie activa de boleta asignada.",
-        );
+        return new self('Para emitir una factura selecciona un cliente con razón social y RUC de 11 dígitos.');
+    }
+
+    public static function invalidReceiptCustomer(): self
+    {
+        return new self('Para emitir una boleta usa un cliente sin documento, con DNI de 8 dígitos o RUC de 11 dígitos.');
     }
 
     public static function invalidWarehouse(int $cashRegisterId): self
