@@ -9,8 +9,8 @@ import { COLORS } from "../theme/colors";
 
 export default function LoginScreen() {
     const { login } = useAuth();
-    const [email, setEmail] = useState("admin@gmail.com");
-    const [password, setPassword] = useState("password");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [deviceConflict, setDeviceConflict] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -75,6 +75,9 @@ export default function LoginScreen() {
                     setError(null);
                 }}
                 autoCapitalize="none"
+                autoComplete="off"
+                autoCorrect={false}
+                importantForAutofill="noExcludeDescendants"
                 keyboardType="email-address"
                 mode="outlined"
             />
@@ -86,6 +89,9 @@ export default function LoginScreen() {
                     setDeviceConflict(false);
                     setError(null);
                 }}
+                autoComplete="off"
+                autoCorrect={false}
+                importantForAutofill="noExcludeDescendants"
                 secureTextEntry
                 mode="outlined"
             />
