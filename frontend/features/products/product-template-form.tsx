@@ -107,6 +107,16 @@ function variantPayload(
   };
 }
 
+function deleteErrorMessage(requestError: unknown) {
+  const data = (requestError as {
+    response?: { data?: { message?: string; errors?: Record<string, string[]> } };
+  })?.response?.data;
+  const firstError = data?.errors ? Object.values(data.errors).flat()[0] : null;
+  if (typeof firstError === 'string') return firstError;
+
+  return apiErrorMessage(requestError, data?.message ?? 'No se pudo eliminar el producto.');
+}
+
 export function ProductTemplateForm({ templateId }: { templateId?: string }) {
   const editing = Boolean(templateId);
   const [name, setName] = useState('');
@@ -124,6 +134,9 @@ export function ProductTemplateForm({ templateId }: { templateId?: string }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const {
     chooseFromLibrary,
     selectedImage,
@@ -281,6 +294,20 @@ export function ProductTemplateForm({ templateId }: { templateId?: string }) {
     }
   }
 
+  async function removeProduct() {
+    if (!templateId) return;
+    setDeleting(true);
+    setDeleteError('');
+
+    try {
+      await api.delete(`/product-templates/${templateId}`);
+      router.back();
+    } catch (requestError) {
+      setDeleteError(deleteErrorMessage(requestError));
+      setDeleting(false);
+    }
+  }
+
   function openAttributes() {
     if (!templateId) return;
     router.push({
@@ -404,6 +431,51 @@ export function ProductTemplateForm({ templateId }: { templateId?: string }) {
                 <Switch onValueChange={setPosVisible} value={posVisible} />
               </View>
             </View>
+
+            {editing ? (
+              <View style={styles.deleteSection}>
+                {confirmingDelete ? (
+                  <View style={styles.deleteConfirmation}>
+                    <Text style={styles.deleteTitle}>¿Eliminar este producto?</Text>
+                    <Text style={styles.deleteText}>
+                      Se borra definitivamente con todas sus variantes y precios. Solo se puede si nunca tuvo compras, ventas, traslados ni movimientos de inventario.
+                    </Text>
+                    {deleteError ? <Text style={styles.deleteErrorText}>{deleteError}</Text> : null}
+                    <View style={styles.deleteActions}>
+                      <Button
+                        disabled={deleting}
+                        onPress={() => {
+                          setConfirmingDelete(false);
+                          setDeleteError('');
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        buttonColor="#8F1D2C"
+                        loading={deleting}
+                        disabled={deleting}
+                        mode="contained"
+                        onPress={() => void removeProduct()}
+                        textColor="#FFFFFF"
+                      >
+                        Eliminar
+                      </Button>
+                    </View>
+                  </View>
+                ) : (
+                  <Button
+                    disabled={saving}
+                    icon="trash-can-outline"
+                    mode="outlined"
+                    onPress={() => setConfirmingDelete(true)}
+                    textColor="#8F1D2C"
+                  >
+                    Eliminar producto
+                  </Button>
+                )}
+              </View>
+            ) : null}
           </ScrollView>
         )}
       </KeyboardAvoidingView>
@@ -433,4 +505,10 @@ const styles = StyleSheet.create({
   selectorText: { flex: 1, color: '#172423', fontSize: 14 },
   switchRow: { minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   switchTitle: { color: '#172423', fontSize: 13, fontWeight: '800' },
+  deleteSection: { marginTop: 36, paddingTop: 20, borderTopWidth: 1, borderTopColor: '#D7E0DE' },
+  deleteConfirmation: { padding: 14, gap: 6, borderRadius: 8, backgroundColor: '#FCE8EA' },
+  deleteTitle: { color: '#8F1D2C', fontSize: 13, fontWeight: '800' },
+  deleteText: { color: '#8F1D2C', fontSize: 11, lineHeight: 16 },
+  deleteErrorText: { marginTop: 4, color: '#8F1D2C', fontSize: 12, fontWeight: '800' },
+  deleteActions: { marginTop: 6, flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
 });

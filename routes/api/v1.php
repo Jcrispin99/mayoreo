@@ -285,9 +285,9 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
         ->middlewareFor(['store', 'update', 'destroy'], 'can:products.manage')
         ->names('api.v1.products');
     Route::apiResource('product-templates', ProductTemplateController::class)
-        ->only(['index', 'store', 'show', 'update'])
+        ->only(['index', 'store', 'show', 'update', 'destroy'])
         ->middlewareFor(['index', 'show'], 'can:products.view')
-        ->middlewareFor(['store', 'update'], 'can:products.manage')
+        ->middlewareFor(['store', 'update', 'destroy'], 'can:products.manage')
         ->names('api.v1.product-templates');
     Route::post('products/{product}/image', [ProductController::class, 'uploadImage'])
         ->middleware('can:products.manage')

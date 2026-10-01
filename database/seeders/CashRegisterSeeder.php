@@ -10,8 +10,16 @@ use App\Models\Store;
 use App\Models\Warehouse;
 use Illuminate\Database\Seeder;
 
+/**
+ * Seeds three registers (CAJA-01..03), each with its own nota de venta series
+ * (NV01..03) as its default and only assigned series. The boleta and factura
+ * series (B001..003, F001..003) are intentionally left unassigned so they can
+ * be assigned to each register from the app.
+ */
 final class CashRegisterSeeder extends Seeder
 {
+    private const REGISTER_COUNT = 3;
+
     public function run(): void
     {
         $store = Store::query()->where('code', 'PRINCIPAL')->first() ?? Store::query()->first();
@@ -30,40 +38,28 @@ final class CashRegisterSeeder extends Seeder
             return;
         }
 
-        $salesTicketSeries = DocumentSeries::query()
-            ->where('fiscal_issuer_id', $store->fiscal_issuer_id)
-            ->where('document_type', 'sales_ticket')
-            ->where('series_code', 'NV01')
-            ->first();
-        $receiptSeries = DocumentSeries::query()
-            ->where('fiscal_issuer_id', $store->fiscal_issuer_id)
-            ->where('document_type', 'receipt')
-            ->where('series_code', 'B001')
-            ->first();
-        $invoiceSeries = DocumentSeries::query()
-            ->where('fiscal_issuer_id', $store->fiscal_issuer_id)
-            ->where('document_type', 'invoice')
-            ->where('series_code', 'F001')
-            ->first();
+        for ($number = 1; $number <= self::REGISTER_COUNT; $number++) {
+            $salesTicketSeries = DocumentSeries::query()
+                ->where('fiscal_issuer_id', $store->fiscal_issuer_id)
+                ->where('document_type', 'sales_ticket')
+                ->where('series_code', sprintf('NV%02d', $number))
+                ->first();
 
-        $cashRegister = CashRegister::query()->updateOrCreate(
-            ['store_id' => $store->id, 'code' => 'CAJA-01'],
-            [
-                'warehouse_id' => $warehouse->id,
-                'default_sales_series_id' => $salesTicketSeries?->id,
-                'name' => 'Caja principal',
-                'is_active' => true,
-            ],
-        );
+            $cashRegister = CashRegister::query()->updateOrCreate(
+                ['store_id' => $store->id, 'code' => sprintf('CAJA-%02d', $number)],
+                [
+                    'warehouse_id' => $warehouse->id,
+                    'default_sales_series_id' => $salesTicketSeries?->id,
+                    'name' => "Caja {$number}",
+                    'is_active' => true,
+                ],
+            );
 
-        $seriesIds = array_values(array_filter([
-            $salesTicketSeries?->id,
-            $receiptSeries?->id,
-            $invoiceSeries?->id,
-        ], is_int(...)));
-
-        if ($seriesIds !== []) {
-            $cashRegister->salesSeries()->syncWithoutDetaching($seriesIds);
+            // sync, not attach: a re-seed must also drop the boleta/factura
+            // series the previous version of this seeder assigned to CAJA-01.
+            $cashRegister->salesSeries()->sync(
+                $salesTicketSeries instanceof DocumentSeries ? [$salesTicketSeries->id] : [],
+            );
         }
     }
 }

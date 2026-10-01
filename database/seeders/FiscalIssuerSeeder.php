@@ -12,7 +12,8 @@ use Illuminate\Database\Seeder;
 
 /**
  * Seeds the business's real SUNAT fiscal identity (RUC, domicilio fiscal) and
- * links it to the store, its operational series (NV01/B001/F001/BC01/FC01), and
+ * links it to the store, its operational series (NV01-03, B001-003, F001-003,
+ * BC01/FC01), and
  * the dedicated B901 series used for the Yape historical-sale import. The
  * Clave SOL password and digital certificate are never seeded here — those
  * stay encrypted in the database, loaded once through the app's SUNAT
@@ -56,19 +57,13 @@ final class FiscalIssuerSeeder extends Seeder
                 'sunat_district' => 'HUANUCO',
             ]);
 
-        // The pre-existing operational series were seeded without an issuer;
+        // The operational sales series (NV/B/F) are seeded without an issuer;
         // now that the business's RUC is known, they belong to it too.
-        foreach ([
-            ['document_type' => 'sales_ticket', 'series_code' => 'NV01'],
-            ['document_type' => 'receipt', 'series_code' => 'B001'],
-            ['document_type' => 'invoice', 'series_code' => 'F001'],
-        ] as $operational) {
-            DocumentSeries::query()
-                ->where('document_type', $operational['document_type'])
-                ->where('series_code', $operational['series_code'])
-                ->where(fn ($query) => $query->whereNull('fiscal_issuer_id')->orWhere('fiscal_issuer_id', $issuer->id))
-                ->update(['fiscal_issuer_id' => $issuer->id]);
-        }
+        DocumentSeries::query()
+            ->whereNull('fiscal_issuer_id')
+            ->where('purpose', 'operational')
+            ->whereIn('document_type', ['sales_ticket', 'receipt', 'invoice'])
+            ->update(['fiscal_issuer_id' => $issuer->id]);
 
         DocumentSeries::query()->firstOrCreate(
             [

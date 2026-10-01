@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Snackbar } from 'react-native-paper';
 import { ListToolbar } from '../../components/data/list-toolbar';
@@ -136,9 +137,12 @@ export function ProductList({ onCreate, onEdit }: ProductListProps) {
     }
   }, []);
 
-  useEffect(() => {
-    void loadProducts();
-  }, [loadProducts]);
+  // Reload silently when coming back from a product (edited or deleted).
+  const loadedOnce = useRef(false);
+  useFocusEffect(useCallback(() => {
+    void loadProducts(loadedOnce.current);
+    loadedOnce.current = true;
+  }, [loadProducts]));
 
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('es');

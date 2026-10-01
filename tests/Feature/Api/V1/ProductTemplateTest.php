@@ -3,12 +3,16 @@
 declare(strict_types=1);
 
 use App\Models\InventoryMovement;
+use App\Models\PriceTier;
 use App\Models\Product;
 use App\Models\ProductAttribute;
+use App\Models\ProductPurchaseUnit;
 use App\Models\ProductTemplate;
+use App\Models\PurchaseOrder;
 use App\Models\UnitOfMeasure;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -530,4 +534,94 @@ it('does not allow omitting the protected principal variant', function (): void 
             ],
         ],
     )->assertUnprocessable()->assertJsonValidationErrors('variants');
+});
+
+it('permanently deletes a product without movements together with its variants, prices and images', function (): void {
+    Storage::fake('public');
+    Storage::disk('public')->put('products/template.jpg', 'image');
+    Storage::disk('public')->put('products/principal.jpg', 'image');
+    $template = ProductTemplate::query()->create([
+        'name' => 'Aceite sin uso',
+        'is_active' => true,
+        'is_pos_visible' => false,
+        'image_path' => 'products/template.jpg',
+    ]);
+    $principal = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'is_principal' => true,
+        'base_unit_id' => $this->units->id,
+        'sale_mode' => 'unit',
+        'image_path' => 'products/principal.jpg',
+    ]);
+    $packaged = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'is_principal' => false,
+        'base_unit_id' => $this->units->id,
+        'sale_mode' => 'unit',
+    ]);
+    PriceTier::factory()->for($principal)->create();
+    ProductPurchaseUnit::factory()->for($packaged)->create();
+
+    $this->withHeaders($this->headers)
+        ->deleteJson("/api/v1/product-templates/{$template->id}")
+        ->assertNoContent();
+
+    $this->assertDatabaseMissing('product_templates', ['id' => $template->id]);
+    $this->assertDatabaseMissing('products', ['id' => $principal->id]);
+    $this->assertDatabaseMissing('products', ['id' => $packaged->id]);
+    $this->assertDatabaseMissing('price_tiers', ['product_id' => $principal->id]);
+    $this->assertDatabaseMissing('product_purchase_units', ['product_id' => $packaged->id]);
+    Storage::disk('public')->assertMissing(['products/template.jpg', 'products/principal.jpg']);
+});
+
+it('refuses to delete a product used in a purchase and leaves it untouched', function (): void {
+    $template = ProductTemplate::query()->create(['name' => 'Arroz comprado', 'is_active' => true, 'is_pos_visible' => true]);
+    $principal = Product::factory()->create(['product_template_id' => $template->id, 'is_principal' => true]);
+    PurchaseOrder::factory()->create()->items()->create([
+        'product_id' => $principal->id,
+        'quantity' => 0,
+        'quantity_purchased' => 5,
+        'unit_cost' => 10,
+    ]);
+
+    $this->withHeaders($this->headers)
+        ->deleteJson("/api/v1/product-templates/{$template->id}")
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('product');
+
+    $this->assertDatabaseHas('product_templates', ['id' => $template->id, 'deleted_at' => null]);
+    $this->assertDatabaseHas('products', ['id' => $principal->id, 'deleted_at' => null]);
+});
+
+it('counts the kardex of an already removed variant before deleting a product', function (): void {
+    $template = ProductTemplate::query()->create(['name' => 'Azúcar con historial', 'is_active' => true, 'is_pos_visible' => true]);
+    Product::factory()->create(['product_template_id' => $template->id, 'is_principal' => true]);
+    $removed = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'is_principal' => false,
+        'base_unit_id' => $this->units->id,
+        'sale_mode' => 'unit',
+    ]);
+    InventoryMovement::factory()->create(['product_id' => $removed->id]);
+    $removed->delete();
+
+    $this->withHeaders($this->headers)
+        ->deleteJson("/api/v1/product-templates/{$template->id}")
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('product');
+
+    $this->assertDatabaseHas('product_templates', ['id' => $template->id, 'deleted_at' => null]);
+});
+
+it('requires the products manage permission to delete a product', function (): void {
+    $viewer = User::factory()->create();
+    grantApiPermissions($viewer, 'products.view');
+    $template = ProductTemplate::query()->create(['name' => 'Producto protegido', 'is_active' => true, 'is_pos_visible' => true]);
+    Product::factory()->create(['product_template_id' => $template->id, 'is_principal' => true]);
+
+    $this->withHeaders(['Authorization' => 'Bearer '.$viewer->createToken('viewer')->plainTextToken])
+        ->deleteJson("/api/v1/product-templates/{$template->id}")
+        ->assertForbidden();
+
+    $this->assertDatabaseHas('product_templates', ['id' => $template->id]);
 });

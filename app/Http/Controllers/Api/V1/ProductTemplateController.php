@@ -8,8 +8,11 @@ use App\Http\Controllers\Api\ApiController;
 use App\Http\Requests\Api\V1\StoreProductTemplateRequest;
 use App\Http\Requests\Api\V1\UpdateProductTemplateRequest;
 use App\Http\Resources\ProductTemplateResource;
+use App\Models\InventoryMovement;
+use App\Models\PosSupplyRequestItem;
 use App\Models\PriceTier;
 use App\Models\Product;
+use App\Models\Productable;
 use App\Models\ProductAttribute;
 use App\Models\ProductAttributeValue;
 use App\Models\ProductTemplate;
@@ -20,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 final class ProductTemplateController extends ApiController
@@ -103,6 +107,64 @@ final class ProductTemplateController extends ApiController
             new ProductTemplateResource($productTemplate->refresh()->load($this->relations())),
             'Product template updated successfully',
         );
+    }
+
+    /**
+     * Permanently deletes a product and all its variants, but only when none
+     * of them was ever used. A product with history must be deactivated
+     * instead, so past documents keep pointing at it.
+     */
+    public function destroy(ProductTemplate $productTemplate): JsonResponse
+    {
+        /** @var list<string> $imagePaths */
+        $imagePaths = DB::transaction(function () use ($productTemplate): array {
+            $template = ProductTemplate::query()->lockForUpdate()->findOrFail($productTemplate->id);
+            $variants = Product::withTrashed()
+                ->where('product_template_id', $template->id)
+                ->lockForUpdate()
+                ->get();
+
+            if ($this->hasMovements($variants->map(fn (Product $variant): int => $variant->id)->all())) {
+                throw ValidationException::withMessages([
+                    'product' => 'No se puede eliminar: este producto tiene movimientos (compras, ventas, traslados, pedidos o kardex). Desactívalo en su lugar.',
+                ]);
+            }
+
+            $imagePaths = $variants->pluck('image_path')->push($template->image_path);
+
+            $variants->each(fn (Product $variant): ?bool => $variant->forceDelete());
+            $template->forceDelete();
+
+            return $imagePaths
+                ->filter(fn (mixed $path): bool => is_string($path) && $path !== '')
+                ->unique()
+                ->values()
+                ->all();
+        });
+
+        foreach ($imagePaths as $imagePath) {
+            Storage::disk('public')->delete($imagePath);
+        }
+
+        return $this->noContent();
+    }
+
+    /**
+     * @param  array<int, int>  $productIds
+     */
+    private function hasMovements(array $productIds): bool
+    {
+        if ($productIds === []) {
+            return false;
+        }
+
+        return Productable::query()
+            ->where(fn ($query) => $query
+                ->whereIn('product_id', $productIds)
+                ->orWhereIn('stock_product_id', $productIds))
+            ->exists()
+            || InventoryMovement::query()->whereIn('product_id', $productIds)->exists()
+            || PosSupplyRequestItem::query()->whereIn('product_id', $productIds)->exists();
     }
 
     private function pickerIndex(Request $request): JsonResponse
