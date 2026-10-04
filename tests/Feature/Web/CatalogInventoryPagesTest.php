@@ -8,6 +8,7 @@ use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
+use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
@@ -17,6 +18,30 @@ it('lets the web session authenticate against the api like a sanctum spa', funct
 
     expect($kernel->getMiddlewareGroups()['api'])
         ->toContain(EnsureFrontendRequestsAreStateful::class);
+});
+
+it('uses the current web host for stateful api session authentication', function (): void {
+    config([
+        'app.url' => 'https://incorrect-app-url.example',
+        'sanctum.stateful' => [Sanctum::$currentRequestHostPlaceholder],
+    ]);
+
+    $user = User::factory()->create();
+    grantApiPermissions($user, 'products.view');
+    $headers = [
+        'Host' => 'mayoreo.ikoodev.com',
+        'Referer' => 'https://mayoreo.ikoodev.com/catalog/products',
+    ];
+
+    $this->withHeaders($headers)->post('/login', [
+        'email' => $user->email,
+        'password' => 'password',
+    ])->assertRedirect('/');
+
+    $this->withHeaders($headers)
+        ->getJson('/api/v1/product-templates')
+        ->assertOk()
+        ->assertJsonPath('success', true);
 });
 
 it('keeps catalog and inventory pages behind login', function (string $url): void {

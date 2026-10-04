@@ -19,6 +19,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -163,19 +164,21 @@ export function AppSidebar() {
                 <ChevronUpIcon className="ml-auto" />
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="end" className="w-60">
-                <DropdownMenuLabel>Mi cuenta</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.visit("/profile")}>
-                  <UserRoundIcon />
-                  Administrar perfil
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => router.post("/logout")}
-                >
-                  <LogOutIcon />
-                  Cerrar sesión
-                </DropdownMenuItem>
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Mi cuenta</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => router.visit("/profile")}>
+                    <UserRoundIcon />
+                    Administrar perfil
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => router.post("/logout")}
+                  >
+                    <LogOutIcon />
+                    Cerrar sesión
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
