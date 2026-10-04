@@ -67,7 +67,6 @@ export function AccessReferenceForm({ itemId, kind }: AccessReferenceFormProps) 
   const [terminationDialogVisible, setTerminationDialogVisible] = useState(false);
   const [terminationDraft, setTerminationDraft] = useState('');
   const [terminationError, setTerminationError] = useState('');
-  const [expectedHours, setExpectedHours] = useState('8');
   const [monthlyDivisor, setMonthlyDivisor] = useState('30');
   const [workDays, setWorkDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
   const [payType, setPayType] = useState<'monthly' | 'daily'>('monthly');
@@ -115,7 +114,6 @@ export function AccessReferenceForm({ itemId, kind }: AccessReferenceFormProps) 
         setEmploymentStatus(profile?.employment_status ?? 'active');
         setHiredAt(profile?.hired_at ?? new Date().toISOString().slice(0, 10));
         setTerminatedAt(profile?.terminated_at ?? '');
-        setExpectedHours(String((profile?.expected_minutes_per_day ?? 480) / 60));
         setMonthlyDivisor(String(profile?.monthly_divisor ?? 30));
         setWorkDays(profile?.work_days ?? [0, 1, 2, 3, 4, 5, 6]);
 
@@ -171,7 +169,7 @@ export function AccessReferenceForm({ itemId, kind }: AccessReferenceFormProps) 
     if (kind === 'users' && !email.trim()) { setError('Completa el correo electrónico.'); setTab('account'); return; }
     if (kind === 'users' && !editing && password.length < 8) { setError('La contraseña debe tener al menos 8 caracteres.'); setTab('account'); return; }
     if (kind === 'users' && password && password !== passwordConfirmation) { setError('Las contraseñas no coinciden.'); setTab('account'); return; }
-    if (employeeEnabled && (!hiredAt || Number(expectedHours) <= 0 || workDays.length === 0)) { setError('Completa correctamente el perfil laboral y selecciona al menos un día.'); setTab('labor'); return; }
+    if (employeeEnabled && (!hiredAt || workDays.length === 0)) { setError('Completa correctamente el perfil laboral y selecciona al menos un día.'); setTab('labor'); return; }
     if (employeeEnabled && employmentStatus === 'inactive' && !terminatedAt) { setError('Registra la fecha de cese para mantener el perfil laboral inactivo.'); setTab('labor'); return; }
 
     setSaving(true); setError('');
@@ -188,7 +186,7 @@ export function AccessReferenceForm({ itemId, kind }: AccessReferenceFormProps) 
       if (employeeEnabled && canManageEmployees) {
         const profileResponse = await api.put(`/users/${savedId}/employee-profile`, {
           store_id: storeId, employment_status: employmentStatus, hired_at: hiredAt, terminated_at: terminatedAt || null,
-          expected_minutes_per_day: Math.round(Number(expectedHours) * 60), monthly_divisor: Number(monthlyDivisor), work_days: workDays,
+          expected_minutes_per_day: 840, monthly_divisor: Number(monthlyDivisor), work_days: workDays,
         });
         const savedProfileId = Number(profileResponse.data.data.id);
         if (payAmount.trim() && canManagePayroll) await api.post(`/employees/${savedProfileId}/compensations`, {
@@ -199,7 +197,7 @@ export function AccessReferenceForm({ itemId, kind }: AccessReferenceFormProps) 
         await api.put(`/users/${savedId}/employee-profile`, {
           store_id: storeId, employment_status: 'inactive', hired_at: hiredAt,
           terminated_at: terminatedAt || new Date().toISOString().slice(0, 10),
-          expected_minutes_per_day: Math.round(Number(expectedHours) * 60), monthly_divisor: Number(monthlyDivisor), work_days: workDays,
+          expected_minutes_per_day: 840, monthly_divisor: Number(monthlyDivisor), work_days: workDays,
         });
       }
       returnToList();
@@ -253,7 +251,7 @@ export function AccessReferenceForm({ itemId, kind }: AccessReferenceFormProps) 
               <Menu anchor={<Pressable onPress={() => setStoreMenuVisible(true)} style={styles.selector}><View><Text style={styles.selectorLabel}>Tienda asignada</Text><Text style={styles.selectorValue}>{stores.find((store) => store.id === storeId)?.name ?? 'Sin tienda fija'}</Text></View><Icon source="chevron-down" size={21} color="#60706E" /></Pressable>} onDismiss={() => setStoreMenuVisible(false)} visible={storeMenuVisible}><Menu.Item onPress={() => { setStoreId(null); setStoreMenuVisible(false); }} title="Sin tienda fija" />{stores.map((store) => <Menu.Item key={store.id} onPress={() => { setStoreId(store.id); setStoreMenuVisible(false); }} title={`${store.code} · ${store.name}`} />)}</Menu>
               <View style={styles.employmentStatusCard}><View style={styles.employmentStatusCopy}><View style={[styles.statusBadge, employmentStatus === 'active' ? styles.statusActive : styles.statusInactive]}><Text style={[styles.statusBadgeText, employmentStatus === 'active' ? styles.statusActiveText : styles.statusInactiveText]}>{employmentStatus === 'active' ? 'ACTIVO' : 'INACTIVO'}</Text></View><Text style={styles.employmentStatusText}>{terminatedAt ? `Cese registrado: ${terminatedAt}` : 'Sin fecha de cese'}</Text></View>{employeeProfileId ? <View style={styles.employmentActions}>{employmentStatus === 'inactive' ? <Button compact icon="account-reactivate-outline" mode="outlined" onPress={reactivateEmployment}>Reactivar</Button> : null}<Button compact icon="calendar-remove-outline" mode={terminatedAt ? 'outlined' : 'contained'} onPress={openTerminationDialog}>{terminatedAt ? 'Modificar cese' : 'Registrar cese'}</Button></View> : null}</View>
               <TextInput label="Fecha de ingreso" mode="outlined" multiline={false} numberOfLines={1} onChangeText={setHiredAt} style={styles.singleLineInput} value={hiredAt} />
-              <TextInput keyboardType="decimal-pad" label="Horas esperadas por día" maxLength={5} mode="outlined" multiline={false} numberOfLines={1} onChangeText={(value) => { const normalized = value.replace(',', '.'); if (/^\d{0,2}(?:\.\d{0,2})?$/.test(normalized)) setExpectedHours(normalized); }} style={styles.singleLineInput} value={expectedHours} />
+              <TextInput disabled label="Horas esperadas por día" mode="outlined" multiline={false} numberOfLines={1} style={styles.singleLineInput} value="14" />
               <Text style={styles.help}>El valor diario del sueldo mensual se calcula automáticamente según los días calendario del mes.</Text>
               <View style={styles.daysCard}><Text style={styles.fieldTitle}>Días laborables</Text><View style={styles.days}>{DAY_LABELS.map((label, day) => <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: workDays.includes(day) }} key={day} onPress={() => setWorkDays((current) => current.includes(day) ? current.filter((value) => value !== day) : [...current, day])} style={[styles.day, workDays.includes(day) && styles.daySelected]}><Text style={[styles.dayText, workDays.includes(day) && styles.dayTextSelected]}>{label}</Text></Pressable>)}</View></View>
             </> : <View style={styles.emptyCard}><Icon source="account-off-outline" color="#60706E" size={42} /><Text style={styles.emptyTitle}>Cuenta sin perfil laboral</Text><Text style={styles.emptyText}>Puede acceder al sistema según sus roles, pero no marcará asistencia ni aparecerá en planillas.</Text></View>}
