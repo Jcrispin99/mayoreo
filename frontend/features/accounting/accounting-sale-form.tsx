@@ -39,6 +39,7 @@ import type {
 import { CREDIT_NOTE_REASONS } from './accounting-types';
 import { CreditNoteModal } from './credit-note-modal';
 import { FiscalDocumentModal } from './fiscal-document-modal';
+import { FiscalDocumentActions } from './fiscal-document-actions';
 import { SaleProductableEditor } from './sale-productable-editor';
 import { saleLinePreview } from './sale-productable-pricing';
 
@@ -520,6 +521,12 @@ export function AccountingSaleForm({ saleId }: AccountingSaleFormProps) {
                   </>
                 ) : null}
               </View>
+              {sale.primary_document ? (
+                <FiscalDocumentActions
+                  documentId={sale.primary_document.id}
+                  initialPhone={sale.customer?.phone ?? sale.delivery_phone}
+                />
+              ) : null}
 
               <Text style={styles.sectionTitle}>Productos</Text>
               <View style={styles.detailLines}>

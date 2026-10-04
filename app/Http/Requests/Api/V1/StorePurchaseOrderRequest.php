@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Api\V1;
 
+use App\Models\ProductPurchaseUnit;
+use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -42,7 +44,25 @@ final class StorePurchaseOrderRequest extends FormRequest
             'notes' => ['nullable', 'string'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.product_purchase_unit_id' => ['nullable', 'integer', 'exists:product_purchase_units,id'],
+            'items.*.product_purchase_unit_id' => [
+                'nullable',
+                'integer',
+                'exists:product_purchase_units,id',
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    if ($value === null || $value === '') {
+                        return;
+                    }
+
+                    $index = explode('.', $attribute)[1] ?? null;
+                    $productId = $index === null ? null : $this->input("items.{$index}.product_id");
+                    if (! is_numeric($productId) || ! ProductPurchaseUnit::query()
+                        ->whereKey($value)
+                        ->where('product_id', (int) $productId)
+                        ->exists()) {
+                        $fail('La unidad de compra no pertenece al producto seleccionado.');
+                    }
+                },
+            ],
             'items.*.quantity_purchased' => ['required', 'numeric', 'gt:0'],
             'items.*.unit_cost' => ['required', 'numeric', 'gt:0'],
         ];

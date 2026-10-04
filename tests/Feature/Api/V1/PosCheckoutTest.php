@@ -314,6 +314,14 @@ it('checks out a cash order and persists received amount, change and expected ca
         'change_amount' => '10.00',
         'status' => 'completed',
     ]);
+    $this->assertDatabaseHas('productables', [
+        'productable_type' => Sale::class,
+        'productable_id' => $saleId,
+        'product_sku_snapshot' => 'CHECKOUT-PRODUCT',
+        'product_name_snapshot' => 'Producto checkout',
+        'unit_code_snapshot' => 'kg',
+        'base_unit_code_snapshot' => 'kg',
+    ]);
     $this->assertDatabaseHas('stocks', [
         'warehouse_id' => $this->warehouse->id,
         'product_id' => $this->product->id,

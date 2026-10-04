@@ -16,6 +16,10 @@ use Illuminate\Support\Carbon;
  *
  * @property int $id
  * @property int $product_id
+ * @property string|null $product_sku_snapshot
+ * @property string|null $product_name_snapshot
+ * @property string|null $unit_code_snapshot
+ * @property string|null $base_unit_code_snapshot
  * @property int|null $stock_product_id
  * @property string $productable_type
  * @property int $productable_id
@@ -45,6 +49,10 @@ final class Productable extends Model
      */
     protected $fillable = [
         'product_id',
+        'product_sku_snapshot',
+        'product_name_snapshot',
+        'unit_code_snapshot',
+        'base_unit_code_snapshot',
         'stock_product_id',
         'productable_type',
         'productable_id',

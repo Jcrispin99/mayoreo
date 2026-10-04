@@ -10,7 +10,7 @@ type NormalizableVariant = {
 const UNIT_FACTORS: Record<string, Record<string, number>> = {
   weight: { g: 1, kg: 1000 },
   volume: { ml: 1, l: 1000 },
-  count: { unit: 1, unidad: 1, un: 1, und: 1 },
+  count: { niu: 1, unit: 1, unidad: 1, un: 1, und: 1 },
 };
 
 /**

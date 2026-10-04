@@ -14,6 +14,7 @@ import {
 import { Button, Icon, IconButton, Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../lib/api';
+import { FiscalDocumentActions } from '../accounting/fiscal-document-actions';
 import {
   cashSuggestions,
   centsToDecimal,
@@ -143,6 +144,11 @@ function CheckoutSuccess({
             </>
           ) : null}
         </View>
+
+        <FiscalDocumentActions
+          documentId={result.fiscal_document.id}
+          initialPhone={result.sale.customer?.phone}
+        />
       </ScrollView>
 
       <View style={styles.successFooter}>

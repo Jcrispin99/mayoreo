@@ -26,20 +26,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      const storedToken = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-      if (storedToken) {
+    let active = true;
+
+    void (async () => {
+      try {
+        const storedToken = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+        if (!storedToken) return;
+
         setAuthToken(storedToken);
         try {
           const response = await api.get('/me');
-          setUser(response.data.data);
+          if (active) setUser(response.data.data);
         } catch {
           await AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
           setAuthToken(null);
         }
+      } catch {
+        setAuthToken(null);
+      } finally {
+        if (active) setIsLoading(false);
       }
-      setIsLoading(false);
     })();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const value = useMemo<AuthContextValue>(

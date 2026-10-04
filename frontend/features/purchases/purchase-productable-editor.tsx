@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { TextInput } from 'react-native-paper';
+import { Button, Menu, Text, TextInput } from 'react-native-paper';
 import { ProductableEditor } from '../../components/productables/productable-editor';
 import { PurchaseTemplateVariantPicker } from './purchase-template-variant-picker';
 import type { PurchaseProductableDraft } from './purchase-productable-types';
@@ -24,6 +24,8 @@ export function PurchaseProductableEditor({
 }: PurchaseProductableEditorProps) {
   const [productId, setProductId] = useState<number | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [purchaseUnitId, setPurchaseUnitId] = useState<number | null>(null);
+  const [purchaseUnitMenuVisible, setPurchaseUnitMenuVisible] = useState(false);
   const [quantity, setQuantity] = useState('1');
   const [unitCost, setUnitCost] = useState('');
   const [productPickerVisible, setProductPickerVisible] = useState(false);
@@ -32,6 +34,8 @@ export function PurchaseProductableEditor({
   function reset() {
     setProductId(null);
     setSelectedProduct(null);
+    setPurchaseUnitId(null);
+    setPurchaseUnitMenuVisible(false);
     setQuantity('1');
     setUnitCost('');
     setProductPickerVisible(false);
@@ -43,6 +47,8 @@ export function PurchaseProductableEditor({
     if (initialItem) {
       setProductId(initialItem.productId);
       setSelectedProduct(initialItem.product);
+      setPurchaseUnitId(initialItem.purchaseUnitId);
+      setPurchaseUnitMenuVisible(false);
       setQuantity(initialItem.quantity);
       setUnitCost(initialItem.unitCost);
       setProductPickerVisible(false);
@@ -53,11 +59,20 @@ export function PurchaseProductableEditor({
   }, [initialItem, visible]);
 
   const subtotal = (Number(quantity) || 0) * (Number(unitCost) || 0);
+  const purchaseUnits = selectedProduct?.purchase_units ?? [];
+  const purchaseUnit = purchaseUnits.find((unit) => unit.id === purchaseUnitId) ?? null;
+  const variantUnitName = selectedProduct?.variant_name
+    || selectedProduct?.base_unit?.name
+    || selectedProduct?.base_unit?.code
+    || 'unidad base';
+  const selectedUnitName = purchaseUnit?.name ?? variantUnitName;
 
   function confirmProduct(product: Product) {
     setProductPickerVisible(false);
     setProductId(product.id);
     setSelectedProduct(product);
+    setPurchaseUnitId(product.purchase_units?.find((unit) => unit.is_default_purchase)?.id ?? null);
+    setPurchaseUnitMenuVisible(false);
     setError('');
   }
 
@@ -70,7 +85,7 @@ export function PurchaseProductableEditor({
       key: initialItem?.key ?? 0,
       productId,
       product: selectedProduct,
-      purchaseUnitId: null,
+      purchaseUnitId,
       quantity,
       unitCost,
     };
@@ -121,10 +136,52 @@ export function PurchaseProductableEditor({
             : 'Crear línea de la compra'}
         visible={visible}
       >
+        {selectedProduct ? (
+          <>
+            <Menu
+              anchor={(
+                <Button
+                  contentStyle={{ justifyContent: 'space-between' }}
+                  disabled={readOnly}
+                  icon="chevron-down"
+                  mode="outlined"
+                  onPress={() => setPurchaseUnitMenuVisible(true)}
+                >
+                  Comprar por: {selectedUnitName}
+                </Button>
+              )}
+              onDismiss={() => setPurchaseUnitMenuVisible(false)}
+              visible={purchaseUnitMenuVisible}
+            >
+              <Menu.Item
+                onPress={() => {
+                  setPurchaseUnitId(null);
+                  setPurchaseUnitMenuVisible(false);
+                }}
+                title={`Unidad base: ${variantUnitName}`}
+              />
+              {purchaseUnits.map((unit) => (
+                <Menu.Item
+                  key={unit.id}
+                  onPress={() => {
+                    setPurchaseUnitId(unit.id);
+                    setPurchaseUnitMenuVisible(false);
+                  }}
+                  title={`${unit.name} = ${Number(unit.conversion_factor)} ${variantUnitName}`}
+                />
+              ))}
+            </Menu>
+            {purchaseUnit ? (
+              <Text style={{ color: '#60706E', fontSize: 11 }}>
+                Cada {purchaseUnit.name} ingresará {Number(purchaseUnit.conversion_factor)} {variantUnitName} al inventario.
+              </Text>
+            ) : null}
+          </>
+        ) : null}
         <TextInput
           editable={!readOnly}
           keyboardType="decimal-pad"
-          label="Cantidad de la variante *"
+          label={`Cantidad (${selectedUnitName}) *`}
           mode="flat"
           onChangeText={setQuantity}
           style={{ backgroundColor: 'transparent' }}
@@ -133,7 +190,7 @@ export function PurchaseProductableEditor({
         <TextInput
           editable={!readOnly}
           keyboardType="decimal-pad"
-          label="Costo unitario de la variante *"
+          label={`Costo por ${selectedUnitName} *`}
           mode="flat"
           onChangeText={setUnitCost}
           style={{ backgroundColor: 'transparent' }}

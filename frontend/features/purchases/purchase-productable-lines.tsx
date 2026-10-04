@@ -16,7 +16,8 @@ export function PurchaseProductableLines({
 }: PurchaseProductableLinesProps) {
   const lines = items.map((item) => {
     const product = item.product;
-    const unitName = product?.base_unit?.code ?? product?.base_unit?.name ?? 'un.';
+    const purchaseUnit = product?.purchase_units?.find((unit) => unit.id === item.purchaseUnitId);
+    const unitName = purchaseUnit?.name ?? product?.variant_name ?? product?.base_unit?.code ?? product?.base_unit?.name ?? 'un.';
     const subtotal = (Number(item.quantity) || 0) * (Number(item.unitCost) || 0);
 
     return {

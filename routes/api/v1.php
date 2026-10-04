@@ -383,6 +383,12 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     Route::post('fiscal-documents/{fiscal_document}/send', [FiscalDocumentController::class, 'send'])
         ->middleware('can:sales.manage')
         ->name('api.v1.fiscal-documents.send');
+    Route::get('fiscal-documents/{fiscal_document}/representation', [FiscalDocumentController::class, 'representation'])
+        ->middleware('can:sales.view')
+        ->name('api.v1.fiscal-documents.representation');
+    Route::post('fiscal-documents/{fiscal_document}/deliveries', [FiscalDocumentController::class, 'deliver'])
+        ->middleware('can:sales.manage')
+        ->name('api.v1.fiscal-documents.deliveries.store');
     Route::post('fiscal-documents/{fiscal_document}/credit-note', [FiscalDocumentController::class, 'creditNote'])
         ->middleware('can:sales.manage')
         ->name('api.v1.fiscal-documents.credit-note');

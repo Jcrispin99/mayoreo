@@ -55,6 +55,15 @@ it('registers a sale, discounts stock, and applies the correct price tier', func
         ->and($sale['fiscal_documents'][0]['document_type'])->toBe('sales_ticket')
         ->and($sale['fiscal_documents'][0]['status'])->toBe('issued')
         ->and($sale['fiscal_documents'][0]['number'])->toBe(1);
+
+    $this->assertDatabaseHas('productables', [
+        'productable_type' => App\Models\Sale::class,
+        'productable_id' => $sale['id'],
+        'product_sku_snapshot' => $this->product->sku,
+        'product_name_snapshot' => $this->product->name,
+        'unit_code_snapshot' => 'kg',
+        'base_unit_code_snapshot' => 'kg',
+    ]);
 });
 
 it('applies the mayorista tier for large quantities', function (): void {
@@ -203,5 +212,62 @@ it('sells mixed packaged variants and discounts their proportional quantity from
         'reference_id' => $saleId,
         'product_id' => $principal->id,
         'quantity' => '2.000000',
+    ]);
+});
+
+it('sells a unit package and discounts its equivalence from the principal units', function (): void {
+    $units = UnitOfMeasure::factory()->create([
+        'code' => 'NIU',
+        'name' => 'Unidad',
+        'type' => 'count',
+    ]);
+    $template = ProductTemplate::query()->create([
+        'name' => 'Leche evaporada',
+        'is_active' => true,
+        'is_pos_visible' => true,
+    ]);
+    $principal = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'name' => 'Leche evaporada',
+        'variant_name' => 'Unidad',
+        'sku' => 'LECHE-VENTA-UND',
+        'base_unit_id' => $units->id,
+        'sale_mode' => 'unit',
+        'is_principal' => true,
+    ]);
+    $box = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'name' => 'Leche evaporada - Caja x12',
+        'variant_name' => 'Caja x12',
+        'sku' => 'LECHE-VENTA-CJ12',
+        'base_unit_id' => $units->id,
+        'sale_mode' => 'unit',
+        'content_quantity' => 12,
+        'content_unit_id' => $units->id,
+        'is_principal' => false,
+    ]);
+    PriceTier::factory()->for($box)->create([
+        'min_quantity' => 1,
+        'max_quantity' => null,
+        'unit_price' => '48.0000',
+    ]);
+    app(StockLedgerService::class)->registerIn($principal, $this->pos, '30', '3.0000');
+
+    $this->withHeaders($this->headers)->postJson('/api/v1/sales', [
+        'warehouse_id' => $this->pos->id,
+        'expected_total' => '96.00',
+        'items' => [[
+            'product_id' => $box->id,
+            'quantity' => 2,
+            'unit_code' => 'NIU',
+        ]],
+    ])->assertCreated()
+        ->assertJsonPath('data.items.0.stock_product_id', $principal->id)
+        ->assertJsonPath('data.items.0.stock_quantity', '24.000000');
+
+    $this->assertDatabaseHas('stocks', [
+        'warehouse_id' => $this->pos->id,
+        'product_id' => $principal->id,
+        'quantity' => '6.000000',
     ]);
 });

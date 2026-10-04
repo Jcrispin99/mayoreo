@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\Warehouse;
 use App\Services\StockLedgerService;
+use App\Services\UnitConversionService;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
@@ -23,6 +24,7 @@ final readonly class RegisterPurchaseAction
          * it's reused here as-is rather than duplicated under Purchasing.
          */
         private ResolveSaleStockConsumptionAction $resolveVariantStockAction,
+        private UnitConversionService $unitConversionService,
         private StockLedgerService $stockLedgerService,
     ) {}
 
@@ -40,7 +42,7 @@ final readonly class RegisterPurchaseAction
             $lockedPurchaseOrder->setRelation(
                 'items',
                 $lockedPurchaseOrder->items()
-                    ->with('product')
+                    ->with(['product', 'productPurchaseUnit'])
                     ->lockForUpdate()
                     ->get(),
             );
@@ -59,19 +61,30 @@ final readonly class RegisterPurchaseAction
 
                 /** @var numeric-string $rawQuantity */
                 $rawQuantity = (string) $item->quantity_purchased;
+                /** @var numeric-string $quantityInVariantUnit */
+                $quantityInVariantUnit = $this->unitConversionService->toBaseUnit(
+                    $product,
+                    $rawQuantity,
+                    $item->productPurchaseUnit,
+                );
 
-                // Resolve with a probe quantity of 1 to get the per-unit
-                // conversion factor (and the product whose stock actually
-                // moves): 1 for the principal or a template-less product,
-                // or the variant's content converted to the principal's
-                // base unit otherwise.
-                $resolution = $this->resolveVariantStockAction->execute($product, '1', lockForUpdate: true);
+                // First convert the supplier package into the selected
+                // variant, then resolve the variant into the stock product.
+                // Example: 2 pallets × 10 sacks × 50 kg = 1,000 kg.
+                $resolution = $this->resolveVariantStockAction->execute(
+                    $product,
+                    $quantityInVariantUnit,
+                    lockForUpdate: true,
+                );
 
-                $quantityBase = bcmul($rawQuantity, $resolution->quantity, 6);
-                $unitCostBase = bcdiv((string) $item->unit_cost, $resolution->quantity, 4);
+                $quantityBase = $resolution->quantity;
+                /** @var numeric-string $rawUnitCost */
+                $rawUnitCost = (string) $item->unit_cost;
+                $lineCost = bcmul($rawQuantity, $rawUnitCost, 6);
+                $unitCostBase = bcdiv($lineCost, $quantityBase, 4);
 
                 $item->update([
-                    'quantity' => bcadd($rawQuantity, '0', 6),
+                    'quantity' => $quantityInVariantUnit,
                     'stock_product_id' => $resolution->product->id,
                     'stock_quantity' => $quantityBase,
                 ]);

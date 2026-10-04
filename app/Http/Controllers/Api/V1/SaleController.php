@@ -267,6 +267,9 @@ final class SaleController extends ApiController
                                     ->where('number', 'like', '%'.$documentParts[1].'%');
                             });
                         }
+                    })
+                    ->orWhereHas('fiscalDocuments.deliveries', function (Builder $deliveryQuery) use ($search): void {
+                        $deliveryQuery->where('destination', 'like', $search);
                     });
             });
         }
@@ -283,7 +286,7 @@ final class SaleController extends ApiController
             'items.inputUnit',
             'items.priceTier',
             'payments.creator',
-            'fiscalDocuments',
+            'fiscalDocuments.deliveries',
             'warehouse.store',
             'customer',
             'creator',

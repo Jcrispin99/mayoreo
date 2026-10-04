@@ -7,8 +7,14 @@ use App\Http\Controllers\Web\AuthenticatedSessionController;
 use App\Http\Controllers\Web\FiscalSettingsController;
 use App\Http\Controllers\Web\HistoricalSaleImportController;
 use App\Http\Controllers\Web\ProfileController;
+use App\Http\Controllers\Web\PublicFiscalDocumentController;
+use App\Models\ProductTemplate;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+Route::get('/comprobantes/{token}', PublicFiscalDocumentController::class)
+    ->middleware('throttle:60,1')
+    ->name('fiscal-documents.public');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
@@ -29,6 +35,31 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/{store}/locations', [AttendanceQrController::class, 'storeAttendanceLocation'])->name('locations.store');
         Route::put('/{store}/locations/{attendanceLocation}', [AttendanceQrController::class, 'updateAttendanceLocation'])->name('locations.update');
         Route::delete('/{store}/locations/{attendanceLocation}', [AttendanceQrController::class, 'destroyAttendanceLocation'])->name('locations.destroy');
+    });
+
+    // Catálogo e inventario: las páginas solo se renderizan; los datos se
+    // leen y guardan desde el navegador contra /api/v1 con la sesión web.
+    Route::middleware('can:products.view')->prefix('catalog')->name('catalog.')->group(function (): void {
+        Route::get('/products', fn () => Inertia::render('catalog/products/index'))->name('products.index');
+        Route::get('/products/create', fn () => Inertia::render('catalog/products/edit', ['templateId' => null]))
+            ->middleware('can:products.manage')
+            ->name('products.create');
+        Route::get('/products/{productTemplate}', fn (ProductTemplate $productTemplate) => Inertia::render('catalog/products/edit', [
+            'templateId' => $productTemplate->id,
+        ]))->name('products.edit');
+        Route::get('/units', fn () => Inertia::render('catalog/units/index'))->name('units.index');
+    });
+
+    Route::prefix('inventory')->name('inventory.')->group(function (): void {
+        Route::get('/stock', fn () => Inertia::render('inventory/stock/index'))
+            ->middleware('can:stock.view')
+            ->name('stock.index');
+        Route::get('/movements', fn () => Inertia::render('inventory/movements/index'))
+            ->middleware('can:stock.view')
+            ->name('movements.index');
+        Route::get('/locations', fn () => Inertia::render('inventory/locations/index'))
+            ->middleware('can:stores.view')
+            ->name('locations.index');
     });
 
     Route::middleware('can:sales.manage')->prefix('historical-sales')->name('historical-sales.')->group(function (): void {

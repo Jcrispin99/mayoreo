@@ -17,6 +17,15 @@ export type Warehouse = {
   is_active: boolean;
 };
 
+export type PurchaseUnit = {
+  id: number;
+  product_id: number;
+  name: string;
+  conversion_factor: string;
+  barcode: string | null;
+  is_default_purchase: boolean;
+};
+
 export type Product = {
   id: number;
   product_template_id: number | null;
@@ -32,6 +41,7 @@ export type Product = {
   base_unit: UnitOfMeasure | null;
   content_quantity: string | null;
   content_unit: UnitOfMeasure | null;
+  purchase_units?: PurchaseUnit[];
 };
 
 export type ProductTemplate = {

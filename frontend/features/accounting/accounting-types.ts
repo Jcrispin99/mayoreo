@@ -119,6 +119,7 @@ export type AccountingSale = {
   payments: AccountingSalePayment[];
   fiscal_documents: AccountingFiscalDocument[];
   primary_document: AccountingFiscalDocument | null;
+  delivery_phone?: string | null;
   creator: { id: number; name: string; email: string } | null;
   created_at: string;
   updated_at: string;

@@ -188,6 +188,7 @@ final class ProductTemplateController extends ApiController
                 },
                 'variants.baseUnit',
                 'variants.contentUnit',
+                'variants.purchaseUnits',
             ])
             ->where('is_active', true)
             ->whereHas('variants', fn ($variants) => $variants->where('is_active', true))

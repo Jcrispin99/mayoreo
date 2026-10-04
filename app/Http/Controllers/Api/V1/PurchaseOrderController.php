@@ -96,6 +96,7 @@ final class PurchaseOrderController extends ApiController
             'items.product.baseUnit',
             'items.product.contentUnit',
             'items.product.template',
+            'items.product.purchaseUnits',
         ]);
 
         return $this->success(new PurchaseOrderResource($purchaseOrder));

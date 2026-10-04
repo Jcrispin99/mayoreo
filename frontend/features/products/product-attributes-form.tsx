@@ -136,13 +136,29 @@ function cartesianProduct(attributes: AttributeRow[]): AttributeValueSelection[]
 }
 
 function suggestedFactor(value: string, baseUnit?: Unit) {
-  if (!baseUnit || baseUnit.code.trim().toLocaleLowerCase('es') !== 'kg') return '';
-  const match = value.trim().match(/^(\d+(?:[.,]\d+)?)\s*(kg|g|gr)$/i);
-  if (!match) return '';
+  if (!baseUnit) return '';
 
-  const amount = Number(match[1].replace(',', '.'));
-  const code = match[2].toLocaleLowerCase('es');
-  return String(code === 'kg' ? amount : amount / 1000);
+  if (baseUnit.code.trim().toLocaleLowerCase('es') === 'kg') {
+    const match = value.trim().match(/(\d+(?:[.,]\d+)?)\s*(kg|g|gr)\s*$/i);
+    if (!match) return '';
+
+    const amount = Number(match[1].replace(',', '.'));
+    const code = match[2].toLocaleLowerCase('es');
+    return String(code === 'kg' ? amount : amount / 1000);
+  }
+
+  if (baseUnit.type === 'count') {
+    const patterns = [
+      /(?:^|\s)x\s*(\d+(?:[.,]\d+)?)\s*$/i,
+      /(\d+(?:[.,]\d+)?)\s*(?:un|und|unidad|unidades)\s*$/i,
+    ];
+    for (const pattern of patterns) {
+      const match = value.trim().match(pattern);
+      if (match) return String(Number(match[1].replace(',', '.')));
+    }
+  }
+
+  return '';
 }
 
 function contentFromSelections(
@@ -152,7 +168,7 @@ function contentFromSelections(
   baseContentUnitId: number | null,
 ) {
   const baseUnit = units.find((unit) => unit.id === baseContentUnitId);
-  if (baseUnit && baseUnit.type !== 'count') {
+  if (baseUnit) {
     for (const selection of selections) {
       const attribute = attributes.find((item) => normalized(item.name) === normalized(selection.attribute));
       const value = attribute?.values.find((item) => normalized(item.value) === normalized(selection.value));
@@ -166,7 +182,7 @@ function contentFromSelections(
   }
 
   for (const selection of selections) {
-    const match = selection.value.trim().match(/^(\d+(?:[.,]\d+)?)\s*(kg|g|gr)$/i);
+    const match = selection.value.trim().match(/(\d+(?:[.,]\d+)?)\s*(kg|g|gr)\s*$/i);
     if (!match) continue;
 
     const amount = Number(match[1].replace(',', '.'));
@@ -559,8 +575,9 @@ export function ProductAttributesForm({ templateId }: { templateId?: string }) {
               {principalUnit?.code.trim().toLocaleLowerCase('es') === 'kg'
                 ? 'La variante principal en kilogramos se conserva aparte. El contenido de los empaques se expresa en kg; por ejemplo, 500 g equivale a 0.5 kg.'
                 : principalUnit
-                  ? 'Las presentaciones se controlan como unidades completas.'
-                : 'Selecciona primero la unidad de medida del producto.'}
+                  ? 'Indica cuántas unidades contiene cada empaque; por ejemplo, Caja x12 equivale a 12 unidades y descuenta 12 del stock principal.'
+                  : 'Selecciona primero la unidad de medida del producto.'}
+              {' Si dejas el contenido vacío, la variante tendrá stock propio.'}
             </Text>
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -650,7 +667,9 @@ export function ProductAttributesForm({ templateId }: { templateId?: string }) {
                         onBlur={(event) => addAttributeValue(attribute.key, event.nativeEvent.text)}
                         onChangeText={(pendingValue) => updateAttribute(attribute.key, { pendingValue })}
                         onSubmitEditing={(event) => addAttributeValue(attribute.key, event.nativeEvent.text)}
-                        placeholder={attribute.values.length === 0 ? 'Ej. 1 kg' : 'Nuevo valor'}
+                        placeholder={attribute.values.length === 0
+                          ? (principalUnit?.code.trim().toLocaleLowerCase('es') === 'kg' ? 'Ej. Saco 50 kg' : 'Ej. Caja x12')
+                          : 'Nuevo valor'}
                         style={styles.valueInput}
                         value={attribute.pendingValue}
                       />

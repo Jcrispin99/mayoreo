@@ -335,9 +335,9 @@ final readonly class GreenterSunatBillSender implements SunatBillSender
         }
 
         return $this->makeSaleDetail(
-            $product->sku,
-            $baseUnit->code,
-            $product->name,
+            $item->product_sku_snapshot ?: $product->sku,
+            $item->base_unit_code_snapshot ?: $baseUnit->code,
+            $item->product_name_snapshot ?: $product->name,
             (float) $item->quantity,
             round((float) $item->line_total, 2),
         );

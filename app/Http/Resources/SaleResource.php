@@ -39,6 +39,10 @@ final class SaleResource extends JsonResource
             'items' => SaleItemResource::collection($this->whenLoaded('items')),
             'payments' => SalePaymentResource::collection($this->whenLoaded('payments')),
             'fiscal_documents' => FiscalDocumentResource::collection($this->whenLoaded('fiscalDocuments')),
+            'delivery_phone' => $this->whenLoaded(
+                'fiscalDocuments',
+                fn (): ?string => $this->lastDeliveryPhone(),
+            ),
             'primary_document' => $this->whenLoaded('fiscalDocuments', function (): ?FiscalDocumentResource {
                 $primary = $this->fiscalDocuments->first(
                     fn ($document): bool => in_array($document->document_type, ['receipt', 'invoice'], true)
@@ -50,5 +54,27 @@ final class SaleResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
+    }
+
+    private function lastDeliveryPhone(): ?string
+    {
+        $latest = null;
+
+        foreach ($this->fiscalDocuments as $document) {
+            if (! $document->relationLoaded('deliveries')) {
+                continue;
+            }
+
+            foreach ($document->deliveries as $delivery) {
+                $latestCreatedAt = $latest?->created_at;
+                if ($latest === null
+                    || $latestCreatedAt === null
+                    || $delivery->created_at?->isAfter($latestCreatedAt) === true) {
+                    $latest = $delivery;
+                }
+            }
+        }
+
+        return $latest?->destination;
     }
 }

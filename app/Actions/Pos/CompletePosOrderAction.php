@@ -24,6 +24,7 @@ use App\Models\Product;
 use App\Models\Productable;
 use App\Models\Sale;
 use App\Models\SalePayment;
+use App\Models\UnitOfMeasure;
 use App\Models\Warehouse;
 use App\Services\FiscalDocumentIdentityService;
 use App\Services\MoneyService;
@@ -116,6 +117,7 @@ final readonly class CompletePosOrderAction
             $lockedOrder->setRelation('customer', $customer);
 
             $items = $lockedOrder->items()
+                ->with('inputUnit')
                 ->orderBy('product_id')
                 ->orderBy('id')
                 ->lockForUpdate()
@@ -149,6 +151,7 @@ final readonly class CompletePosOrderAction
 
             $products->load([
                 'baseUnit',
+                'template',
                 'priceTiers' => function (Relation $relation): void {
                     $relation->getQuery()->where('is_active', true)->orderBy('min_quantity');
                 },
@@ -252,10 +255,18 @@ final readonly class CompletePosOrderAction
             foreach ($recalculatedItems as $recalculatedItem) {
                 $item = $recalculatedItem['item'];
                 $product = $recalculatedItem['product'];
+                $inputUnit = $item->inputUnit;
+                $inputUnitCode = $inputUnit instanceof UnitOfMeasure
+                    ? $inputUnit->code
+                    : $product->baseUnit->code;
                 $item->save();
 
                 $sale->items()->create([
                     'product_id' => $product->id,
+                    'product_sku_snapshot' => $product->sku,
+                    'product_name_snapshot' => $product->display_name,
+                    'unit_code_snapshot' => $inputUnitCode,
+                    'base_unit_code_snapshot' => $product->baseUnit->code,
                     'stock_product_id' => $recalculatedItem['stockProduct']->id,
                     'quantity' => $item->quantity,
                     'stock_quantity' => $recalculatedItem['stockQuantity'],

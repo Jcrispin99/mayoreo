@@ -181,6 +181,7 @@ export type PosCheckoutResult = {
     id: number;
     total: string;
     payable_total: string;
+    customer: Customer | null;
   };
   payment: {
     method: PosPaymentMethod;
@@ -190,8 +191,10 @@ export type PosCheckoutResult = {
     reference: string | null;
   };
   fiscal_document: {
+    id: number;
     document_type: PosDocumentType;
     series_code: string;
     number: number;
+    full_number: string;
   };
 };

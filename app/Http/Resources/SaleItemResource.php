@@ -21,6 +21,10 @@ final class SaleItemResource extends JsonResource
         return [
             'id' => $this->id,
             'product_id' => $this->product_id,
+            'product_sku_snapshot' => $this->product_sku_snapshot,
+            'product_name_snapshot' => $this->product_name_snapshot,
+            'unit_code_snapshot' => $this->unit_code_snapshot,
+            'base_unit_code_snapshot' => $this->base_unit_code_snapshot,
             'stock_product_id' => $this->stock_product_id,
             'quantity' => $this->quantity,
             'stock_quantity' => $this->stock_quantity,

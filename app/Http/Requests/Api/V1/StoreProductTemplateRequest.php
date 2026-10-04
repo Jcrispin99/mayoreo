@@ -49,7 +49,7 @@ final class StoreProductTemplateRequest extends FormRequest
                 'nullable',
                 'integer',
                 Rule::exists('units_of_measure', 'id')->where(
-                    fn (Builder $query): Builder => $query->where('code', 'kg'),
+                    fn (Builder $query): Builder => $query->whereIn('code', ['NIU', 'kg']),
                 ),
                 'required_with:variants.*.content_quantity',
             ],

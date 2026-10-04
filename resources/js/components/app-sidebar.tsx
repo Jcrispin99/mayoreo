@@ -1,13 +1,18 @@
 import { Link, router, usePage } from "@inertiajs/react"
 import {
+  ArrowLeftRightIcon,
+  BoxesIcon,
   ChevronUpIcon,
   HomeIcon,
   HistoryIcon,
   LogOutIcon,
   PackageCheckIcon,
+  PackageIcon,
   QrCodeIcon,
+  RulerIcon,
   ShieldCheckIcon,
   UserRoundIcon,
+  WarehouseIcon,
 } from "lucide-react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -46,27 +51,38 @@ function initials(name: string) {
 export function AppSidebar() {
   const page = usePage<SharedProps>()
   const { user, permissions } = page.props.auth
-  const navigation = [
-    { title: "Inicio", href: "/", icon: HomeIcon, visible: true },
+  const can = (permission: string) => permissions.includes(permission)
+  const groups = [
     {
-      title: "Ventas históricas",
-      href: "/historical-sales",
-      icon: HistoryIcon,
-      visible: permissions.includes("sales.manage"),
+      label: "Navegación",
+      items: [
+        { title: "Inicio", href: "/", icon: HomeIcon, visible: true },
+        { title: "Ventas históricas", href: "/historical-sales", icon: HistoryIcon, visible: can("sales.manage") },
+        { title: "QR de asistencia", href: "/attendance-qr", icon: QrCodeIcon, visible: can("attendance-qr.manage") },
+        { title: "Configuración SUNAT", href: "/fiscal-settings", icon: ShieldCheckIcon, visible: can("fiscal-settings.view") },
+      ],
     },
     {
-      title: "QR de asistencia",
-      href: "/attendance-qr",
-      icon: QrCodeIcon,
-      visible: permissions.includes("attendance-qr.manage"),
+      label: "Catálogo",
+      items: [
+        { title: "Productos", href: "/catalog/products", icon: PackageIcon, visible: can("products.view") },
+        { title: "Unidades de medida", href: "/catalog/units", icon: RulerIcon, visible: can("products.view") },
+      ],
     },
     {
-      title: "Configuración SUNAT",
-      href: "/fiscal-settings",
-      icon: ShieldCheckIcon,
-      visible: permissions.includes("fiscal-settings.view"),
+      label: "Inventario",
+      items: [
+        { title: "Stock", href: "/inventory/stock", icon: BoxesIcon, visible: can("stock.view") },
+        { title: "Kardex", href: "/inventory/movements", icon: ArrowLeftRightIcon, visible: can("stock.view") },
+        { title: "Tiendas y almacenes", href: "/inventory/locations", icon: WarehouseIcon, visible: can("stores.view") },
+      ],
     },
-    { title: "Mi perfil", href: "/profile", icon: UserRoundIcon, visible: true },
+    {
+      label: "Cuenta",
+      items: [
+        { title: "Mi perfil", href: "/profile", icon: UserRoundIcon, visible: true },
+      ],
+    },
   ]
 
   return (
@@ -94,29 +110,36 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Navegación</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navigation.filter((item) => item.visible).map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    tooltip={item.title}
-                    isActive={
-                      item.href === "/"
-                        ? page.url === "/"
-                        : page.url.startsWith(item.href)
-                    }
-                    render={<Link href={item.href} />}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {groups.map((group) => {
+          const items = group.items.filter((item) => item.visible)
+          if (items.length === 0) return null
+
+          return (
+            <SidebarGroup key={group.label}>
+              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {items.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        tooltip={item.title}
+                        isActive={
+                          item.href === "/"
+                            ? page.url === "/"
+                            : page.url.startsWith(item.href)
+                        }
+                        render={<Link href={item.href} />}
+                      >
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )
+        })}
       </SidebarContent>
 
       <SidebarFooter>

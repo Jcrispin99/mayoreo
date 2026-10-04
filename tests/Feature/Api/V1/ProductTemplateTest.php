@@ -79,6 +79,44 @@ it('creates a product template with packaged and measured variants and variant p
     ]);
 });
 
+it('creates a unit package variant that consumes multiple units from the principal stock', function (): void {
+    $response = $this->withHeaders($this->headers)->postJson('/api/v1/product-templates', [
+        'name' => 'Leche evaporada',
+        'attributes' => [[
+            'name' => 'Presentación',
+            'values' => ['Caja x12'],
+            'value_factors' => ['Caja x12' => 12],
+        ]],
+        'variants' => [
+            [
+                'variant_name' => 'Unidad',
+                'sku' => 'LECHE-UND',
+                'base_unit_id' => $this->units->id,
+                'sale_mode' => 'unit',
+                'is_principal' => true,
+                'attribute_values' => [],
+            ],
+            [
+                'variant_name' => 'Caja x12',
+                'sku' => 'LECHE-CJ12',
+                'base_unit_id' => $this->units->id,
+                'sale_mode' => 'unit',
+                'content_quantity' => 12,
+                'content_unit_id' => $this->units->id,
+                'attribute_values' => [[
+                    'attribute' => 'Presentación',
+                    'value' => 'Caja x12',
+                ]],
+            ],
+        ],
+    ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('data.variants.1.variant_name', 'Caja x12')
+        ->assertJsonPath('data.variants.1.content_quantity', '12.000000')
+        ->assertJsonPath('data.variants.1.content_unit.code', 'NIU');
+});
+
 it('lists one template instead of duplicating the family for every variant', function (): void {
     $template = $this->withHeaders($this->headers)->postJson('/api/v1/product-templates', [
         'name' => 'Pecanas',
@@ -129,6 +167,11 @@ it('paginates the lightweight template picker and searches on the server', funct
             'is_principal' => true,
         ]);
     }
+    $trigo = Product::query()->where('sku', 'PICK-6')->firstOrFail();
+    ProductPurchaseUnit::factory()->for($trigo)->create([
+        'name' => 'Saco 50 kg',
+        'conversion_factor' => 50,
+    ]);
 
     $this->withHeaders($this->headers)
         ->getJson('/api/v1/product-templates?picker=1&per_page=5&page=1')
@@ -144,7 +187,9 @@ it('paginates the lightweight template picker and searches on the server', funct
         ->assertOk()
         ->assertJsonPath('data.pagination.total', 1)
         ->assertJsonPath('data.items.0.name', 'Trigo')
-        ->assertJsonPath('data.items.0.variants.0.base_unit.code', 'kg');
+        ->assertJsonPath('data.items.0.variants.0.base_unit.code', 'kg')
+        ->assertJsonPath('data.items.0.variants.0.purchase_units.0.name', 'Saco 50 kg')
+        ->assertJsonPath('data.items.0.variants.0.purchase_units.0.conversion_factor', '50.000000');
 });
 
 it('updates the base price without destroying the existing quantity ranges', function (): void {

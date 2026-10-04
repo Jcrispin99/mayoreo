@@ -74,6 +74,7 @@ export function AccountingSaleList() {
         document,
         sale.customer_name,
         sale.customer_document,
+        sale.delivery_phone,
         SOURCE_LABELS[sale.source],
       ].filter(Boolean).join(' ').toLocaleLowerCase('es');
 

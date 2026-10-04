@@ -7,6 +7,7 @@ use App\Exceptions\PurchaseOrderStateException;
 use App\Models\DocumentSeries;
 use App\Models\InventoryMovement;
 use App\Models\Product;
+use App\Models\ProductPurchaseUnit;
 use App\Models\ProductTemplate;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
@@ -126,6 +127,126 @@ it('allows creating a purchase order without an invoice number', function (): vo
     ]);
 
     $response->assertCreated()->assertJsonPath('data.invoice_number', null);
+});
+
+it('applies the selected purchase unit when confirming stock and average cost', function (): void {
+    $units = UnitOfMeasure::factory()->create([
+        'code' => 'NIU',
+        'name' => 'Unidad',
+        'type' => 'count',
+    ]);
+    $product = Product::factory()->create([
+        'base_unit_id' => $units->id,
+        'sale_mode' => 'unit',
+        'is_principal' => true,
+    ]);
+    $box = ProductPurchaseUnit::factory()->for($product)->create([
+        'name' => 'Caja x12',
+        'conversion_factor' => 12,
+    ]);
+
+    $order = $this->withHeaders($this->headers)->postJson('/api/v1/purchase-orders', [
+        'supplier_id' => $this->supplier->id,
+        'warehouse_id' => $this->warehouse->id,
+        'ordered_at' => now()->toDateString(),
+        'items' => [[
+            'product_id' => $product->id,
+            'product_purchase_unit_id' => $box->id,
+            'quantity_purchased' => 2,
+            'unit_cost' => 60,
+        ]],
+    ])->assertCreated()->json('data');
+
+    $this->withHeaders($this->headers)
+        ->postJson("/api/v1/purchase-orders/{$order['id']}/confirm")
+        ->assertOk()
+        ->assertJsonPath('data.items.0.quantity_purchased', '2.000000')
+        ->assertJsonPath('data.items.0.quantity_base', '24.000000')
+        ->assertJsonPath('data.items.0.stock_quantity', '24.000000');
+
+    $this->assertDatabaseHas('stocks', [
+        'warehouse_id' => $this->warehouse->id,
+        'product_id' => $product->id,
+        'quantity' => '24.000000',
+        'average_cost' => '5.0000',
+    ]);
+});
+
+it('combines a supplier package with the selected variant equivalence', function (): void {
+    $kilograms = UnitOfMeasure::query()->where('code', 'kg')->firstOrFail();
+    $units = UnitOfMeasure::factory()->create([
+        'code' => 'NIU',
+        'name' => 'Unidad',
+        'type' => 'count',
+    ]);
+    $template = ProductTemplate::query()->create([
+        'name' => 'Arroz Extra',
+        'is_active' => true,
+        'is_pos_visible' => true,
+    ]);
+    $principal = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'base_unit_id' => $kilograms->id,
+        'sale_mode' => 'measured',
+        'is_principal' => true,
+    ]);
+    $sack = Product::factory()->create([
+        'product_template_id' => $template->id,
+        'variant_name' => 'Saco 50 kg',
+        'base_unit_id' => $units->id,
+        'sale_mode' => 'unit',
+        'content_quantity' => 50,
+        'content_unit_id' => $kilograms->id,
+        'is_principal' => false,
+    ]);
+    $pallet = ProductPurchaseUnit::factory()->for($sack)->create([
+        'name' => 'Pallet de 10 sacos',
+        'conversion_factor' => 10,
+    ]);
+
+    $order = $this->withHeaders($this->headers)->postJson('/api/v1/purchase-orders', [
+        'supplier_id' => $this->supplier->id,
+        'warehouse_id' => $this->warehouse->id,
+        'ordered_at' => now()->toDateString(),
+        'items' => [[
+            'product_id' => $sack->id,
+            'product_purchase_unit_id' => $pallet->id,
+            'quantity_purchased' => 2,
+            'unit_cost' => 1000,
+        ]],
+    ])->assertCreated()->json('data');
+
+    $this->withHeaders($this->headers)
+        ->postJson("/api/v1/purchase-orders/{$order['id']}/confirm")
+        ->assertOk()
+        ->assertJsonPath('data.items.0.quantity_base', '20.000000')
+        ->assertJsonPath('data.items.0.stock_product_id', $principal->id)
+        ->assertJsonPath('data.items.0.stock_quantity', '1000.000000');
+
+    $this->assertDatabaseHas('stocks', [
+        'warehouse_id' => $this->warehouse->id,
+        'product_id' => $principal->id,
+        'quantity' => '1000.000000',
+        'average_cost' => '2.0000',
+    ]);
+});
+
+it('rejects a purchase unit that belongs to another product', function (): void {
+    $otherProduct = Product::factory()->create();
+    $otherUnit = ProductPurchaseUnit::factory()->for($otherProduct)->create();
+
+    $this->withHeaders($this->headers)->postJson('/api/v1/purchase-orders', [
+        'supplier_id' => $this->supplier->id,
+        'warehouse_id' => $this->warehouse->id,
+        'ordered_at' => now()->toDateString(),
+        'items' => [[
+            'product_id' => $this->product->id,
+            'product_purchase_unit_id' => $otherUnit->id,
+            'quantity_purchased' => 1,
+            'unit_cost' => 10,
+        ]],
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors('items.0.product_purchase_unit_id');
 });
 
 it('requires invoice series and correlative together', function (): void {

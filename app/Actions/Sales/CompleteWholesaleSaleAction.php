@@ -168,6 +168,10 @@ final readonly class CompleteWholesaleSaleAction
             foreach ($recalculatedItems as $item) {
                 $sale->items()->create([
                     'product_id' => $item['product']->id,
+                    'product_sku_snapshot' => $item['product']->sku,
+                    'product_name_snapshot' => $item['product']->display_name,
+                    'unit_code_snapshot' => $item['input_unit']->code,
+                    'base_unit_code_snapshot' => $item['product']->baseUnit->code,
                     'stock_product_id' => $item['stock_product']->id,
                     'quantity' => $item['quantity'],
                     'stock_quantity' => $item['stock_quantity'],
@@ -372,6 +376,7 @@ final readonly class CompleteWholesaleSaleAction
         $sortedItems = collect($items)->sortBy('product_id')->values();
         $productIds = $sortedItems->pluck('product_id')->all();
         $products = Product::query()
+            ->with(['baseUnit', 'template'])
             ->whereIn('id', $productIds)
             ->where('is_active', true)
             ->orderBy('id')

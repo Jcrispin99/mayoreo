@@ -36,6 +36,10 @@ final class UnitConversionService
         ],
     ];
 
+    /**
+     * @param  numeric-string  $quantity
+     * @return numeric-string
+     */
     public function toBaseUnit(Product $product, string $quantity, ?ProductPurchaseUnit $purchaseUnit): string
     {
         /** @var numeric-string $normalizedQuantity */

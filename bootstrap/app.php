@@ -25,6 +25,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // The web panel consumes /api/v1 with its session cookie (Sanctum SPA
+        // mode); the mobile app keeps using bearer tokens.
+        $middleware->statefulApi();
+
         $middleware->web(append: [
             HandleInertiaRequests::class,
         ]);

@@ -8,6 +8,7 @@ use Database\Factories\FiscalDocumentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
@@ -155,6 +156,12 @@ final class FiscalDocument extends Model
     public function creditNote(): HasOne
     {
         return $this->hasOne(self::class, 'affected_document_id');
+    }
+
+    /** @return HasMany<FiscalDocumentDelivery, $this> */
+    public function deliveries(): HasMany
+    {
+        return $this->hasMany(FiscalDocumentDelivery::class);
     }
 
     public function hasFiscalIdentitySnapshot(): bool
