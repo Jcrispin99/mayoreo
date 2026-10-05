@@ -1,5 +1,7 @@
 import type { Role, UserAccount } from '../access/access-types';
 
+export type PayFrequency = 'weekly' | 'monthly';
+
 export type StoreSummary = {
   id: number;
   code: string;
@@ -12,8 +14,9 @@ export type StoreSummary = {
 
 export type Compensation = {
   id: number;
-  pay_type: 'monthly' | 'daily';
+  pay_type: PayFrequency | 'daily';
   amount: string;
+  expected_minutes: number | null;
   effective_from: string;
   effective_to: string | null;
   notes: string | null;
@@ -53,7 +56,7 @@ export type PayrollLine = {
   payroll_period_id: number;
   employee_profile_id: number;
   employee?: EmployeeProfile;
-  pay_type: 'monthly' | 'daily';
+  pay_type: PayFrequency | 'daily';
   rate_amount: string;
   monthly_divisor: number | null;
   scheduled_days: number;
@@ -61,6 +64,9 @@ export type PayrollLine = {
   absence_days: number;
   incident_days: number;
   worked_minutes: number;
+  required_minutes: number;
+  credited_minutes: number;
+  completion_ratio: string;
   base_amount: string;
   attendance_deduction: string;
   special_day_bonus: string;
@@ -92,6 +98,7 @@ export type PayrollPeriod = {
   id: number;
   starts_on: string;
   ends_on: string;
+  pay_frequency: PayFrequency;
   status: 'open' | 'closed';
   closed_at: string | null;
   lines?: PayrollLine[];

@@ -25,6 +25,7 @@ final class PayrollPeriodController extends ApiController
     {
         $periods = PayrollPeriod::query()->withCount('lines')
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
+            ->when($request->filled('pay_frequency'), fn ($query) => $query->where('pay_frequency', $request->string('pay_frequency')->toString()))
             ->orderByDesc('starts_on')->get();
 
         return $this->success(PayrollPeriodResource::collection($periods));
@@ -35,6 +36,7 @@ final class PayrollPeriodController extends ApiController
         $period = $action->execute(
             $request->startsOn(),
             $request->endsOn(),
+            $request->payFrequency(),
             $request->user()?->id,
         );
 

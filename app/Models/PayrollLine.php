@@ -19,6 +19,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $absence_days
  * @property int $incident_days
  * @property int $worked_minutes
+ * @property int $required_minutes
+ * @property int $credited_minutes
+ * @property numeric-string $completion_ratio
  * @property numeric-string $base_amount
  * @property numeric-string $attendance_deduction
  * @property numeric-string $special_day_bonus
@@ -35,6 +38,7 @@ final class PayrollLine extends Model
     protected $fillable = [
         'payroll_period_id', 'employee_profile_id', 'pay_type', 'rate_amount', 'monthly_divisor',
         'scheduled_days', 'valid_days', 'absence_days', 'incident_days', 'worked_minutes',
+        'required_minutes', 'credited_minutes', 'completion_ratio',
         'base_amount', 'attendance_deduction', 'special_day_bonus', 'worked_day_equivalents',
         'special_day_minutes', 'special_day_details', 'calculated_amount', 'adjustments_amount',
         'payable_amount', 'notes',
@@ -61,6 +65,8 @@ final class PayrollLine extends Model
             'adjustments_amount' => 'decimal:2', 'payable_amount' => 'decimal:2',
             'monthly_divisor' => 'integer', 'scheduled_days' => 'integer', 'valid_days' => 'integer',
             'absence_days' => 'integer', 'incident_days' => 'integer', 'worked_minutes' => 'integer',
+            'required_minutes' => 'integer', 'credited_minutes' => 'integer',
+            'completion_ratio' => 'decimal:6',
             'special_day_minutes' => 'integer', 'special_day_details' => 'array',
         ];
     }

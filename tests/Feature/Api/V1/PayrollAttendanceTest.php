@@ -76,6 +76,7 @@ it('creates a labor profile and preserves compensation history', function (): vo
         ->postJson("/api/v1/employees/{$profile['id']}/compensations", [
             'pay_type' => 'monthly',
             'amount' => 1500,
+            'expected_minutes' => 26040,
             'effective_from' => '2026-08-01',
             'notes' => 'Sueldo inicial',
         ])->assertCreated();
@@ -84,6 +85,7 @@ it('creates a labor profile and preserves compensation history', function (): vo
         ->postJson("/api/v1/employees/{$profile['id']}/compensations", [
             'pay_type' => 'monthly',
             'amount' => 1800,
+            'expected_minutes' => 25200,
             'effective_from' => '2026-09-01',
             'notes' => 'Aumento',
         ])->assertCreated();
@@ -92,6 +94,100 @@ it('creates a labor profile and preserves compensation history', function (): vo
         ->toHaveCount(2)
         ->and(EmployeeCompensation::query()->oldest('effective_from')->first()?->effective_to?->toDateString())
         ->toBe('2026-08-31');
+});
+
+it('rejects new daily compensation records', function (): void {
+    $worker = User::factory()->create();
+    $employee = EmployeeProfile::query()->create([
+        'user_id' => $worker->id,
+        'store_id' => $this->store->id,
+        'employment_status' => 'active',
+        'hired_at' => '2026-08-01',
+        'expected_minutes_per_day' => 840,
+        'monthly_divisor' => 30,
+        'work_days' => [1, 2, 3, 4, 5, 6],
+    ]);
+
+    $this->withHeaders($this->managerHeaders)
+        ->postJson("/api/v1/employees/{$employee->id}/compensations", [
+            'pay_type' => 'daily',
+            'amount' => 100,
+            'expected_minutes' => 480,
+            'effective_from' => '2026-08-01',
+        ])->assertUnprocessable()->assertJsonValidationErrors('pay_type');
+});
+
+it('accepts overlapping weekly and monthly payroll calendars and validates weekly boundaries', function (): void {
+    $this->withHeaders($this->managerHeaders)->postJson('/api/v1/payroll-periods', [
+        'starts_on' => '2026-08-01',
+        'ends_on' => '2026-08-31',
+        'pay_frequency' => 'monthly',
+    ])->assertCreated()->assertJsonPath('data.pay_frequency', 'monthly');
+
+    $this->withHeaders($this->managerHeaders)->postJson('/api/v1/payroll-periods', [
+        'starts_on' => '2026-08-03',
+        'ends_on' => '2026-08-09',
+        'pay_frequency' => 'weekly',
+    ])->assertCreated()->assertJsonPath('data.pay_frequency', 'weekly');
+
+    $this->withHeaders($this->managerHeaders)->postJson('/api/v1/payroll-periods', [
+        'starts_on' => '2026-08-04',
+        'ends_on' => '2026-08-10',
+        'pay_frequency' => 'weekly',
+    ])->assertUnprocessable()->assertJsonValidationErrors('ends_on');
+});
+
+it('keeps attendance open for monthly workers when an overlapping weekly payroll is closed', function (): void {
+    $weeklyUser = User::factory()->create();
+    $weeklyEmployee = EmployeeProfile::query()->create([
+        'user_id' => $weeklyUser->id,
+        'store_id' => $this->store->id,
+        'employment_status' => 'active',
+        'hired_at' => '2026-08-01',
+        'expected_minutes_per_day' => 840,
+        'monthly_divisor' => 30,
+        'work_days' => [1, 2, 3, 4, 5],
+    ]);
+    $weeklyEmployee->compensations()->create([
+        'pay_type' => 'weekly',
+        'amount' => 700,
+        'expected_minutes' => 2400,
+        'effective_from' => '2026-08-01',
+    ]);
+
+    $monthlyUser = User::factory()->create();
+    $monthlyEmployee = EmployeeProfile::query()->create([
+        'user_id' => $monthlyUser->id,
+        'store_id' => $this->store->id,
+        'employment_status' => 'active',
+        'hired_at' => '2026-08-01',
+        'expected_minutes_per_day' => 840,
+        'monthly_divisor' => 30,
+        'work_days' => [1, 2, 3, 4, 5],
+    ]);
+    $monthlyEmployee->compensations()->create([
+        'pay_type' => 'monthly',
+        'amount' => 3000,
+        'expected_minutes' => 9600,
+        'effective_from' => '2026-08-01',
+    ]);
+
+    $periodId = $this->withHeaders($this->managerHeaders)->postJson('/api/v1/payroll-periods', [
+        'starts_on' => '2026-08-03',
+        'ends_on' => '2026-08-09',
+        'pay_frequency' => 'weekly',
+    ])->assertCreated()->json('data.id');
+    $this->withHeaders($this->managerHeaders)
+        ->postJson("/api/v1/payroll-periods/{$periodId}/close")
+        ->assertOk()->assertJsonPath('data.status', 'closed');
+
+    $this->withHeaders($this->managerHeaders)->postJson('/api/v1/attendance-shifts', [
+        'employee_profile_id' => $monthlyEmployee->id,
+        'store_id' => $this->store->id,
+        'clocked_in_at' => '2026-08-04T08:00:00-05:00',
+        'clocked_out_at' => '2026-08-04T16:00:00-05:00',
+        'reason' => 'Jornada mensual aún abierta',
+    ])->assertCreated()->assertJsonPath('data.worked_minutes', 480);
 });
 
 it('requires 14 hours as the expected workday', function (): void {
@@ -332,7 +428,7 @@ it('invalidates the previously printed QR only when a manager rotates it', funct
         ->assertJsonPath('data.action', 'entry');
 });
 
-it('excludes attendance without an exit from payroll minutes and pay', function (): void {
+it('excludes attendance without an exit from weekly payroll minutes and pay', function (): void {
     $worker = User::factory()->create();
     $employee = EmployeeProfile::query()->create([
         'user_id' => $worker->id,
@@ -344,8 +440,9 @@ it('excludes attendance without an exit from payroll minutes and pay', function 
         'work_days' => [0, 1, 2, 3, 4, 5, 6],
     ]);
     $employee->compensations()->create([
-        'pay_type' => 'daily',
-        'amount' => 100,
+        'pay_type' => 'weekly',
+        'amount' => 700,
+        'expected_minutes' => 840,
         'effective_from' => '2026-08-01',
         'created_by' => $this->manager->id,
     ]);
@@ -367,11 +464,12 @@ it('excludes attendance without an exit from payroll minutes and pay', function 
     ]);
 
     $this->withHeaders($this->managerHeaders)->postJson('/api/v1/payroll-periods', [
-        'starts_on' => '2026-08-01',
-        'ends_on' => '2026-08-31',
+        'starts_on' => '2026-08-10',
+        'ends_on' => '2026-08-16',
+        'pay_frequency' => 'weekly',
     ])->assertCreated()
         ->assertJsonPath('data.lines.0.worked_minutes', 420)
-        ->assertJsonPath('data.lines.0.calculated_amount', '50.00');
+        ->assertJsonPath('data.lines.0.calculated_amount', '350.00');
 });
 
 it('identifies legacy QR tokens that cannot be recovered', function (): void {
@@ -420,7 +518,7 @@ it('records manual attendance corrections with an immutable audit reason', funct
         ->and(AttendanceAdjustment::query()->latest('id')->first()?->reason)->toBe('Se verificó la hora correcta');
 });
 
-it('calculates daily payroll using 14-hour workdays, keeps manual adjustments and freezes a closed period', function (): void {
+it('calculates weekly payroll from accumulated entry and exit time, keeps adjustments and freezes a closed period', function (): void {
     $worker = User::factory()->create();
     grantApiPermissions($worker, 'payroll.view-own');
     $employee = EmployeeProfile::query()->create([
@@ -433,12 +531,13 @@ it('calculates daily payroll using 14-hour workdays, keeps manual adjustments an
         'work_days' => [0, 1, 2, 3, 4, 5, 6],
     ]);
     $employee->compensations()->create([
-        'pay_type' => 'daily',
-        'amount' => 100,
+        'pay_type' => 'weekly',
+        'amount' => 700,
+        'expected_minutes' => 1680,
         'effective_from' => '2026-08-01',
         'created_by' => $this->manager->id,
     ]);
-    foreach ([10 => 841, 11 => 420] as $day => $minutes) {
+    foreach ([10 => 840, 11 => 420] as $day => $minutes) {
         AttendanceShift::query()->create([
             'employee_profile_id' => $employee->id,
             'store_id' => $this->store->id,
@@ -451,12 +550,17 @@ it('calculates daily payroll using 14-hour workdays, keeps manual adjustments an
     }
 
     $period = $this->withHeaders($this->managerHeaders)->postJson('/api/v1/payroll-periods', [
-        'starts_on' => '2026-08-01',
-        'ends_on' => '2026-08-31',
+        'starts_on' => '2026-08-10',
+        'ends_on' => '2026-08-16',
+        'pay_frequency' => 'weekly',
     ])->assertCreated()
-        ->assertJsonPath('data.lines.0.valid_days', 1)
-        ->assertJsonPath('data.lines.0.worked_day_equivalents', '1.5000')
-        ->assertJsonPath('data.lines.0.calculated_amount', '150.00')
+        ->assertJsonPath('data.pay_frequency', 'weekly')
+        ->assertJsonPath('data.lines.0.worked_minutes', 1260)
+        ->assertJsonPath('data.lines.0.required_minutes', 1680)
+        ->assertJsonPath('data.lines.0.credited_minutes', 1260)
+        ->assertJsonPath('data.lines.0.completion_ratio', '0.750000')
+        ->assertJsonPath('data.lines.0.attendance_deduction', '175.00')
+        ->assertJsonPath('data.lines.0.calculated_amount', '525.00')
         ->json('data');
     $lineId = $period['lines'][0]['id'];
 
@@ -464,13 +568,13 @@ it('calculates daily payroll using 14-hour workdays, keeps manual adjustments an
         ->patchJson("/api/v1/payroll-periods/{$period['id']}/lines/{$lineId}", [
             'adjustments_amount' => 25,
             'notes' => 'Bono acordado',
-        ])->assertOk()->assertJsonPath('data.payable_amount', '175.00');
+        ])->assertOk()->assertJsonPath('data.payable_amount', '550.00');
 
     $this->withHeaders($this->managerHeaders)
         ->postJson("/api/v1/payroll-periods/{$period['id']}/close")
         ->assertOk()
         ->assertJsonPath('data.status', 'closed')
-        ->assertJsonPath('data.lines.0.payable_amount', '175.00');
+        ->assertJsonPath('data.lines.0.payable_amount', '550.00');
 
     $this->withHeaders($this->managerHeaders)
         ->getJson("/api/v1/employees/{$employee->id}/payroll-lines")
@@ -488,7 +592,7 @@ it('calculates daily payroll using 14-hour workdays, keeps manual adjustments an
     $this->app['auth']->forgetGuards();
     $this->withHeaders($workerHeaders)->getJson('/api/v1/payroll/mine')
         ->assertOk()
-        ->assertJsonPath('data.0.payable_amount', '175.00');
+        ->assertJsonPath('data.0.payable_amount', '550.00');
 });
 
 it('deducts monthly absences using the calendar days in the period', function (): void {
@@ -505,6 +609,7 @@ it('deducts monthly absences using the calendar days in the period', function ()
     $employee->compensations()->create([
         'pay_type' => 'monthly',
         'amount' => 3000,
+        'expected_minutes' => 26040,
         'effective_from' => '2026-08-01',
     ]);
     foreach (range(1, 30) as $day) {
@@ -531,6 +636,48 @@ it('deducts monthly absences using the calendar days in the period', function ()
         ->assertJsonPath('data.lines.0.calculated_amount', '2903.23');
 });
 
+it('uses accumulated monthly time so longer days compensate shorter days', function (): void {
+    $worker = User::factory()->create();
+    $employee = EmployeeProfile::query()->create([
+        'user_id' => $worker->id,
+        'store_id' => $this->store->id,
+        'employment_status' => 'active',
+        'hired_at' => '2026-08-01',
+        'expected_minutes_per_day' => 840,
+        'monthly_divisor' => 30,
+        'work_days' => [0, 1, 2, 3, 4, 5, 6],
+    ]);
+    $employee->compensations()->create([
+        'pay_type' => 'monthly',
+        'amount' => 3000,
+        'expected_minutes' => 1200,
+        'effective_from' => '2026-08-01',
+    ]);
+    foreach ([1 => 900, 2 => 300] as $day => $minutes) {
+        $date = sprintf('2026-08-%02d', $day);
+        AttendanceShift::query()->create([
+            'employee_profile_id' => $employee->id,
+            'store_id' => $this->store->id,
+            'clocked_in_at' => "{$date}T13:00:00Z",
+            'clocked_out_at' => Carbon::parse("{$date}T13:00:00Z")->addMinutes($minutes),
+            'worked_minutes' => $minutes,
+            'status' => 'completed',
+            'source' => 'manual',
+        ]);
+    }
+
+    $this->withHeaders($this->managerHeaders)->postJson('/api/v1/payroll-periods', [
+        'starts_on' => '2026-08-01',
+        'ends_on' => '2026-08-31',
+        'pay_frequency' => 'monthly',
+    ])->assertCreated()
+        ->assertJsonPath('data.lines.0.worked_minutes', 1200)
+        ->assertJsonPath('data.lines.0.required_minutes', 1200)
+        ->assertJsonPath('data.lines.0.completion_ratio', '1.000000')
+        ->assertJsonPath('data.lines.0.attendance_deduction', '0.00')
+        ->assertJsonPath('data.lines.0.calculated_amount', '3000.00');
+});
+
 it('applies a proportional special-day bonus from worked minutes', function (): void {
     $worker = User::factory()->create();
     $employee = EmployeeProfile::query()->create([
@@ -545,6 +692,7 @@ it('applies a proportional special-day bonus from worked minutes', function (): 
     $employee->compensations()->create([
         'pay_type' => 'monthly',
         'amount' => 3100,
+        'expected_minutes' => 26040,
         'effective_from' => '2026-08-01',
     ]);
 
@@ -576,7 +724,7 @@ it('applies a proportional special-day bonus from worked minutes', function (): 
         ->assertJsonPath('data.lines.0.attendance_deduction', '50.00')
         ->assertJsonPath('data.lines.0.special_day_bonus', '50.00')
         ->assertJsonPath('data.lines.0.special_day_minutes', 420)
-        ->assertJsonPath('data.lines.0.worked_day_equivalents', '30.5000')
+        ->assertJsonPath('data.lines.0.completion_ratio', '0.983871')
         ->assertJsonPath('data.lines.0.special_day_details.0.amount', '50.00')
         ->assertJsonPath('data.lines.0.calculated_amount', '3100.00');
 });
@@ -605,6 +753,7 @@ it('does not expose compensation data with personnel permissions alone', functio
     $employee->compensations()->create([
         'pay_type' => 'monthly',
         'amount' => 2000,
+        'expected_minutes' => 26040,
         'effective_from' => '2026-08-01',
     ]);
     $headers = ['Authorization' => 'Bearer '.$viewer->createToken('viewer')->plainTextToken];

@@ -18,6 +18,7 @@ final class EmployeeCompensationResource extends JsonResource
             'id' => $this->id,
             'pay_type' => $this->pay_type,
             'amount' => $this->amount,
+            'expected_minutes' => $this->expected_minutes,
             'effective_from' => $this->effective_from->toDateString(),
             'effective_to' => $this->effective_to?->toDateString(),
             'created_by' => $this->created_by,

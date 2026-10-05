@@ -29,7 +29,9 @@ final readonly class CreateManualAttendanceShiftAction
             assert(is_string($timezone));
             $localDate = $clockIn->setTimezone($timezone)->toDateString();
             if (PayrollPeriod::query()->where('status', PayrollPeriod::STATUS_CLOSED)
-                ->whereDate('starts_on', '<=', $localDate)->whereDate('ends_on', '>=', $localDate)->exists()) {
+                ->whereDate('starts_on', '<=', $localDate)->whereDate('ends_on', '>=', $localDate)
+                ->whereHas('lines', fn ($query) => $query->where('employee_profile_id', $lockedEmployee->id))
+                ->exists()) {
                 throw PayrollException::closedPeriod();
             }
 

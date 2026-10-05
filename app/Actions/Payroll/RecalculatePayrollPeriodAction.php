@@ -14,6 +14,7 @@ use App\Services\MoneyService;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonPeriod;
 use DateTimeInterface;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -46,6 +47,11 @@ final readonly class RecalculatePayrollPeriodAction
 
             foreach ($profiles as $employee) {
                 $values = $this->calculateEmployee($employee, $locked, $specialDays);
+                if ($values === null) {
+                    $locked->lines()->where('employee_profile_id', $employee->id)->delete();
+
+                    continue;
+                }
                 $existing = $locked->lines()->where('employee_profile_id', $employee->id)->first();
                 $adjustment = '0.00';
                 $notes = null;
@@ -66,15 +72,17 @@ final readonly class RecalculatePayrollPeriodAction
     }
 
     /**
+     * @param  EloquentCollection<string, SpecialDay>  $specialDays
      * @return array{
      *   pay_type: string, rate_amount: numeric-string, monthly_divisor: int|null,
      *   scheduled_days: int, valid_days: int, absence_days: int, incident_days: int,
-     *   worked_minutes: int, base_amount: numeric-string, attendance_deduction: numeric-string,
+     *   worked_minutes: int, required_minutes: int, credited_minutes: int, completion_ratio: numeric-string,
+     *   base_amount: numeric-string, attendance_deduction: numeric-string,
      *   special_day_bonus: numeric-string, worked_day_equivalents: numeric-string,
      *   special_day_minutes: int, special_day_details: array<int, mixed>, calculated_amount: numeric-string
-     * }
+     * }|null
      */
-    private function calculateEmployee(EmployeeProfile $employee, PayrollPeriod $period, Collection $specialDays): array
+    private function calculateEmployee(EmployeeProfile $employee, PayrollPeriod $period, EloquentCollection $specialDays): ?array
     {
         $timezone = config('payroll.timezone');
         assert(is_string($timezone));
@@ -85,129 +93,142 @@ final readonly class RecalculatePayrollPeriodAction
             ? $periodEnd->min(CarbonImmutable::parse($employee->terminated_at->toDateString(), $timezone))
             : $periodEnd;
 
-        $workDays = array_map('intval', $employee->work_days ?? []);
-        $scheduledDateValues = [];
+        $baseAmountRaw = '0.00000000';
+        $requiredMinutesRaw = '0.00000000';
+        $eligibleDates = [];
+        $firstRate = null;
+
         foreach (CarbonPeriod::create($eligibleStart, $eligibleEnd) as $date) {
             assert($date instanceof DateTimeInterface);
-            $immutableDate = CarbonImmutable::instance($date);
-            if (in_array($immutableDate->dayOfWeek, $workDays, true)) {
-                $scheduledDateValues[] = $immutableDate->toDateString();
+            $day = CarbonImmutable::instance($date);
+            $dateValue = $day->toDateString();
+            $rate = $this->rateAt($employee->compensations, $dateValue);
+            if (! $rate) {
+                throw PayrollException::missingCompensation($employee->user->name, $dateValue);
             }
-        }
-        /** @var Collection<int, string> $scheduledDates */
-        $scheduledDates = collect($scheduledDateValues);
+            if (! in_array($rate->pay_type, [EmployeeCompensation::TYPE_MONTHLY, EmployeeCompensation::TYPE_WEEKLY], true)) {
+                throw PayrollException::unsupportedCompensation($employee->user->name);
+            }
+            if ($rate->pay_type !== $period->pay_frequency) {
+                continue;
+            }
 
-        $fromUtc = $periodStart->startOfDay()->utc();
-        $toUtc = $periodEnd->endOfDay()->utc();
-        $shifts = $employee->shifts()->whereBetween('clocked_in_at', [$fromUtc, $toUtc])->get();
+            $firstRate ??= $rate;
+            $cycleDays = $rate->pay_type === EmployeeCompensation::TYPE_MONTHLY ? $day->daysInMonth : 7;
+            $expectedMinutes = $this->expectedMinutes($rate, $employee, $day);
+            $baseAmountRaw = bcadd($baseAmountRaw, bcdiv((string) $rate->amount, (string) $cycleDays, 8), 8);
+            $requiredMinutesRaw = bcadd($requiredMinutesRaw, bcdiv((string) $expectedMinutes, (string) $cycleDays, 8), 8);
+            $eligibleDates[$dateValue] = [
+                'rate' => $rate,
+                'expected_minutes' => $expectedMinutes,
+                'minute_rate' => bcdiv((string) $rate->amount, (string) $expectedMinutes, 12),
+            ];
+        }
+
+        if (! $firstRate instanceof EmployeeCompensation) {
+            return null;
+        }
+
+        $periodStartAt = $periodStart->startOfDay();
+        $periodEndExclusive = $periodEnd->addDay()->startOfDay();
+        $fromUtc = $periodStartAt->utc();
+        $toUtc = $periodEndExclusive->utc();
+        $shifts = $employee->shifts()
+            ->where('clocked_in_at', '<', $toUtc)
+            ->where(function ($query) use ($fromUtc): void {
+                $query->where('clocked_out_at', '>', $fromUtc)
+                    ->orWhere(function ($openQuery) use ($fromUtc): void {
+                        $openQuery->whereNull('clocked_out_at')->where('clocked_in_at', '>=', $fromUtc);
+                    });
+            })->get();
         $validShifts = $shifts->where('status', AttendanceShift::STATUS_COMPLETED)
             ->filter(fn (AttendanceShift $shift) => $shift->clocked_out_at !== null);
-        $workedMinutesByDate = [];
+        $workedSecondsByDate = [];
         foreach ($validShifts as $validShift) {
-            $date = $validShift->clocked_in_at->setTimezone($timezone)->toDateString();
-            $workedMinutesByDate[$date] = ($workedMinutesByDate[$date] ?? 0) + ($validShift->worked_minutes ?? 0);
+            $rawClockedInAt = $validShift->getRawOriginal('clocked_in_at');
+            $rawClockedOutAt = $validShift->getRawOriginal('clocked_out_at');
+            assert(is_string($rawClockedInAt) && is_string($rawClockedOutAt));
+            $shiftStart = CarbonImmutable::parse($rawClockedInAt, 'UTC')->setTimezone($timezone);
+            $shiftEnd = CarbonImmutable::parse($rawClockedOutAt, 'UTC')->setTimezone($timezone);
+            $cursor = $shiftStart->greaterThan($periodStartAt) ? $shiftStart : $periodStartAt;
+            $end = $shiftEnd->lessThan($periodEndExclusive) ? $shiftEnd : $periodEndExclusive;
+            while ($cursor->lessThan($end)) {
+                $nextDay = $cursor->startOfDay()->addDay();
+                $segmentEnd = $nextDay->lessThan($end) ? $nextDay : $end;
+                $dateValue = $cursor->toDateString();
+                if (array_key_exists($dateValue, $eligibleDates)) {
+                    $seconds = max(0, $segmentEnd->getTimestamp() - $cursor->getTimestamp());
+                    $workedSecondsByDate[$dateValue] = ($workedSecondsByDate[$dateValue] ?? 0) + $seconds;
+                }
+                $cursor = $segmentEnd;
+            }
         }
+
+        $workedSeconds = array_sum($workedSecondsByDate);
+        $workedMinutes = intdiv($workedSeconds, 60);
+        $requiredMinutes = max(1, (int) bcadd($requiredMinutesRaw, '0.5', 0));
+        $creditedMinutes = min($workedMinutes, $requiredMinutes);
+        $completionRatio = bcdiv((string) $creditedMinutes, (string) $requiredMinutes, 8);
+        $earnedBaseRaw = bcmul($baseAmountRaw, $completionRatio, 8);
+        $attendanceDeductionRaw = bcsub($baseAmountRaw, $earnedBaseRaw, 8);
+
+        $workDays = array_map('intval', $employee->work_days ?? []);
+        $scheduledDates = collect(array_keys($eligibleDates))->filter(
+            fn (string $date): bool => in_array(CarbonImmutable::parse($date, $timezone)->dayOfWeek, $workDays, true),
+        )->values();
+        $validDays = $scheduledDates->filter(fn (string $date): bool => ($workedSecondsByDate[$date] ?? 0) > 0)->count();
+        $absenceDays = $scheduledDates->count() - $validDays;
         $incidentDates = $shifts->whereIn('status', [AttendanceShift::STATUS_OPEN, AttendanceShift::STATUS_INCIDENT])
-            ->map(fn (AttendanceShift $shift) => $shift->clocked_in_at->setTimezone($timezone)->toDateString())
-            ->toBase()
-            ->intersect($scheduledDates)->unique()->values();
+            ->map(function (AttendanceShift $shift) use ($timezone): string {
+                $rawClockedInAt = $shift->getRawOriginal('clocked_in_at');
+                assert(is_string($rawClockedInAt));
 
-        $firstRateDate = $eligibleStart->toDateString();
-        $firstRate = $this->rateAt($employee->compensations, $firstRateDate);
-        if (! $firstRate) {
-            throw PayrollException::missingCompensation($employee->user->name, $firstRateDate);
-        }
+                return CarbonImmutable::parse($rawClockedInAt, 'UTC')->setTimezone($timezone)->toDateString();
+            })
+            ->filter(fn (string $date): bool => array_key_exists($date, $eligibleDates))
+            ->unique()->values();
 
-        $workedMinutes = 0;
-        foreach ($validShifts as $validShift) {
-            $workedMinutes += $validShift->worked_minutes ?? 0;
-        }
-
-        $calendarDays = $periodStart->daysInMonth;
-        $expectedMinutes = max(1, $employee->expected_minutes_per_day);
-        $dailyMonthlyAmount = bcdiv((string) $firstRate->amount, (string) $calendarDays, 8);
-        $outsideEmploymentDays = $this->outsideEmploymentDays($employee, $periodStart, $periodEnd);
-        $eligibleCalendarDays = max(0, $calendarDays - $outsideEmploymentDays);
-        $baseAmountRaw = $firstRate->pay_type === EmployeeCompensation::TYPE_MONTHLY
-            ? bcmul($dailyMonthlyAmount, (string) $eligibleCalendarDays, 8)
-            : '0.00000000';
-        $attendanceDeductionRaw = '0.00000000';
         $specialBonusRaw = '0.00000000';
-        $workedDayEquivalents = '0.00000000';
         $specialDayMinutes = 0;
         $specialDayDetails = [];
-        $validDays = 0;
-        $absenceDays = 0;
-
-        foreach ($scheduledDates as $date) {
-            $creditedMinutes = min($expectedMinutes, $workedMinutesByDate[$date] ?? 0);
-            $workedRatio = bcdiv((string) $creditedMinutes, (string) $expectedMinutes, 8);
-            $missingRatio = bcsub('1.00000000', $workedRatio, 8);
-            $workedDayEquivalents = bcadd($workedDayEquivalents, $workedRatio, 8);
-            if ($creditedMinutes === 0) {
-                $absenceDays++;
-            }
-            if ($creditedMinutes >= $expectedMinutes) {
-                $validDays++;
-            }
-
-            $rate = $this->rateAt($employee->compensations, $date);
-            if (! $rate) {
-                throw PayrollException::missingCompensation($employee->user->name, $date);
-            }
-            $dayAmount = $rate->pay_type === EmployeeCompensation::TYPE_MONTHLY
-                ? bcdiv((string) $rate->amount, (string) $calendarDays, 8)
-                : (string) $rate->amount;
-
-            if ($firstRate->pay_type === EmployeeCompensation::TYPE_MONTHLY) {
-                $attendanceDeductionRaw = bcadd(
-                    $attendanceDeductionRaw,
-                    bcmul($dayAmount, $missingRatio, 8),
-                    8,
-                );
-            } else {
-                $baseAmountRaw = bcadd($baseAmountRaw, bcmul($dayAmount, $workedRatio, 8), 8);
-            }
-
+        foreach ($workedSecondsByDate as $date => $seconds) {
             $specialDay = $specialDays->get($date);
-            if ($specialDay instanceof SpecialDay && $creditedMinutes > 0) {
-                $bonusRate = bcdiv((string) $specialDay->bonus_percentage, '100', 8);
-                $bonus = bcmul(bcmul($dayAmount, $bonusRate, 8), $workedRatio, 8);
-                $specialBonusRaw = bcadd($specialBonusRaw, $bonus, 8);
-                $specialDayMinutes += $creditedMinutes;
-                $specialDayDetails[] = [
-                    'date' => $date,
-                    'name' => $specialDay->name,
-                    'bonus_percentage' => $specialDay->bonus_percentage,
-                    'worked_minutes' => $creditedMinutes,
-                    'expected_minutes' => $expectedMinutes,
-                    'amount' => $this->money($bonus),
-                ];
+            if (! $specialDay instanceof SpecialDay || $seconds <= 0) {
+                continue;
             }
+            $minutesRaw = bcdiv((string) $seconds, '60', 8);
+            $bonusRate = bcdiv((string) $specialDay->bonus_percentage, '100', 8);
+            $bonus = bcmul(bcmul($minutesRaw, $eligibleDates[$date]['minute_rate'], 8), $bonusRate, 8);
+            $minutes = intdiv($seconds, 60);
+            $specialBonusRaw = bcadd($specialBonusRaw, $bonus, 8);
+            $specialDayMinutes += $minutes;
+            $specialDayDetails[] = [
+                'date' => $date,
+                'name' => $specialDay->name,
+                'bonus_percentage' => $specialDay->bonus_percentage,
+                'worked_minutes' => $minutes,
+                'expected_minutes' => $eligibleDates[$date]['expected_minutes'],
+                'amount' => $this->money($bonus),
+            ];
         }
-
-        if ($firstRate->pay_type === EmployeeCompensation::TYPE_MONTHLY) {
-            $afterDeduction = bccomp($baseAmountRaw, $attendanceDeductionRaw, 8) === 1
-                ? bcsub($baseAmountRaw, $attendanceDeductionRaw, 8)
-                : '0.00000000';
-            $calculatedRaw = bcadd($afterDeduction, $specialBonusRaw, 8);
-        } else {
-            $calculatedRaw = bcadd($baseAmountRaw, $specialBonusRaw, 8);
-        }
+        $calculatedRaw = bcadd($earnedBaseRaw, $specialBonusRaw, 8);
 
         return [
             'pay_type' => $firstRate->pay_type,
             'rate_amount' => $firstRate->amount,
-            'monthly_divisor' => $firstRate->pay_type === EmployeeCompensation::TYPE_MONTHLY ? $calendarDays : null,
+            'monthly_divisor' => $firstRate->pay_type === EmployeeCompensation::TYPE_MONTHLY ? $periodStart->daysInMonth : null,
             'scheduled_days' => $scheduledDates->count(),
             'valid_days' => $validDays,
             'absence_days' => $absenceDays,
             'incident_days' => $incidentDates->count(),
             'worked_minutes' => $workedMinutes,
+            'required_minutes' => $requiredMinutes,
+            'credited_minutes' => $creditedMinutes,
+            'completion_ratio' => number_format((float) $completionRatio, 6, '.', ''),
             'base_amount' => $this->money($baseAmountRaw),
             'attendance_deduction' => $this->money($attendanceDeductionRaw),
             'special_day_bonus' => $this->money($specialBonusRaw),
-            'worked_day_equivalents' => number_format((float) $workedDayEquivalents, 4, '.', ''),
+            'worked_day_equivalents' => number_format((float) $completionRatio, 4, '.', ''),
             'special_day_minutes' => $specialDayMinutes,
             'special_day_details' => $specialDayDetails,
             'calculated_amount' => $this->money($calculatedRaw),
@@ -217,6 +238,7 @@ final readonly class RecalculatePayrollPeriodAction
     /** @return numeric-string */
     private function money(string $value): string
     {
+        /** @var numeric-string $value */
         return $this->moneyService->roundHalfUp($value);
     }
 
@@ -227,18 +249,27 @@ final readonly class RecalculatePayrollPeriodAction
             && ($rate->effective_to === null || $rate->effective_to->toDateString() >= $date));
     }
 
-    private function outsideEmploymentDays(EmployeeProfile $employee, CarbonImmutable $start, CarbonImmutable $end): int
+    private function expectedMinutes(EmployeeCompensation $rate, EmployeeProfile $employee, CarbonImmutable $date): int
     {
-        $days = 0;
-        foreach (CarbonPeriod::create($start, $end) as $date) {
-            assert($date instanceof DateTimeInterface);
-            $day = CarbonImmutable::instance($date)->toDateString();
-            if ($day < $employee->hired_at->toDateString()
-                || ($employee->terminated_at && $day > $employee->terminated_at->toDateString())) {
-                $days++;
+        if ($rate->expected_minutes !== null && $rate->expected_minutes > 0) {
+            return $rate->expected_minutes;
+        }
+
+        $cycleStart = $rate->pay_type === EmployeeCompensation::TYPE_MONTHLY
+            ? $date->startOfMonth()
+            : $date->startOfWeek();
+        $cycleEnd = $rate->pay_type === EmployeeCompensation::TYPE_MONTHLY
+            ? $date->endOfMonth()
+            : $date->endOfWeek();
+        $workDays = array_map('intval', $employee->work_days ?? []);
+        $scheduledDays = 0;
+        foreach (CarbonPeriod::create($cycleStart, $cycleEnd) as $cycleDate) {
+            assert($cycleDate instanceof DateTimeInterface);
+            if (in_array(CarbonImmutable::instance($cycleDate)->dayOfWeek, $workDays, true)) {
+                $scheduledDays++;
             }
         }
 
-        return $days;
+        return max(1, $scheduledDays * max(1, $employee->expected_minutes_per_day));
     }
 }

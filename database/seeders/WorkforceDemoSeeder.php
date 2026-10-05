@@ -56,8 +56,8 @@ final class WorkforceDemoSeeder extends Seeder
                     email: 'luis.personal@mayoreo.test',
                     role: 'warehouse',
                     hiredAt: $periodStart->subMonths(5),
-                    payType: EmployeeCompensation::TYPE_DAILY,
-                    amount: '70.00',
+                    payType: EmployeeCompensation::TYPE_WEEKLY,
+                    amount: '490.00',
                 ),
                 'carla' => $this->employee(
                     store: $store,
@@ -141,6 +141,7 @@ final class WorkforceDemoSeeder extends Seeder
         $compensation->fill([
             'pay_type' => $payType,
             'amount' => $amount,
+            'expected_minutes' => $payType === EmployeeCompensation::TYPE_WEEKLY ? 5880 : 26040,
             'effective_to' => null,
             'created_by' => $administrator?->id,
             'notes' => self::DEMO_NOTE.' Remuneración inicial.',
@@ -165,6 +166,7 @@ final class WorkforceDemoSeeder extends Seeder
         $currentCompensation->fill([
             'pay_type' => EmployeeCompensation::TYPE_MONTHLY,
             'amount' => '1950.00',
+            'expected_minutes' => 26040,
             'effective_to' => null,
             'created_by' => $administrator?->id,
             'notes' => self::DEMO_NOTE.' Aumento vigente desde el mes actual.',
@@ -312,6 +314,7 @@ final class WorkforceDemoSeeder extends Seeder
             $period = PayrollPeriod::query()->create([
                 'starts_on' => $periodStart->toDateString(),
                 'ends_on' => $periodEnd->toDateString(),
+                'pay_frequency' => PayrollPeriod::FREQUENCY_MONTHLY,
                 'status' => PayrollPeriod::STATUS_CLOSED,
                 'created_by' => $administrator?->id,
                 'closed_by' => $administrator?->id,
@@ -329,8 +332,27 @@ final class WorkforceDemoSeeder extends Seeder
 
         $days = $periodStart->daysInMonth;
         $this->payrollLine($period, $employees['ana'], 'monthly', '1800.00', $days, $days - 2, 2, 1, '1680.00', '50.00');
-        $this->payrollLine($period, $employees['luis'], 'daily', '70.00', $days, $days - 2, 2, 0, bcmul((string) ($days - 2), '70.00', 2));
         $this->payrollLine($period, $employees['carla'], 'monthly', '2400.00', $days, $days, 0, 0, '2400.00');
+
+        $weekStart = $periodEnd->startOfWeek()->subWeek();
+        $weekEnd = $weekStart->endOfWeek();
+        $weeklyPeriod = PayrollPeriod::query()
+            ->whereDate('starts_on', $weekStart->toDateString())
+            ->whereDate('ends_on', $weekEnd->toDateString())
+            ->where('pay_frequency', PayrollPeriod::FREQUENCY_WEEKLY)
+            ->first();
+        if (! $weeklyPeriod instanceof PayrollPeriod) {
+            $weeklyPeriod = PayrollPeriod::query()->create([
+                'starts_on' => $weekStart->toDateString(),
+                'ends_on' => $weekEnd->toDateString(),
+                'pay_frequency' => PayrollPeriod::FREQUENCY_WEEKLY,
+                'status' => PayrollPeriod::STATUS_CLOSED,
+                'created_by' => $administrator?->id,
+                'closed_by' => $administrator?->id,
+                'closed_at' => $weekEnd->endOfDay()->utc(),
+            ]);
+        }
+        $this->payrollLine($weeklyPeriod, $employees['luis'], 'weekly', '490.00', 7, 5, 2, 0, '350.00');
     }
 
     /**
@@ -361,6 +383,9 @@ final class WorkforceDemoSeeder extends Seeder
                 'absence_days' => $absenceDays,
                 'incident_days' => $incidentDays,
                 'worked_minutes' => $validDays * 480,
+                'required_minutes' => $scheduledDays * 480,
+                'credited_minutes' => $validDays * 480,
+                'completion_ratio' => number_format($scheduledDays > 0 ? $validDays / $scheduledDays : 0, 6, '.', ''),
                 'base_amount' => $payType === EmployeeCompensation::TYPE_MONTHLY ? $rate : $calculated,
                 'attendance_deduction' => $payType === EmployeeCompensation::TYPE_MONTHLY
                     ? bcsub($rate, $calculated, 2)

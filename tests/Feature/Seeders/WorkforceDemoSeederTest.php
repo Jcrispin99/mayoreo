@@ -23,6 +23,7 @@ it('seeds repeatable workforce demo data', function (): void {
     $this->seed(DatabaseSeeder::class);
 
     $ana = User::query()->where('email', 'ana.personal@mayoreo.test')->firstOrFail();
+    $luis = User::query()->where('email', 'luis.personal@mayoreo.test')->firstOrFail();
     $carla = User::query()->where('email', 'carla.personal@mayoreo.test')->firstOrFail();
     $admin = User::query()->where('email', 'admin@gmail.com')->firstOrFail();
     $period = PayrollPeriod::query()
@@ -41,8 +42,10 @@ it('seeds repeatable workforce demo data', function (): void {
         ->and($ana->employeeProfile?->compensations()->count())->toBe(2)
         ->and($ana->employeeProfile?->compensations()->latest('effective_from')->value('amount'))->toBe('1950.00')
         ->and($period->status)->toBe(PayrollPeriod::STATUS_CLOSED)
-        ->and($period->lines()->count())->toBe(4)
+        ->and($period->lines()->count())->toBe(3)
         ->and($period->lines()->whereHas('employeeProfile.user', fn ($query) => $query->where('email', $ana->email))->value('payable_amount'))->toBe('1730.00')
+        ->and($luis->employeeProfile?->compensations()->value('pay_type'))->toBe(EmployeeCompensation::TYPE_WEEKLY)
+        ->and($luis->employeeProfile?->payrollLines()->whereHas('period', fn ($query) => $query->where('pay_frequency', PayrollPeriod::FREQUENCY_WEEKLY))->count())->toBe(1)
         ->and(AttendanceShift::query()->where('status', AttendanceShift::STATUS_INCIDENT)->count())->toBe(1)
         ->and(AttendanceShift::query()->where('status', AttendanceShift::STATUS_OPEN)->count())->toBe(1)
         ->and(AttendanceAdjustment::query()->count())->toBe(1)

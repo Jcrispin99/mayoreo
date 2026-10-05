@@ -18,6 +18,7 @@ final class PayrollPeriodResource extends JsonResource
             'id' => $this->id,
             'starts_on' => $this->starts_on->toDateString(),
             'ends_on' => $this->ends_on->toDateString(),
+            'pay_frequency' => $this->pay_frequency,
             'status' => $this->status,
             'created_by' => $this->created_by,
             'closed_by' => $this->closed_by,

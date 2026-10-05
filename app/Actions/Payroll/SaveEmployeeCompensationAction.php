@@ -18,19 +18,22 @@ final readonly class SaveEmployeeCompensationAction
         EmployeeProfile $employee,
         string $payType,
         string $amount,
+        int $expectedMinutes,
         string $effectiveFrom,
         ?int $createdBy,
         ?string $notes,
     ): EmployeeCompensation {
-        return DB::transaction(function () use ($employee, $payType, $amount, $effectiveFrom, $createdBy, $notes): EmployeeCompensation {
+        return DB::transaction(function () use ($employee, $payType, $amount, $expectedMinutes, $effectiveFrom, $createdBy, $notes): EmployeeCompensation {
             $date = CarbonImmutable::parse($effectiveFrom)->startOfDay();
             $lockedEmployee = EmployeeProfile::query()->lockForUpdate()->findOrFail($employee->id);
 
-            $hasEarlierMonthly = $lockedEmployee->compensations()
-                ->where('pay_type', EmployeeCompensation::TYPE_MONTHLY)
+            $hasEarlierCompensation = $lockedEmployee->compensations()
                 ->whereDate('effective_from', '<', $date)->exists();
-            if ($payType === EmployeeCompensation::TYPE_MONTHLY && $date->day !== 1 && $hasEarlierMonthly) {
+            if ($payType === EmployeeCompensation::TYPE_MONTHLY && $date->day !== 1 && $hasEarlierCompensation) {
                 throw PayrollException::invalidMonthlyCompensationDate();
+            }
+            if ($payType === EmployeeCompensation::TYPE_WEEKLY && $date->dayOfWeekIso !== 1 && $hasEarlierCompensation) {
+                throw PayrollException::invalidWeeklyCompensationDate();
             }
 
             $previous = $lockedEmployee->compensations()
@@ -42,7 +45,8 @@ final readonly class SaveEmployeeCompensationAction
 
             $closedPeriodQuery = PayrollPeriod::query()
                 ->where('status', PayrollPeriod::STATUS_CLOSED)
-                ->whereDate('ends_on', '>=', $date);
+                ->whereDate('ends_on', '>=', $date)
+                ->whereHas('lines', fn ($query) => $query->where('employee_profile_id', $lockedEmployee->id));
             if ($next) {
                 $closedPeriodQuery->whereDate('starts_on', '<', $next->effective_from);
             }
@@ -59,6 +63,7 @@ final readonly class SaveEmployeeCompensationAction
                 [
                     'pay_type' => $payType,
                     'amount' => $amount,
+                    'expected_minutes' => $expectedMinutes,
                     'effective_to' => $next?->effective_from?->copy()->subDay()->toDateString(),
                     'created_by' => $createdBy,
                     'notes' => $notes,

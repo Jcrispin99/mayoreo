@@ -26,6 +26,7 @@ final class EmployeeCompensationController extends ApiController
             $employeeProfile,
             $request->payType(),
             $request->amount(),
+            $request->expectedMinutes(),
             $request->effectiveFrom(),
             $request->user()?->id,
             $request->notes(),

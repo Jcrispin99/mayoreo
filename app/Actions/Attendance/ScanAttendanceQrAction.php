@@ -38,16 +38,18 @@ final readonly class ScanAttendanceQrAction
             assert(is_int($maximumShiftMinutes));
             assert(is_string($attendanceDayStartsAt));
             $today = $now->setTimezone($timezone)->toDateString();
-            if (PayrollPeriod::query()->where('status', PayrollPeriod::STATUS_CLOSED)
-                ->whereDate('starts_on', '<=', $today)->whereDate('ends_on', '>=', $today)->exists()) {
-                throw PayrollException::closedPeriod();
-            }
             $employee = EmployeeProfile::query()->where('user_id', $user->id)->lockForUpdate()->first();
 
             if (! $employee || $employee->employment_status !== EmployeeProfile::STATUS_ACTIVE
                 || $employee->hired_at->toDateString() > $today
                 || ($employee->terminated_at && $employee->terminated_at->toDateString() < $today)) {
                 throw PayrollException::employeeInactive();
+            }
+            if (PayrollPeriod::query()->where('status', PayrollPeriod::STATUS_CLOSED)
+                ->whereDate('starts_on', '<=', $today)->whereDate('ends_on', '>=', $today)
+                ->whereHas('lines', fn ($query) => $query->where('employee_profile_id', $employee->id))
+                ->exists()) {
+                throw PayrollException::closedPeriod();
             }
 
             if ($employee->store_id !== null && $employee->store_id !== $qr->store_id) {

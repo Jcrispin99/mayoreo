@@ -81,6 +81,16 @@ final class PayrollException extends DomainException
         return new self('Los cambios posteriores de sueldo mensual deben iniciar el primer día de un mes.');
     }
 
+    public static function invalidWeeklyCompensationDate(): self
+    {
+        return new self('Los cambios posteriores de sueldo semanal deben iniciar un lunes.');
+    }
+
+    public static function unsupportedCompensation(string $employeeName): self
+    {
+        return new self("El trabajador {$employeeName} conserva una remuneración diaria antigua. Registra una remuneración semanal o mensual vigente.");
+    }
+
     public static function overlappingShift(): self
     {
         return new self('La jornada se superpone con otra asistencia del trabajador.');

@@ -5,6 +5,7 @@ import { Icon, Text } from 'react-native-paper';
 import { DataTable, type DataTableColumn } from '../../components/data/data-table';
 import { ListToolbar } from '../../components/data/list-toolbar';
 import { api, apiErrorMessage } from '../../lib/api';
+import { frequencyLabel, minutesLabel } from './payroll-format';
 import type { EmployeeProfile } from './workforce-types';
 
 const PAGE_SIZE = 20;
@@ -17,7 +18,14 @@ const FILTERS = [
 function payLabel(employee: EmployeeProfile) {
   const compensation = employee.compensations?.[0];
   if (!compensation) return 'Sueldo no visible';
-  return `${compensation.pay_type === 'monthly' ? 'Mensual' : 'Diario'} · S/ ${Number(compensation.amount).toFixed(2)}`;
+  return `${frequencyLabel(compensation.pay_type)} · S/ ${Number(compensation.amount).toFixed(2)}`;
+}
+
+function goalLabel(employee: EmployeeProfile) {
+  const compensation = employee.compensations?.[0];
+  if (!compensation?.expected_minutes) return 'Meta de horas pendiente';
+  const period = compensation.pay_type === 'weekly' ? 'semana' : compensation.pay_type === 'monthly' ? 'mes' : 'periodo histórico';
+  return `Meta ${minutesLabel(compensation.expected_minutes)} por ${period}`;
 }
 
 export function EmployeeList() {
@@ -67,7 +75,7 @@ export function EmployeeList() {
           </Text>
         </View>
         <Text style={styles.meta}>{employee.store?.name ?? 'Sin tienda'} · {payLabel(employee)}</Text>
-        <Text style={styles.meta}>{Math.round(employee.expected_minutes_per_day / 60)} h esperadas · {employee.work_days.length} días/semana</Text>
+        <Text style={styles.meta}>{goalLabel(employee)} · {employee.work_days.length} días de referencia</Text>
       </View>
     ),
   }, {

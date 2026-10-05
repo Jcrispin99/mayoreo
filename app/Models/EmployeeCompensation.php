@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
  * @property int $employee_profile_id
  * @property string $pay_type
  * @property numeric-string $amount
+ * @property int|null $expected_minutes
  * @property Carbon $effective_from
  * @property Carbon|null $effective_to
  * @property int|null $created_by
@@ -22,12 +23,13 @@ final class EmployeeCompensation extends Model
 {
     public const TYPE_MONTHLY = 'monthly';
 
-    public const TYPE_DAILY = 'daily';
+    public const TYPE_WEEKLY = 'weekly';
 
     protected $table = 'employee_compensations';
 
     protected $fillable = [
-        'employee_profile_id', 'pay_type', 'amount', 'effective_from', 'effective_to', 'created_by', 'notes',
+        'employee_profile_id', 'pay_type', 'amount', 'expected_minutes',
+        'effective_from', 'effective_to', 'created_by', 'notes',
     ];
 
     /** @return BelongsTo<EmployeeProfile, $this> */
@@ -46,6 +48,7 @@ final class EmployeeCompensation extends Model
     {
         return [
             'amount' => 'decimal:2',
+            'expected_minutes' => 'integer',
             'effective_from' => 'date',
             'effective_to' => 'date',
         ];

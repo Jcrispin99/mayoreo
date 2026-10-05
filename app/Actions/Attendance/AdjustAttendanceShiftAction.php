@@ -26,12 +26,16 @@ final readonly class AdjustAttendanceShiftAction
             $timezone = config('payroll.timezone');
             assert(is_string($timezone));
             $localDate = $newIn->setTimezone($timezone)->toDateString();
-            $previousLocalDate = $locked->clocked_in_at->setTimezone($timezone)->toDateString();
+            $rawPreviousClockedInAt = $locked->getRawOriginal('clocked_in_at');
+            assert(is_string($rawPreviousClockedInAt));
+            $previousLocalDate = CarbonImmutable::parse($rawPreviousClockedInAt, 'UTC')->setTimezone($timezone)->toDateString();
             if (PayrollPeriod::query()->where('status', PayrollPeriod::STATUS_CLOSED)
                 ->where(function ($query) use ($localDate, $previousLocalDate): void {
                     $query->where(fn ($period) => $period->whereDate('starts_on', '<=', $localDate)->whereDate('ends_on', '>=', $localDate))
                         ->orWhere(fn ($period) => $period->whereDate('starts_on', '<=', $previousLocalDate)->whereDate('ends_on', '>=', $previousLocalDate));
-                })->exists()) {
+                })
+                ->whereHas('lines', fn ($query) => $query->where('employee_profile_id', $locked->employee_profile_id))
+                ->exists()) {
                 throw PayrollException::closedPeriod();
             }
             $overlaps = AttendanceShift::query()

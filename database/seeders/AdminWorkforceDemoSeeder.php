@@ -57,6 +57,7 @@ final class AdminWorkforceDemoSeeder extends Seeder
             $compensation->fill([
                 'pay_type' => EmployeeCompensation::TYPE_MONTHLY,
                 'amount' => '3500.00',
+                'expected_minutes' => 21840,
                 'effective_to' => null,
                 'created_by' => $administrator->id,
                 'notes' => self::DEMO_NOTE.' Remuneración mensual vigente.',
@@ -71,6 +72,7 @@ final class AdminWorkforceDemoSeeder extends Seeder
                     ->first() ?? new PayrollPeriod([
                         'starts_on' => $periodStart->toDateString(),
                         'ends_on' => $periodEnd->toDateString(),
+                        'pay_frequency' => PayrollPeriod::FREQUENCY_MONTHLY,
                     ]);
                 $period->fill([
                     'status' => PayrollPeriod::STATUS_CLOSED,
@@ -94,6 +96,9 @@ final class AdminWorkforceDemoSeeder extends Seeder
                         'absence_days' => 0,
                         'incident_days' => 0,
                         'worked_minutes' => $scheduledDays * 840,
+                        'required_minutes' => $scheduledDays * 840,
+                        'credited_minutes' => $scheduledDays * 840,
+                        'completion_ratio' => '1.000000',
                         'base_amount' => '3500.00',
                         'attendance_deduction' => '0.00',
                         'special_day_bonus' => '0.00',

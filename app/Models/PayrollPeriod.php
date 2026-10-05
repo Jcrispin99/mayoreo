@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property Carbon $starts_on
  * @property Carbon $ends_on
+ * @property string $pay_frequency
  * @property string $status
  * @property int|null $created_by
  * @property int|null $closed_by
@@ -20,11 +21,15 @@ use Illuminate\Support\Carbon;
  */
 final class PayrollPeriod extends Model
 {
+    public const FREQUENCY_MONTHLY = 'monthly';
+
+    public const FREQUENCY_WEEKLY = 'weekly';
+
     public const STATUS_OPEN = 'open';
 
     public const STATUS_CLOSED = 'closed';
 
-    protected $fillable = ['starts_on', 'ends_on', 'status', 'created_by', 'closed_by', 'closed_at'];
+    protected $fillable = ['starts_on', 'ends_on', 'pay_frequency', 'status', 'created_by', 'closed_by', 'closed_at'];
 
     /** @return HasMany<PayrollLine, $this> */
     public function lines(): HasMany
